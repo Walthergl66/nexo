@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import { InfoRow } from '../components/common/InfoRow';
-import { colors, radii } from '../theme/colors';
-import type { CartItem } from '../types/marketplace';
-import { formatPrice } from '../utils/format';
+import { InfoRow } from '../../components/common/InfoRow';
+import { colors, radii } from '../../theme/colors';
+import type { CartItem } from '../../types/marketplace';
+import { formatPrice } from '../../utils/format';
 
 type CartScreenProps = {
   items: CartItem[];

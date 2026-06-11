@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ProductCard } from '../components/cards/ProductCard';
-import { filters } from '../constants/navigation';
-import { colors, radii } from '../theme/colors';
-import type { Product } from '../types/marketplace';
+import { ProductCard } from '../../components/cards/ProductCard';
+import { filters } from '../../constants/navigation';
+import { colors, radii } from '../../theme/colors';
+import type { Product } from '../../types/marketplace';
 
 type ExploreScreenProps = {
   activeFilter: string;

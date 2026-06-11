@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { LogicCard } from '../components/cards/LogicCard';
-import { SectionTitle } from '../components/common/SectionTitle';
-import { Tag } from '../components/common/Tag';
-import { colors, radii } from '../theme/colors';
+import { LogicCard } from '../../components/cards/LogicCard';
+import { SectionTitle } from '../../components/common/SectionTitle';
+import { Tag } from '../../components/common/Tag';
+import { colors, radii } from '../../theme/colors';
 
 export function AccountScreen() {
   return (

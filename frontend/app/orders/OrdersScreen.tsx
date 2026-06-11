@@ -1,8 +1,8 @@
 import { StyleSheet, View } from 'react-native';
-import { LogicCard } from '../components/cards/LogicCard';
-import { OrderCard } from '../components/cards/OrderCard';
-import { SectionTitle } from '../components/common/SectionTitle';
-import { orders } from '../data/mockMarketplace';
+import { LogicCard } from '../../components/cards/LogicCard';
+import { OrderCard } from '../../components/cards/OrderCard';
+import { SectionTitle } from '../../components/common/SectionTitle';
+import { orders } from '../../data/mockMarketplace';
 
 export function OrdersScreen() {
   return (

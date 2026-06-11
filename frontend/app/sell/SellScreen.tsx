@@ -1,8 +1,8 @@
 import { StyleSheet, View } from 'react-native';
-import { LogicCard } from '../components/cards/LogicCard';
-import { InfoRow } from '../components/common/InfoRow';
-import { SectionTitle } from '../components/common/SectionTitle';
-import { colors, radii } from '../theme/colors';
+import { LogicCard } from '../../components/cards/LogicCard';
+import { InfoRow } from '../../components/common/InfoRow';
+import { SectionTitle } from '../../components/common/SectionTitle';
+import { colors, radii } from '../../theme/colors';
 
 export function SellScreen() {
   return (

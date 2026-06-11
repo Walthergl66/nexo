@@ -13,17 +13,17 @@ import {
   Text,
   View,
 } from 'react-native';
-import { CheckoutSummary } from './src/components/cards/CheckoutSummary';
-import { BrandLogo } from './src/components/common/BrandLogo';
-import { tabs } from './src/constants/navigation';
-import { products } from './src/data/mockMarketplace';
-import { AccountScreen } from './src/screens/AccountScreen';
-import { CartScreen } from './src/screens/CartScreen';
-import { HomeScreen } from './src/screens/HomeScreen';
-import { OrdersScreen } from './src/screens/OrdersScreen';
-import { SellScreen } from './src/screens/SellScreen';
-import { colors, radii } from './src/theme/colors';
-import type { CartItem, Product, ProductComment, TabKey } from './src/types/marketplace';
+import { CheckoutSummary } from './components/cards/CheckoutSummary';
+import { BrandLogo } from './components/common/BrandLogo';
+import { tabs } from './constants/navigation';
+import { products } from './data/mockMarketplace';
+import { AccountScreen } from './app/account/AccountScreen';
+import { CartScreen } from './app/cart/CartScreen';
+import { HomeScreen } from './app/home/HomeScreen';
+import { OrdersScreen } from './app/orders/OrdersScreen';
+import { SellScreen } from './app/sell/SellScreen';
+import { colors, radii } from './theme/colors';
+import type { CartItem, Product, ProductComment, TabKey } from './types/marketplace';
 
 type NavIconName = keyof typeof Ionicons.glyphMap;
 
