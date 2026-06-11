@@ -8,11 +8,11 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { CheckoutSummary } from './components/cards/CheckoutSummary';
 import { BrandLogo } from './components/common/BrandLogo';
 import { tabs } from './constants/navigation';
@@ -47,6 +47,9 @@ export default function App() {
   const [navWidth, setNavWidth] = useState(0);
   const activePillX = useRef(new Animated.Value(0)).current;
   const cartPulse = useRef(new Animated.Value(1)).current;
+  const headerVisibility = useRef(new Animated.Value(1)).current;
+  const isHeaderVisible = useRef(true);
+  const lastProductScrollY = useRef(0);
   const screenOpacity = useRef(new Animated.Value(1)).current;
   const screenTranslateY = useRef(new Animated.Value(0)).current;
   const screenScale = useRef(new Animated.Value(1)).current;
@@ -55,6 +58,11 @@ export default function App() {
   const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
   const navGap = 6;
   const tabWidth = navWidth > 0 ? (navWidth - navGap * (tabs.length - 1)) / tabs.length : 0;
+  const headerTranslateY = headerVisibility.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-94, 0],
+    extrapolate: 'clamp',
+  });
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -74,6 +82,7 @@ export default function App() {
   const selectedProduct = useMemo(() => {
     return products.find((product) => product.id === selectedProductId) ?? null;
   }, [selectedProductId]);
+  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !selectedProduct;
 
   const selectedProductComments = useMemo(() => {
     if (!selectedProduct) {
@@ -217,8 +226,46 @@ export default function App() {
     ]).start();
   }, [screenOpacity, screenScale, screenTransitionKey, screenTranslateY]);
 
+  useEffect(() => {
+    if (shouldShowHeader) {
+      isHeaderVisible.current = true;
+      lastProductScrollY.current = 0;
+      headerVisibility.setValue(1);
+    }
+  }, [headerVisibility, shouldShowHeader]);
+
   const handleNavLayout = (event: LayoutChangeEvent) => {
     setNavWidth(event.nativeEvent.layout.width);
+  };
+
+  const animateHeader = (visible: boolean) => {
+    if (isHeaderVisible.current === visible) {
+      return;
+    }
+
+    isHeaderVisible.current = visible;
+    Animated.timing(headerVisibility, {
+      toValue: visible ? 1 : 0,
+      duration: 180,
+      easing: Easing.bezier(0.23, 1, 0.32, 1),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleProductScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextY = Math.max(0, event.nativeEvent.contentOffset.y);
+    const delta = nextY - lastProductScrollY.current;
+    const scrollThreshold = 8;
+
+    if (nextY <= 10) {
+      animateHeader(true);
+    } else if (delta > scrollThreshold) {
+      animateHeader(false);
+    } else if (delta < -scrollThreshold) {
+      animateHeader(true);
+    }
+
+    lastProductScrollY.current = nextY;
   };
 
   const renderActiveScreen = () => {
@@ -268,35 +315,54 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <View style={[styles.appShell, isProductPresentation && styles.appShellProduct]}>
-        <View style={styles.header}>
-          <View style={styles.statusBar}>
-            <Text style={styles.statusText}>9:41</Text>
-            <Text style={styles.statusText}>Senal  Wi-Fi</Text>
-          </View>
-          <View style={styles.headerBrand}>
-            <BrandLogo />
-            <View>
-              <Text style={styles.headerTitle}>NEXO</Text>
-              <Text style={styles.headerSubtitle}>Compra y vende con confianza.</Text>
+        {shouldShowHeader && (
+          <Animated.View
+            pointerEvents="box-none"
+            style={[
+              styles.header,
+              {
+                opacity: headerVisibility,
+                transform: [{ translateY: headerTranslateY }],
+              },
+            ]}
+          >
+            <View style={styles.statusBar}>
+              <Text style={styles.statusText}>9:41</Text>
+              <Text style={styles.statusText}>Senal  Wi-Fi</Text>
             </View>
-          </View>
-          <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
-            <Pressable
-              accessibilityLabel="Abrir carrito"
-              style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
-              onPress={handleOpenCart}
-            >
-              <Ionicons name="cart" size={21} color={colors.surface} />
-              {cartCount > 0 && (
-                <View style={styles.cartCountBubble}>
-                  <Text style={styles.cartCountText}>{cartCount}</Text>
-                </View>
-              )}
-            </Pressable>
+            <View style={styles.headerBrand}>
+              <BrandLogo />
+              <View>
+                <Text style={styles.headerTitle}>NEXO</Text>
+                <Text style={styles.headerSubtitle}>Compra y vende con confianza.</Text>
+              </View>
+            </View>
+            <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
+              <Pressable
+                accessibilityLabel="Abrir carrito"
+                style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
+                onPress={handleOpenCart}
+              >
+                <Ionicons name="cart" size={21} color={colors.surface} />
+                {cartCount > 0 && (
+                  <View style={styles.cartCountBubble}>
+                    <Text style={styles.cartCountText}>{cartCount}</Text>
+                  </View>
+                )}
+              </Pressable>
+            </Animated.View>
           </Animated.View>
-        </View>
+        )}
 
-        <ScrollView contentContainerStyle={[styles.content, isProductPresentation && styles.productContent]}>
+        <Animated.ScrollView
+          contentContainerStyle={[
+            styles.content,
+            isProductPresentation && styles.productContent,
+            shouldShowHeader && styles.contentWithHeader,
+          ]}
+          onScroll={shouldShowHeader ? handleProductScroll : undefined}
+          scrollEventThrottle={16}
+        >
           <Animated.View
             style={[
               styles.screenTransition,
@@ -309,7 +375,7 @@ export default function App() {
             {renderActiveScreen()}
             {!isProductPresentation && <CheckoutSummary subtotal={cartSubtotal} shipping={4.99} />}
           </Animated.View>
-        </ScrollView>
+        </Animated.ScrollView>
 
         <View style={styles.bottomNav}>
           <View style={styles.bottomNavTrack} onLayout={handleNavLayout}>
@@ -378,6 +444,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 10,
     backgroundColor: colors.surface,
     paddingHorizontal: 18,
     paddingTop: 12,
@@ -473,6 +544,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 2,
     paddingBottom: 110,
+  },
+  contentWithHeader: {
+    paddingTop: 124,
   },
   productContent: {
     paddingTop: 12,
