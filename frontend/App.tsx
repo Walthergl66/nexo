@@ -29,10 +29,12 @@ type NavIconName = keyof typeof Ionicons.glyphMap;
 
 const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> = {
   Inicio: { active: 'home', inactive: 'home-outline' },
-  Vender: { active: 'add-circle', inactive: 'add-circle-outline' },
-  Pedidos: { active: 'receipt', inactive: 'receipt-outline' },
-  Cuenta: { active: 'person-circle', inactive: 'person-circle-outline' },
+  Vender: { active: 'pricetag', inactive: 'pricetag-outline' },
+  Pedidos: { active: 'trophy', inactive: 'trophy-outline' },
+  Cuenta: { active: 'person', inactive: 'person-outline' },
 };
+
+const activeNavSize = 66;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -46,6 +48,7 @@ export default function App() {
   const [customComments, setCustomComments] = useState<Record<string, ProductComment[]>>({});
   const [navWidth, setNavWidth] = useState(0);
   const activePillX = useRef(new Animated.Value(0)).current;
+  const activeBubbleScale = useRef(new Animated.Value(1)).current;
   const cartPulse = useRef(new Animated.Value(1)).current;
   const headerVisibility = useRef(new Animated.Value(1)).current;
   const isHeaderVisible = useRef(true);
@@ -56,8 +59,8 @@ export default function App() {
   const activeIndex = tabs.indexOf(activeTab);
   const isProductPresentation = activeTab === 'Inicio';
   const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const navGap = 6;
-  const tabWidth = navWidth > 0 ? (navWidth - navGap * (tabs.length - 1)) / tabs.length : 0;
+  const navGap = 0;
+  const tabWidth = navWidth > 0 ? navWidth / tabs.length : 0;
   const headerTranslateY = headerVisibility.interpolate({
     inputRange: [0, 1],
     outputRange: [-94, 0],
@@ -191,13 +194,30 @@ export default function App() {
       return;
     }
 
-    Animated.timing(activePillX, {
-      toValue: activeIndex * (tabWidth + navGap),
-      duration: 220,
-      easing: Easing.bezier(0.23, 1, 0.32, 1),
-      useNativeDriver: true,
-    }).start();
-  }, [activeIndex, activePillX, tabWidth]);
+    Animated.parallel([
+      Animated.spring(activePillX, {
+        toValue: activeIndex * (tabWidth + navGap) + tabWidth / 2 - activeNavSize / 2,
+        damping: 18,
+        mass: 0.85,
+        stiffness: 180,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(activeBubbleScale, {
+          toValue: 0.9,
+          duration: 90,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.spring(activeBubbleScale, {
+          toValue: 1,
+          damping: 11,
+          stiffness: 170,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [activeBubbleScale, activeIndex, activePillX, navGap, tabWidth]);
 
   useEffect(() => {
     screenOpacity.setValue(0);
@@ -375,20 +395,41 @@ export default function App() {
         <View style={styles.bottomNav}>
           <View style={styles.bottomNavTrack} onLayout={handleNavLayout}>
             {tabWidth > 0 && (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.bottomNavIndicator,
-                  {
-                    width: tabWidth,
-                    transform: [{ translateX: activePillX }],
-                  },
-                ]}
-              />
+              <>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.bottomNavPocket,
+                    {
+                      transform: [{ translateX: activePillX }],
+                    },
+                  ]}
+                />
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.bottomNavHalo,
+                    {
+                      transform: [{ translateX: activePillX }, { scale: activeBubbleScale }],
+                    },
+                  ]}
+                />
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.bottomNavBubble,
+                    {
+                      transform: [{ translateX: activePillX }, { scale: activeBubbleScale }],
+                    },
+                  ]}
+                >
+                  <Ionicons name={navIcons[activeTab].active} size={30} color={colors.surface} />
+                </Animated.View>
+              </>
             )}
             {tabs.map((tab) => {
               const isActive = tab === activeTab;
-              const iconName = isActive ? navIcons[tab].active : navIcons[tab].inactive;
+              const iconName = navIcons[tab].inactive;
 
               return (
                 <Pressable
@@ -408,8 +449,8 @@ export default function App() {
                 >
                   <Ionicons
                     name={iconName}
-                    size={isActive ? 25 : 23}
-                    color={isActive ? colors.surface : colors.brandBlueMuted}
+                    size={26}
+                    color={isActive ? 'transparent' : colors.inkSoft}
                   />
                 </Pressable>
               );
@@ -538,7 +579,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingTop: 2,
-    paddingBottom: 110,
+    paddingBottom: 126,
   },
   contentWithHeader: {
     paddingTop: 124,
@@ -551,45 +592,73 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     position: 'absolute',
-    left: 14,
-    right: 14,
-    bottom: 14,
-    backgroundColor: colors.brandBlueSoft,
-    borderRadius: 34,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
+    left: 24,
+    right: 24,
+    bottom: 18,
+    height: 86,
+    justifyContent: 'flex-end',
   },
   bottomNavTrack: {
-    minHeight: 48,
+    height: 66,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     position: 'relative',
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.09,
+    shadowRadius: 24,
+    elevation: 14,
   },
-  bottomNavIndicator: {
+  bottomNavPocket: {
     position: 'absolute',
+    top: -28,
     left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlue,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 8,
+    width: activeNavSize,
+    height: activeNavSize,
+    borderRadius: activeNavSize / 2,
+    backgroundColor: colors.background,
   },
-  bottomNavItem: {
-    minHeight: 48,
+  bottomNavHalo: {
+    position: 'absolute',
+    top: -31,
+    left: 0,
+    width: activeNavSize,
+    height: activeNavSize,
+    borderRadius: activeNavSize / 2,
+    backgroundColor: '#3567ff',
+    shadowColor: '#4169ff',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 15,
+    opacity: 0.26,
+  },
+  bottomNavBubble: {
+    position: 'absolute',
+    top: -36,
+    left: 0,
+    width: activeNavSize,
+    height: activeNavSize,
+    borderRadius: activeNavSize / 2,
+    backgroundColor: colors.brandBlue,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.pill,
+    shadowColor: colors.brandBlue,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 20,
+  },
+  bottomNavItem: {
+    height: 66,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.medium,
     transform: [{ scale: 1 }],
   },
   bottomNavItemPressed: {

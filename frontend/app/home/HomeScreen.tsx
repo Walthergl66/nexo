@@ -99,29 +99,6 @@ export function HomeScreen({
 
   return (
     <>
-      <View style={styles.marketHero}>
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroEyebrow}>Marketplace NEXO</Text>
-          <Text style={styles.heroTitle}>Compra segura, rapido y sin vueltas.</Text>
-          <Text style={styles.heroSubtitle}>Productos verificados, vendedores activos y proteccion incluida.</Text>
-        </View>
-        <View style={styles.heroMetric}>
-          <Ionicons name="shield-checkmark" size={20} color={colors.surface} />
-          <Text style={styles.heroMetricText}>Compra protegida</Text>
-        </View>
-      </View>
-
-      <View style={styles.trustRow}>
-        <View style={styles.trustPill}>
-          <Ionicons name="sparkles" size={14} color={colors.brandBlue} />
-          <Text style={styles.trustText}>Seleccion curada</Text>
-        </View>
-        <View style={styles.trustPill}>
-          <Ionicons name="rocket" size={14} color={colors.brandBlue} />
-          <Text style={styles.trustText}>Envio agil</Text>
-        </View>
-      </View>
-
       <View style={styles.searchBox}>
         <Ionicons name="search" size={18} color={colors.brandBlue} />
         <TextInput
