@@ -34,7 +34,7 @@ const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> =
   Cuenta: { active: 'person', inactive: 'person-outline' },
 };
 
-const activeNavSize = 66;
+const activeNavSize = 62;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -449,9 +449,12 @@ export default function App() {
                 >
                   <Ionicons
                     name={iconName}
-                    size={26}
-                    color={isActive ? 'transparent' : colors.inkSoft}
+                    size={23}
+                    color={isActive ? 'transparent' : colors.inkMuted}
                   />
+                  <Text style={[styles.bottomNavLabel, isActive && styles.bottomNavLabelActive]}>
+                    {tab}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -579,7 +582,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingTop: 2,
-    paddingBottom: 126,
+    paddingBottom: 132,
   },
   contentWithHeader: {
     paddingTop: 124,
@@ -592,55 +595,56 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     position: 'absolute',
-    left: 24,
-    right: 24,
-    bottom: 18,
-    height: 86,
+    left: 18,
+    right: 18,
+    bottom: 16,
+    height: 94,
     justifyContent: 'flex-end',
   },
   bottomNavTrack: {
-    height: 66,
+    height: 72,
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    backgroundColor: Platform.OS === 'web' ? '#fbfdff' : colors.surface,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
     shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.09,
-    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.12,
+    shadowRadius: 26,
     elevation: 14,
   },
   bottomNavPocket: {
     position: 'absolute',
-    top: -28,
+    top: -22,
     left: 0,
     width: activeNavSize,
     height: activeNavSize,
     borderRadius: activeNavSize / 2,
     backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
   },
   bottomNavHalo: {
     position: 'absolute',
-    top: -31,
+    top: -27,
     left: 0,
     width: activeNavSize,
     height: activeNavSize,
     borderRadius: activeNavSize / 2,
-    backgroundColor: '#3567ff',
-    shadowColor: '#4169ff',
+    backgroundColor: colors.brandBlueSoft,
+    shadowColor: colors.brandBlue,
     shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.32,
+    shadowOpacity: 0.28,
     shadowRadius: 18,
     elevation: 15,
-    opacity: 0.26,
+    opacity: 0.72,
   },
   bottomNavBubble: {
     position: 'absolute',
-    top: -36,
+    top: -31,
     left: 0,
     width: activeNavSize,
     height: activeNavSize,
@@ -648,20 +652,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandBlue,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: colors.surface,
     shadowColor: colors.brandBlue,
     shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
     elevation: 20,
   },
   bottomNavItem: {
-    height: 66,
+    height: 72,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.medium,
+    justifyContent: 'flex-end',
+    borderRadius: radii.large,
+    gap: 3,
+    paddingBottom: 10,
     transform: [{ scale: 1 }],
   },
   bottomNavItemPressed: {
     transform: [{ scale: 0.96 }],
+  },
+  bottomNavLabel: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    letterSpacing: 0,
+  },
+  bottomNavLabelActive: {
+    color: colors.brandBlue,
   },
 });
