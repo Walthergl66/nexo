@@ -101,7 +101,12 @@ export function ProductCard({ product, onAddToCart, onSelectProduct }: ProductCa
         </View>
         <Pressable
           accessibilityLabel={`Agregar ${product.title} al carrito`}
-          style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
+          disabled={!product.available}
+          style={({ pressed }) => [
+            styles.addButton,
+            !product.available && styles.addButtonDisabled,
+            pressed && styles.addButtonPressed,
+          ]}
           onPress={(event) => {
             event.stopPropagation();
             onAddToCart();
@@ -295,6 +300,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 10,
     elevation: 4,
+  },
+  addButtonDisabled: {
+    backgroundColor: colors.inkSoft,
+    shadowOpacity: 0,
   },
   addButtonPressed: {
     transform: [{ scale: 0.92 }],

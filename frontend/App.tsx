@@ -84,10 +84,15 @@ export default function App() {
     }
 
     const request = setTimeout(() => {
-      const nextProducts = products.map((product) => ({
-        ...product,
-        stock: product.id === 'P-104' ? Math.max(product.stock - (cartQuantities[product.id] ?? 0), 0) : product.stock,
-      }));
+      const nextProducts = products.map((product) => {
+        const stock = Math.max(product.stock - (cartQuantities[product.id] ?? 0), 0);
+
+        return {
+          ...product,
+          stock,
+          available: product.available && stock > 0,
+        };
+      });
       const normalizedQuery = search.trim().toLowerCase();
       const nextFilteredProducts = nextProducts.filter((product) => {
         const matchesFilter = activeFilter === 'Todo' || product.category === activeFilter;
@@ -144,6 +149,10 @@ export default function App() {
   }, [cartItems]);
 
   const handleAddToCart = (product: Product) => {
+    if (!product.available || product.stock <= 0) {
+      return;
+    }
+
     setCartQuantities((current) => ({
       ...current,
       [product.id]: (current[product.id] ?? 0) + 1,

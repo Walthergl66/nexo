@@ -1,6 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
 import { filters } from '../../constants/navigation';
@@ -11,6 +21,10 @@ type HomeScreenProps = {
   activeFilter: string;
   commentText: string;
   filteredProducts: Product[];
+  isLoading: boolean;
+  isRefreshing: boolean;
+  lastSyncAt: Date | null;
+  productsCount: number;
   productComments: ProductComment[];
   search: string;
   selectedProduct: Product | null;
@@ -21,6 +35,7 @@ type HomeScreenProps = {
   onChangeFilter: (filter: string) => void;
   onChangeRating: (rating: number) => void;
   onChangeSearch: (value: string) => void;
+  onRefreshCatalog: () => void;
   onSelectProduct: (product: Product) => void;
   onSubmitComment: () => void;
 };
@@ -64,10 +79,32 @@ function AnimatedProductCell({ index, product, onAddToCart, onSelectProduct }: A
   );
 }
 
+function ProductSkeletonGrid() {
+  return (
+    <View style={styles.productGrid}>
+      {[0, 1, 2, 3].map((item) => (
+        <View key={item} style={[styles.productCell, styles.skeletonCard]}>
+          <View style={styles.skeletonVisual} />
+          <View style={styles.skeletonLineLarge} />
+          <View style={styles.skeletonLineSmall} />
+          <View style={styles.skeletonBottomRow}>
+            <View style={styles.skeletonPrice} />
+            <View style={styles.skeletonButton} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export function HomeScreen({
   activeFilter,
   commentText,
   filteredProducts,
+  isLoading,
+  isRefreshing,
+  lastSyncAt,
+  productsCount,
   productComments,
   search,
   selectedProduct,
@@ -78,6 +115,7 @@ export function HomeScreen({
   onChangeFilter,
   onChangeRating,
   onChangeSearch,
+  onRefreshCatalog,
   onSelectProduct,
   onSubmitComment,
 }: HomeScreenProps) {
@@ -97,8 +135,47 @@ export function HomeScreen({
     );
   }
 
+  const availableProducts = filteredProducts.filter((product) => product.available).length;
+  const bestRating = filteredProducts.length > 0 ? Math.max(...filteredProducts.map((product) => product.rating)) : 0;
+  const syncLabel = lastSyncAt
+    ? `Sync ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : 'Conectando';
+
   return (
     <>
+      <View style={styles.marketHero}>
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroEyebrow}>Marketplace conectado</Text>
+          <Text style={styles.heroTitle}>Compra y vende con inventario en vivo</Text>
+          <Text style={styles.heroSubtitle}>
+            Catalogo, stock, comentarios y busquedas se actualizan como si NEXO ya consultara su API.
+          </Text>
+        </View>
+        <View style={styles.heroMetric}>
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color={colors.surface} />
+          ) : (
+            <Ionicons name="flash" size={15} color={colors.surface} />
+          )}
+          <Text style={styles.heroMetricText}>{syncLabel}</Text>
+        </View>
+      </View>
+
+      <View style={styles.trustRow}>
+        <View style={styles.trustPill}>
+          <Ionicons name="cube" size={14} color={colors.brandBlue} />
+          <Text style={styles.trustText}>{productsCount || '...'} productos</Text>
+        </View>
+        <View style={styles.trustPill}>
+          <Ionicons name="shield-checkmark" size={14} color={colors.brandBlue} />
+          <Text style={styles.trustText}>{availableProducts} disponibles</Text>
+        </View>
+        <View style={styles.trustPill}>
+          <Ionicons name="star" size={14} color={colors.brandBlue} />
+          <Text style={styles.trustText}>{bestRating.toFixed(1)} top</Text>
+        </View>
+      </View>
+
       <View style={styles.searchBox}>
         <Ionicons name="search" size={18} color={colors.brandBlue} />
         <TextInput
@@ -108,7 +185,17 @@ export function HomeScreen({
           value={search}
           onChangeText={onChangeSearch}
         />
-        <Ionicons name="options" size={18} color={colors.inkMuted} />
+        <Pressable
+          accessibilityLabel="Actualizar catalogo"
+          style={({ pressed }) => [styles.syncButton, pressed && styles.syncButtonPressed]}
+          onPress={onRefreshCatalog}
+        >
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color={colors.brandBlue} />
+          ) : (
+            <Ionicons name="sync" size={17} color={colors.brandBlue} />
+          )}
+        </Pressable>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
@@ -132,30 +219,40 @@ export function HomeScreen({
 
       <View style={styles.resultsHeader}>
         <View>
-          <Text style={styles.resultsTitle}>Productos destacados</Text>
+          <Text style={styles.resultsTitle}>{activeFilter === 'Todo' ? 'Productos destacados' : activeFilter}</Text>
           <Text style={styles.resultsSubtitle}>
-            {filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'} disponibles
+            {isLoading
+              ? 'Consultando catalogo remoto'
+              : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'resultado' : 'resultados'} disponibles`}
           </Text>
         </View>
         <View style={styles.resultsBadge}>
-          <Ionicons name="star" size={13} color={colors.brandBlue} />
-          <Text style={styles.resultsBadgeText}>Mejor valor</Text>
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color={colors.brandBlue} />
+          ) : (
+            <Ionicons name="server" size={13} color={colors.brandBlue} />
+          )}
+          <Text style={styles.resultsBadgeText}>{isRefreshing ? 'Actualizando' : 'API mock'}</Text>
         </View>
       </View>
 
-      <View style={styles.productGrid}>
-        {filteredProducts.map((product, index) => (
-          <AnimatedProductCell
-            key={product.id}
-            index={index}
-            product={product}
-            onAddToCart={() => onAddToCart(product)}
-            onSelectProduct={() => onSelectProduct(product)}
-          />
-        ))}
-      </View>
+      {isLoading ? (
+        <ProductSkeletonGrid />
+      ) : (
+        <View style={styles.productGrid}>
+          {filteredProducts.map((product, index) => (
+            <AnimatedProductCell
+              key={product.id}
+              index={index}
+              product={product}
+              onAddToCart={() => onAddToCart(product)}
+              onSelectProduct={() => onSelectProduct(product)}
+            />
+          ))}
+        </View>
+      )}
 
-      {filteredProducts.length === 0 && (
+      {!isLoading && filteredProducts.length === 0 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>No encontramos productos</Text>
           <Text style={styles.emptyText}>Prueba con otra categoria o una busqueda mas corta.</Text>
@@ -168,10 +265,17 @@ export function HomeScreen({
 const styles = StyleSheet.create({
   marketHero: {
     borderRadius: radii.large,
-    backgroundColor: colors.brandBlue,
+    backgroundColor: colors.ink,
     padding: 18,
     gap: 16,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    shadowColor: colors.brandBlue,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 8,
   },
   heroCopy: {
     gap: 6,
@@ -184,9 +288,9 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: colors.surface,
-    fontSize: 25,
+    fontSize: 24,
     fontWeight: '900',
-    lineHeight: 30,
+    lineHeight: 29,
   },
   heroSubtitle: {
     color: colors.brandBlueLine,
@@ -214,19 +318,18 @@ const styles = StyleSheet.create({
   },
   trustRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   trustPill: {
     flex: 1,
-    minHeight: 38,
-    borderRadius: radii.pill,
-    backgroundColor: colors.silverSoft,
+    minHeight: 52,
+    borderRadius: radii.medium,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
+    gap: 4,
     paddingHorizontal: 10,
   },
   trustText: {
@@ -254,6 +357,17 @@ const styles = StyleSheet.create({
     height: 50,
     color: colors.ink,
     fontWeight: '700',
+  },
+  syncButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandBlueSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  syncButtonPressed: {
+    transform: [{ scale: 0.94 }],
   },
   filterRow: {
     flexGrow: 0,
@@ -319,6 +433,48 @@ const styles = StyleSheet.create({
   },
   productCell: {
     width: '48%',
+  },
+  skeletonCard: {
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    padding: 11,
+    gap: 9,
+  },
+  skeletonVisual: {
+    height: 104,
+    borderRadius: radii.small,
+    backgroundColor: colors.surfaceSoft,
+  },
+  skeletonLineLarge: {
+    width: '86%',
+    height: 13,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSoft,
+  },
+  skeletonLineSmall: {
+    width: '62%',
+    height: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.silverSoft,
+  },
+  skeletonBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  skeletonPrice: {
+    width: 58,
+    height: 16,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSoft,
+  },
+  skeletonButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandBlueSoft,
   },
   emptyState: {
     borderRadius: radii.medium,
