@@ -326,10 +326,6 @@ export default function App() {
               },
             ]}
           >
-            <View style={styles.statusBar}>
-              <Text style={styles.statusText}>9:41</Text>
-              <Text style={styles.statusText}>Senal  Wi-Fi</Text>
-            </View>
             <View style={styles.headerBrand}>
               <BrandLogo />
               <View>
