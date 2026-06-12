@@ -46,6 +46,12 @@ export default function App() {
   const [selectedRating, setSelectedRating] = useState(5);
   const [commentText, setCommentText] = useState('');
   const [customComments, setCustomComments] = useState<Record<string, ProductComment[]>>({});
+  const [marketplaceProducts, setMarketplaceProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true);
+  const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
+  const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
+  const [catalogRequestKey, setCatalogRequestKey] = useState(0);
   const [navWidth, setNavWidth] = useState(0);
   const activePillX = useRef(new Animated.Value(0)).current;
   const activeBubbleScale = useRef(new Animated.Value(1)).current;
@@ -67,24 +73,47 @@ export default function App() {
     extrapolate: 'clamp',
   });
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesFilter = activeFilter === 'Todo' || product.category === activeFilter;
-      const normalizedQuery = search.trim().toLowerCase();
-      const matchesSearch =
-        normalizedQuery.length === 0 ||
-        product.title.toLowerCase().includes(normalizedQuery) ||
-        product.seller.toLowerCase().includes(normalizedQuery) ||
-        product.category.toLowerCase().includes(normalizedQuery) ||
-        product.description.toLowerCase().includes(normalizedQuery);
+  useEffect(() => {
+    const isInitialLoad = marketplaceProducts.length === 0;
+    const requestDelay = isInitialLoad ? 680 : 360;
 
-      return matchesFilter && matchesSearch;
-    });
-  }, [activeFilter, search]);
+    if (isInitialLoad) {
+      setIsCatalogLoading(true);
+    } else {
+      setIsCatalogRefreshing(true);
+    }
+
+    const request = setTimeout(() => {
+      const nextProducts = products.map((product) => ({
+        ...product,
+        stock: product.id === 'P-104' ? Math.max(product.stock - (cartQuantities[product.id] ?? 0), 0) : product.stock,
+      }));
+      const normalizedQuery = search.trim().toLowerCase();
+      const nextFilteredProducts = nextProducts.filter((product) => {
+        const matchesFilter = activeFilter === 'Todo' || product.category === activeFilter;
+        const matchesSearch =
+          normalizedQuery.length === 0 ||
+          product.title.toLowerCase().includes(normalizedQuery) ||
+          product.seller.toLowerCase().includes(normalizedQuery) ||
+          product.category.toLowerCase().includes(normalizedQuery) ||
+          product.description.toLowerCase().includes(normalizedQuery);
+
+        return matchesFilter && matchesSearch;
+      });
+
+      setMarketplaceProducts(nextProducts);
+      setFilteredProducts(nextFilteredProducts);
+      setLastCatalogSync(new Date());
+      setIsCatalogLoading(false);
+      setIsCatalogRefreshing(false);
+    }, requestDelay);
+
+    return () => clearTimeout(request);
+  }, [activeFilter, catalogRequestKey, cartQuantities, marketplaceProducts.length, search]);
 
   const selectedProduct = useMemo(() => {
-    return products.find((product) => product.id === selectedProductId) ?? null;
-  }, [selectedProductId]);
+    return marketplaceProducts.find((product) => product.id === selectedProductId) ?? null;
+  }, [marketplaceProducts, selectedProductId]);
   const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !selectedProduct;
 
   const selectedProductComments = useMemo(() => {
@@ -96,13 +125,15 @@ export default function App() {
   }, [customComments, selectedProduct]);
 
   const cartItems = useMemo<CartItem[]>(() => {
-    return products
+    const sourceProducts = marketplaceProducts.length > 0 ? marketplaceProducts : products;
+
+    return sourceProducts
       .map((product) => ({
         product,
         quantity: cartQuantities[product.id] ?? 0,
       }))
       .filter((item) => item.quantity > 0);
-  }, [cartQuantities]);
+  }, [cartQuantities, marketplaceProducts]);
 
   const cartCount = useMemo(() => {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -150,6 +181,10 @@ export default function App() {
     setActiveTab('Inicio');
     setSelectedProductId(null);
     setIsCartOpen(true);
+  };
+
+  const handleRefreshCatalog = () => {
+    setCatalogRequestKey((current) => current + 1);
   };
 
   const handleChangeCartQuantity = (productId: string, quantity: number) => {
@@ -308,6 +343,10 @@ export default function App() {
             activeFilter={activeFilter}
             commentText={commentText}
             filteredProducts={filteredProducts}
+            isLoading={isCatalogLoading}
+            isRefreshing={isCatalogRefreshing}
+            lastSyncAt={lastCatalogSync}
+            productsCount={marketplaceProducts.length}
             productComments={selectedProductComments}
             search={search}
             selectedProduct={selectedProduct}
@@ -318,6 +357,7 @@ export default function App() {
             onChangeFilter={setActiveFilter}
             onChangeRating={setSelectedRating}
             onChangeSearch={setSearch}
+            onRefreshCatalog={handleRefreshCatalog}
             onSelectProduct={handleSelectProduct}
             onSubmitComment={handleSubmitComment}
           />
