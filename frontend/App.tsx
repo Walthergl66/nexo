@@ -330,7 +330,6 @@ export default function App() {
               <BrandLogo />
               <View>
                 <Text style={styles.headerTitle}>NEXO</Text>
-                <Text style={styles.headerSubtitle}>Compra y vende con confianza.</Text>
               </View>
             </View>
             <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
