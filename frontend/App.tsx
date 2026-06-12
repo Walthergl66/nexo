@@ -56,6 +56,7 @@ export default function App() {
   const activePillX = useRef(new Animated.Value(0)).current;
   const activeBubbleScale = useRef(new Animated.Value(1)).current;
   const cartPulse = useRef(new Animated.Value(1)).current;
+  const hasLoadedCatalog = useRef(false);
   const headerVisibility = useRef(new Animated.Value(1)).current;
   const isHeaderVisible = useRef(true);
   const lastProductScrollY = useRef(0);
@@ -74,7 +75,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    const isInitialLoad = marketplaceProducts.length === 0;
+    const isInitialLoad = !hasLoadedCatalog.current;
     const requestDelay = isInitialLoad ? 680 : 360;
 
     if (isInitialLoad) {
@@ -109,12 +110,13 @@ export default function App() {
       setMarketplaceProducts(nextProducts);
       setFilteredProducts(nextFilteredProducts);
       setLastCatalogSync(new Date());
+      hasLoadedCatalog.current = true;
       setIsCatalogLoading(false);
       setIsCatalogRefreshing(false);
     }, requestDelay);
 
     return () => clearTimeout(request);
-  }, [activeFilter, catalogRequestKey, cartQuantities, marketplaceProducts.length, search]);
+  }, [activeFilter, catalogRequestKey, cartQuantities, search]);
 
   const selectedProduct = useMemo(() => {
     return marketplaceProducts.find((product) => product.id === selectedProductId) ?? null;
@@ -634,10 +636,10 @@ const styles = StyleSheet.create({
     paddingBottom: 132,
   },
   contentWithHeader: {
-    paddingTop: 124,
+    paddingTop: 104,
   },
   productContent: {
-    paddingTop: 12,
+    paddingTop: 0,
   },
   screenTransition: {
     gap: 14,

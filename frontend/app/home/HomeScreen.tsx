@@ -144,35 +144,37 @@ export function HomeScreen({
   return (
     <>
       <View style={styles.marketHero}>
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroEyebrow}>Marketplace conectado</Text>
-          <Text style={styles.heroTitle}>Compra y vende con inventario en vivo</Text>
-          <Text style={styles.heroSubtitle}>
-            Catalogo, stock, comentarios y busquedas se actualizan como si NEXO ya consultara su API.
-          </Text>
+        <View style={styles.heroHeader}>
+          <View style={styles.heroBrandMark}>
+            <Ionicons name="storefront" size={18} color={colors.brandBlue} />
+          </View>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroEyebrow}>Marketplace NEXO</Text>
+            <Text style={styles.heroTitle}>Catalogo conectado</Text>
+          </View>
+          <View style={styles.heroMetric}>
+            {isRefreshing ? (
+              <ActivityIndicator size="small" color={colors.brandBlue} />
+            ) : (
+              <Ionicons name="cloud-done" size={14} color={colors.brandBlue} />
+            )}
+            <Text style={styles.heroMetricText}>{syncLabel}</Text>
+          </View>
         </View>
-        <View style={styles.heroMetric}>
-          {isRefreshing ? (
-            <ActivityIndicator size="small" color={colors.surface} />
-          ) : (
-            <Ionicons name="flash" size={15} color={colors.surface} />
-          )}
-          <Text style={styles.heroMetricText}>{syncLabel}</Text>
-        </View>
-      </View>
 
-      <View style={styles.trustRow}>
-        <View style={styles.trustPill}>
-          <Ionicons name="cube" size={14} color={colors.brandBlue} />
-          <Text style={styles.trustText}>{productsCount || '...'} productos</Text>
-        </View>
-        <View style={styles.trustPill}>
-          <Ionicons name="shield-checkmark" size={14} color={colors.brandBlue} />
-          <Text style={styles.trustText}>{availableProducts} disponibles</Text>
-        </View>
-        <View style={styles.trustPill}>
-          <Ionicons name="star" size={14} color={colors.brandBlue} />
-          <Text style={styles.trustText}>{bestRating.toFixed(1)} top</Text>
+        <View style={styles.trustRow}>
+          <View style={styles.trustPill}>
+            <Text style={styles.trustValue}>{productsCount || '...'}</Text>
+            <Text style={styles.trustText}>productos</Text>
+          </View>
+          <View style={styles.trustPill}>
+            <Text style={styles.trustValue}>{availableProducts}</Text>
+            <Text style={styles.trustText}>disponibles</Text>
+          </View>
+          <View style={styles.trustPill}>
+            <Text style={styles.trustValue}>{bestRating.toFixed(1)}</Text>
+            <Text style={styles.trustText}>rating top</Text>
+          </View>
         </View>
       </View>
 
@@ -226,14 +228,7 @@ export function HomeScreen({
               : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'resultado' : 'resultados'} disponibles`}
           </Text>
         </View>
-        <View style={styles.resultsBadge}>
-          {isRefreshing ? (
-            <ActivityIndicator size="small" color={colors.brandBlue} />
-          ) : (
-            <Ionicons name="server" size={13} color={colors.brandBlue} />
-          )}
-          <Text style={styles.resultsBadgeText}>{isRefreshing ? 'Actualizando' : 'API mock'}</Text>
-        </View>
+        
       </View>
 
       {isLoading ? (
@@ -264,56 +259,61 @@ export function HomeScreen({
 
 const styles = StyleSheet.create({
   marketHero: {
-    borderRadius: radii.large,
-    backgroundColor: colors.ink,
-    padding: 18,
-    gap: 16,
-    overflow: 'hidden',
+    borderRadius: radii.medium,
+    backgroundColor: colors.surface,
+    padding: 14,
+    gap: 12,
     borderWidth: 1,
-    borderColor: colors.brandBlueLine,
+    borderColor: colors.line,
     shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  heroBrandMark: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandBlueSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   heroCopy: {
-    gap: 6,
+    flex: 1,
+    gap: 2,
   },
   heroEyebrow: {
-    color: colors.silver,
-    fontSize: 11,
+    color: colors.inkMuted,
+    fontSize: 10,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   heroTitle: {
-    color: colors.surface,
-    fontSize: 24,
+    color: colors.ink,
+    fontSize: 18,
     fontWeight: '900',
-    lineHeight: 29,
-  },
-  heroSubtitle: {
-    color: colors.brandBlueLine,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
-    maxWidth: 310,
+    lineHeight: 22,
   },
   heroMetric: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colors.brandBlueSoft,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    borderColor: colors.brandBlueLine,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
   },
   heroMetricText: {
-    color: colors.surface,
-    fontSize: 12,
+    color: colors.brandBlue,
+    fontSize: 10,
     fontWeight: '900',
   },
   trustRow: {
@@ -322,9 +322,9 @@ const styles = StyleSheet.create({
   },
   trustPill: {
     flex: 1,
-    minHeight: 52,
-    borderRadius: radii.medium,
-    backgroundColor: colors.surface,
+    minHeight: 50,
+    borderRadius: radii.small,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
@@ -332,10 +332,15 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
   },
-  trustText: {
-    color: colors.ink,
-    fontSize: 11,
+  trustValue: {
+    color: colors.brandBlue,
+    fontSize: 16,
     fontWeight: '900',
+  },
+  trustText: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '800',
   },
   searchBox: {
     flexDirection: 'row',
