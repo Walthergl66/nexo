@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -60,7 +61,10 @@ export default function App() {
   const headerVisibility = useRef(new Animated.Value(1)).current;
   const isHeaderVisible = useRef(true);
   const lastProductScrollY = useRef(0);
+  const previousActiveIndex = useRef(0);
+  const scrollViewRef = useRef<ScrollView>(null);
   const screenOpacity = useRef(new Animated.Value(1)).current;
+  const screenTranslateX = useRef(new Animated.Value(0)).current;
   const screenTranslateY = useRef(new Animated.Value(0)).current;
   const screenScale = useRef(new Animated.Value(1)).current;
   const activeIndex = tabs.indexOf(activeTab);
@@ -266,31 +270,45 @@ export default function App() {
   }, [activeBubbleScale, activeIndex, activePillX, navGap, tabWidth]);
 
   useEffect(() => {
+    const transitionDirection = activeIndex >= previousActiveIndex.current ? 1 : -1;
+
     screenOpacity.setValue(0);
-    screenTranslateY.setValue(10);
-    screenScale.setValue(0.985);
+    screenTranslateX.setValue(26 * transitionDirection);
+    screenTranslateY.setValue(8);
+    screenScale.setValue(0.975);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
 
     Animated.parallel([
       Animated.timing(screenOpacity, {
         toValue: 1,
-        duration: 200,
+        duration: 240,
         easing: Easing.bezier(0.23, 1, 0.32, 1),
+        useNativeDriver: true,
+      }),
+      Animated.spring(screenTranslateX, {
+        toValue: 0,
+        damping: 18,
+        mass: 0.75,
+        stiffness: 190,
         useNativeDriver: true,
       }),
       Animated.timing(screenTranslateY, {
         toValue: 0,
-        duration: 200,
+        duration: 220,
         easing: Easing.bezier(0.23, 1, 0.32, 1),
         useNativeDriver: true,
       }),
-      Animated.timing(screenScale, {
+      Animated.spring(screenScale, {
         toValue: 1,
-        duration: 200,
-        easing: Easing.bezier(0.23, 1, 0.32, 1),
+        damping: 17,
+        mass: 0.8,
+        stiffness: 180,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [screenOpacity, screenScale, screenTransitionKey, screenTranslateY]);
+    ]).start(() => {
+      previousActiveIndex.current = activeIndex;
+    });
+  }, [activeIndex, screenOpacity, screenScale, screenTransitionKey, screenTranslateX, screenTranslateY]);
 
   useEffect(() => {
     if (shouldShowHeader) {
@@ -421,6 +439,7 @@ export default function App() {
         )}
 
         <Animated.ScrollView
+          ref={scrollViewRef}
           contentContainerStyle={[
             styles.content,
             isProductPresentation && styles.productContent,
@@ -434,7 +453,7 @@ export default function App() {
               styles.screenTransition,
               {
                 opacity: screenOpacity,
-                transform: [{ translateY: screenTranslateY }, { scale: screenScale }],
+                transform: [{ translateX: screenTranslateX }, { translateY: screenTranslateY }, { scale: screenScale }],
               },
             ]}
           >
