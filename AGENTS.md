@@ -141,6 +141,20 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * failed
 * refunded
 
+## Decisiones técnicas actuales
+
+* El backend vive en `backend/` y usa Laravel + PHP.
+* Supabase Auth es el proveedor de identidad; Laravel valida permisos y reglas de negocio.
+* La API protegida usa middleware `supabase.jwt`.
+* Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
+* La app Expo activa vive en `mobile/`.
+* La carpeta histórica `frontend/` fue migrada a `mobile/` y retirada del monorepo.
+* `mobile/` consume el backend con `EXPO_PUBLIC_API_BASE_URL`.
+* `mobile/` puede usar `EXPO_PUBLIC_SUPABASE_ACCESS_TOKEN` temporalmente para desarrollo manual de rutas protegidas.
+* `mobile/` consume el catálogo público desde `GET /api/products` y usa JWT para carrito, órdenes, perfil y tienda propia.
+* La documentación OpenAPI/Swagger del backend vive en `/api/docs` y `/api/docs/openapi.json`.
+* El contrato OpenAPI se mantiene en `docs/openapi.json` y se sirve sin paquete externo de Swagger.
+
 ## Módulos principales
 
 * Auth Bridge
@@ -197,7 +211,7 @@ nexo/
 └── README.md
 ```
 
-Nota: existe una carpeta histórica `frontend/` con un proyecto Expo. La estructura objetivo del monorepo usa `mobile/`; no mover código existente sin revisar el impacto.
+Nota: la carpeta histórica `frontend/` fue migrada a `mobile/` y retirada del monorepo.
 
 ## Estructura del backend
 
