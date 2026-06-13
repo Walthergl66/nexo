@@ -11,6 +11,7 @@ type CartScreenProps = {
   shipping: number;
   onBackToCatalog: () => void;
   onChangeQuantity: (productId: string, quantity: number) => void;
+  onCheckout: () => void;
   onRemoveItem: (productId: string) => void;
 };
 
@@ -91,6 +92,7 @@ export function CartScreen({
   shipping,
   onBackToCatalog,
   onChangeQuantity,
+  onCheckout,
   onRemoveItem,
 }: CartScreenProps) {
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
@@ -144,7 +146,7 @@ export function CartScreen({
         <InfoRow label="Total" value={formatPrice(total)} emphasize />
       </View>
 
-      <Pressable style={({ pressed }) => [styles.checkoutButton, pressed && styles.checkoutButtonPressed]}>
+      <Pressable style={({ pressed }) => [styles.checkoutButton, pressed && styles.checkoutButtonPressed]} onPress={onCheckout}>
         <Ionicons name="lock-closed" size={16} color={colors.surface} />
         <Text style={styles.checkoutText}>Continuar compra</Text>
       </Pressable>

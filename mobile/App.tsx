@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -17,12 +17,20 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { CheckoutSummary } from './components/cards/CheckoutSummary';
 import { BrandLogo } from './components/common/BrandLogo';
 import { tabs } from './constants/navigation';
-import { products } from './data/mockMarketplace';
 import { AccountScreen } from './app/account/AccountScreen';
 import { CartScreen } from './app/cart/CartScreen';
 import { HomeScreen } from './app/home/HomeScreen';
 import { OrdersScreen } from './app/orders/OrdersScreen';
 import { SellScreen } from './app/sell/SellScreen';
+import {
+  addProductToCart,
+  createOrderFromCart,
+  fetchCart,
+  fetchProducts,
+  removeCartItem,
+  supabaseAccessToken,
+  updateCartItemQuantity,
+} from './services/marketplaceApi';
 import { colors, radii } from './theme/colors';
 import type { CartItem, Product, ProductComment, TabKey } from './types/marketplace';
 
@@ -49,6 +57,7 @@ export default function App() {
   const [customComments, setCustomComments] = useState<Record<string, ProductComment[]>>({});
   const [marketplaceProducts, setMarketplaceProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
@@ -78,9 +87,25 @@ export default function App() {
     extrapolate: 'clamp',
   });
 
+  const applyCatalogFilters = useCallback((sourceProducts: Product[], filter: string, query: string) => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return sourceProducts.filter((product) => {
+      const matchesFilter = filter === 'Todo' || product.category === filter;
+      const matchesSearch =
+        normalizedQuery.length === 0 ||
+        product.title.toLowerCase().includes(normalizedQuery) ||
+        product.seller.toLowerCase().includes(normalizedQuery) ||
+        product.category.toLowerCase().includes(normalizedQuery) ||
+        product.description.toLowerCase().includes(normalizedQuery);
+
+      return matchesFilter && matchesSearch;
+    });
+  }, []);
+
   useEffect(() => {
+    let isMounted = true;
     const isInitialLoad = !hasLoadedCatalog.current;
-    const requestDelay = isInitialLoad ? 680 : 360;
 
     if (isInitialLoad) {
       setIsCatalogLoading(true);
@@ -88,43 +113,64 @@ export default function App() {
       setIsCatalogRefreshing(true);
     }
 
-    const request = setTimeout(() => {
-      const nextProducts = products.map((product) => {
-        const stock = Math.max(product.stock - (cartQuantities[product.id] ?? 0), 0);
+    fetchProducts()
+      .then((nextProducts) => {
+        if (!isMounted) {
+          return;
+        }
 
-        return {
-          ...product,
-          stock,
-          available: product.available && stock > 0,
-        };
+        setMarketplaceProducts(nextProducts);
+        setFilteredProducts(applyCatalogFilters(nextProducts, activeFilter, search));
+        setLastCatalogSync(new Date());
+        hasLoadedCatalog.current = true;
+      })
+      .catch(() => {
+        if (isMounted) {
+          setMarketplaceProducts([]);
+          setFilteredProducts([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsCatalogLoading(false);
+          setIsCatalogRefreshing(false);
+        }
       });
-      const normalizedQuery = search.trim().toLowerCase();
-      const nextFilteredProducts = nextProducts.filter((product) => {
-        const matchesFilter = activeFilter === 'Todo' || product.category === activeFilter;
-        const matchesSearch =
-          normalizedQuery.length === 0 ||
-          product.title.toLowerCase().includes(normalizedQuery) ||
-          product.seller.toLowerCase().includes(normalizedQuery) ||
-          product.category.toLowerCase().includes(normalizedQuery) ||
-          product.description.toLowerCase().includes(normalizedQuery);
 
-        return matchesFilter && matchesSearch;
+    return () => {
+      isMounted = false;
+    };
+  }, [activeFilter, applyCatalogFilters, catalogRequestKey, search]);
+
+  useEffect(() => {
+    setFilteredProducts(applyCatalogFilters(marketplaceProducts, activeFilter, search));
+  }, [activeFilter, applyCatalogFilters, marketplaceProducts, search]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchCart()
+      .then((items) => {
+        if (isMounted) {
+          setCartItems(items);
+          setCartQuantities(Object.fromEntries(items.map((item) => [item.product.id, item.quantity])));
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCartItems([]);
+        }
       });
 
-      setMarketplaceProducts(nextProducts);
-      setFilteredProducts(nextFilteredProducts);
-      setLastCatalogSync(new Date());
-      hasLoadedCatalog.current = true;
-      setIsCatalogLoading(false);
-      setIsCatalogRefreshing(false);
-    }, requestDelay);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-    return () => clearTimeout(request);
-  }, [activeFilter, catalogRequestKey, cartQuantities, search]);
-
-  const selectedProduct = useMemo(() => {
-    return marketplaceProducts.find((product) => product.id === selectedProductId) ?? null;
-  }, [marketplaceProducts, selectedProductId]);
+  const selectedProduct = useMemo(
+    () => marketplaceProducts.find((product) => product.id === selectedProductId) ?? null,
+    [marketplaceProducts, selectedProductId],
+  );
   const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !selectedProduct;
 
   const selectedProductComments = useMemo(() => {
@@ -135,17 +181,6 @@ export default function App() {
     return [...selectedProduct.comments, ...(customComments[selectedProduct.id] ?? [])];
   }, [customComments, selectedProduct]);
 
-  const cartItems = useMemo<CartItem[]>(() => {
-    const sourceProducts = marketplaceProducts.length > 0 ? marketplaceProducts : products;
-
-    return sourceProducts
-      .map((product) => ({
-        product,
-        quantity: cartQuantities[product.id] ?? 0,
-      }))
-      .filter((item) => item.quantity > 0);
-  }, [cartQuantities, marketplaceProducts]);
-
   const cartCount = useMemo(() => {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
   }, [cartItems]);
@@ -154,15 +189,39 @@ export default function App() {
     return cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   }, [cartItems]);
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = async (product: Product) => {
     if (!product.available || product.stock <= 0) {
       return;
     }
 
-    setCartQuantities((current) => ({
-      ...current,
-      [product.id]: (current[product.id] ?? 0) + 1,
-    }));
+    if (supabaseAccessToken) {
+      try {
+        const nextItems = await addProductToCart(product.id);
+        setCartItems(nextItems);
+        setCartQuantities(Object.fromEntries(nextItems.map((item) => [item.product.id, item.quantity])));
+      } catch {
+        return;
+      }
+    } else {
+      setCartQuantities((current) => {
+        const nextQuantity = (current[product.id] ?? 0) + 1;
+        setCartItems((items) => {
+          const currentItem = items.find((item) => item.product.id === product.id);
+
+          if (currentItem) {
+            return items.map((item) => (item.product.id === product.id ? { ...item, quantity: nextQuantity } : item));
+          }
+
+          return [...items, { product, quantity: nextQuantity }];
+        });
+
+        return {
+          ...current,
+          [product.id]: nextQuantity,
+        };
+      });
+    }
+
     cartPulse.setValue(0.92);
     Animated.sequence([
       Animated.timing(cartPulse, {
@@ -202,7 +261,25 @@ export default function App() {
     setCatalogRequestKey((current) => current + 1);
   };
 
-  const handleChangeCartQuantity = (productId: string, quantity: number) => {
+  const handleChangeCartQuantity = async (productId: string, quantity: number) => {
+    const currentItem = cartItems.find((item) => item.product.id === productId);
+
+    if (supabaseAccessToken && currentItem?.id) {
+      try {
+        const nextItems =
+          quantity <= 0
+            ? await removeCartItem(currentItem.id)
+            : await updateCartItemQuantity(currentItem.id, quantity);
+
+        setCartItems(nextItems);
+        setCartQuantities(Object.fromEntries(nextItems.map((item) => [item.product.id, item.quantity])));
+      } catch {
+        return;
+      }
+
+      return;
+    }
+
     setCartQuantities((current) => {
       const next = { ...current };
 
@@ -214,10 +291,33 @@ export default function App() {
 
       return next;
     });
+    setCartItems((items) => {
+      if (quantity <= 0) {
+        return items.filter((item) => item.product.id !== productId);
+      }
+
+      return items.map((item) => (item.product.id === productId ? { ...item, quantity } : item));
+    });
   };
 
   const handleRemoveCartItem = (productId: string) => {
     handleChangeCartQuantity(productId, 0);
+  };
+
+  const handleCheckout = async () => {
+    if (!supabaseAccessToken || cartItems.length === 0) {
+      return;
+    }
+
+    try {
+      await createOrderFromCart();
+      setCartItems([]);
+      setCartQuantities({});
+      setActiveTab('Pedidos');
+      setIsCartOpen(false);
+    } catch {
+      return;
+    }
   };
 
   const handleSubmitComment = () => {
@@ -360,6 +460,7 @@ export default function App() {
           shipping={4.99}
           onBackToCatalog={handleBackToCatalog}
           onChangeQuantity={handleChangeCartQuantity}
+          onCheckout={handleCheckout}
           onRemoveItem={handleRemoveCartItem}
         />
       );
