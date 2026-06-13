@@ -86,6 +86,9 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * El carrito se modela con `cart_items` por `profile_id`; no existe tabla `carts` mientras solo haya un carrito activo por usuario.
 * Agregar al carrito valida producto `active`, tienda `active` y stock suficiente, pero no descuenta stock.
 * El checkout deberá revalidar carrito, precio, disponibilidad y stock antes de crear órdenes o iniciar pago.
+* Las órdenes se crean desde el carrito como snapshot en `orders` y `order_items`.
+* Crear una orden revalida productos, tiendas, moneda y stock, limpia el carrito y no descuenta inventario.
+* Toda orden nueva inicia con `order_status=pending` y `payment_status=pending`; el pago se confirmará únicamente con webhooks.
 
 ## Roles
 
@@ -283,3 +286,14 @@ backend/
 * Validar cantidad contra stock disponible sin descontar inventario.
 * Permitir listar, actualizar, eliminar items y vaciar carrito.
 * Restringir cada item al `profile` propietario.
+
+### Fase 6: Orders
+
+* Crear tabla `orders`.
+* Crear tabla `order_items`.
+* Crear órdenes desde el carrito.
+* Guardar snapshot de producto, tienda, precio, moneda y cantidad.
+* Revalidar carrito antes de crear la orden.
+* Limpiar carrito al crear orden.
+* Mantener orden y pago en estado `pending`.
+* No descontar stock hasta confirmación de pago por webhook.

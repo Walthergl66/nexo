@@ -169,6 +169,24 @@ Payload para agregar item:
 
 El carrito valida producto activo, tienda activa y stock suficiente. No descuenta stock; esa operacion queda para confirmacion de pago mediante webhook.
 
+### Orders
+
+Endpoints protegidos:
+
+```http
+GET /api/orders
+POST /api/orders/from-cart
+GET /api/orders/{order}
+Authorization: Bearer <supabase_access_token>
+```
+
+`POST /api/orders/from-cart` crea una orden desde el carrito, guarda snapshot de los items, limpia el carrito y deja:
+
+* `status=pending`
+* `payment_status=pending`
+
+No descuenta stock. La confirmacion de pago y el descuento de inventario quedan para webhooks.
+
 ## Tests
 
 ```bash

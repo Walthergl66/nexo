@@ -27,6 +27,8 @@ La primera base del sistema incluye:
 * Endpoints protegidos para que sellers gestionen sus productos.
 * Tabla `cart_items` por perfil comprador.
 * Endpoints protegidos para gestionar carrito.
+* Tablas `orders` y `order_items`.
+* Endpoint protegido para crear orden desde carrito.
 
 ## JWT
 
@@ -63,3 +65,9 @@ Los precios se guardan como enteros en centavos (`price_cents`) para evitar erro
 El carrito se guarda como items por `profile_id`. Cada usuario tiene un solo carrito activo implicito.
 
 Agregar o actualizar items valida que el producto esté `active`, que la tienda esté `active` y que la cantidad no exceda el stock actual. El carrito no descuenta inventario; checkout y pagos deberán revalidar los items antes de crear orden o confirmar stock.
+
+## Orders
+
+Las ordenes se crean desde el carrito y guardan snapshot de producto, tienda, precio, moneda y cantidad en `order_items`.
+
+Crear una orden revalida productos activos, tiendas activas, moneda unica y stock suficiente. La orden inicia con `status=pending` y `payment_status=pending`, limpia el carrito y no descuenta stock. El descuento de inventario se hara cuando el pago sea confirmado por webhook.
