@@ -89,6 +89,26 @@ Estados permitidos en revision admin:
 * `rejected`
 * `suspended`
 
+### Stores
+
+Endpoints publicos:
+
+```http
+GET /api/stores
+GET /api/stores/{slug}
+```
+
+Endpoints protegidos:
+
+```http
+GET /api/my-store
+POST /api/stores
+PATCH /api/stores/{slug}
+Authorization: Bearer <supabase_access_token>
+```
+
+Solo un perfil con `role=seller` y `verification_status=approved` puede crear tienda. Cada seller puede tener una sola tienda y se crea con `status=active`.
+
 ## Tests
 
 ```bash

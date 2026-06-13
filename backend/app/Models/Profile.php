@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Profile extends Model
 {
@@ -70,5 +71,13 @@ class Profile extends Model
     public function sellerVerificationRequests(): HasMany
     {
         return $this->hasMany(SellerVerificationRequest::class);
+    }
+
+    /**
+     * @return HasOne<Store, $this>
+     */
+    public function store(): HasOne
+    {
+        return $this->hasOne(Store::class);
     }
 }

@@ -75,6 +75,9 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * Las solicitudes para convertirse en vendedor se guardan en `seller_verification_requests` para conservar historial.
 * La aprobación de una solicitud cambia el perfil a `role=seller` y `verification_status=approved`.
 * El rechazo cambia el perfil a `role=buyer` y `verification_status=rejected`; la suspensión deja `role=seller` y usa `verification_status=suspended`.
+* Cada vendedor aprobado puede tener una sola tienda en `stores`.
+* Como la verificación del vendedor ya es el control principal, una tienda nueva creada por un seller aprobado inicia con `store_status=active`.
+* Los listados públicos de tiendas solo muestran tiendas `active`.
 
 ## Roles
 
@@ -245,3 +248,11 @@ backend/
 * Crear endpoints administrativos para listar y revisar solicitudes.
 * Aprobar, rechazar o suspender vendedores desde Laravel.
 * Mantener historial de revisiones y auditoría mínima con `reviewed_by` y `reviewed_at`.
+
+### Fase 3: Stores
+
+* Crear tabla `stores`.
+* Permitir crear tienda únicamente a sellers aprobados.
+* Restringir a una tienda por perfil vendedor.
+* Crear endpoints públicos para listar y ver tiendas activas.
+* Crear endpoints protegidos para ver y actualizar la tienda propia.
