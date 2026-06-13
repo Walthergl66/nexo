@@ -68,22 +68,14 @@ export function SellScreen() {
         <InfoRow label="Tienda" value={store?.name ?? 'Sin tienda activa'} />
         <InfoRow label="Estado tienda" value={store?.status ?? 'No disponible'} />
       </View>
-
-      <SectionTitle title="Reglas operativas" subtitle="Base para RF del lado vendedor." />
-      <View style={styles.logicList}>
-        <LogicCard
-          title="Publicacion"
-          description="Titulo, fotos, categoria, precio, inventario, condicion y politicas."
-        />
-        <LogicCard
-          title="Reputacion"
-          description="Impacta el ordenamiento, campanas y acceso a promociones."
-        />
-        <LogicCard
-          title="Despacho"
-          description="Plazo configurable por ciudad, mensajeria o entrega coordinada."
-        />
-      </View>
+      {store === null && (
+        <View style={styles.logicList}>
+          <LogicCard
+            title="Sin tienda"
+            description="Cuando Laravel devuelva una tienda propia, su informacion aparecera aqui."
+          />
+        </View>
+      )}
     </>
   );
 }

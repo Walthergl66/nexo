@@ -13,31 +13,25 @@ import {
 } from 'react-native';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
-import { filters } from '../../constants/navigation';
 import { colors, radii } from '../../theme/colors';
-import type { Product, ProductComment } from '../../types/marketplace';
+import type { Product } from '../../types/marketplace';
 
 type HomeScreenProps = {
   activeFilter: string;
-  commentText: string;
   filteredProducts: Product[];
+  filters: string[];
   isLoading: boolean;
   isRefreshing: boolean;
   lastSyncAt: Date | null;
   productsCount: number;
-  productComments: ProductComment[];
   search: string;
   selectedProduct: Product | null;
-  selectedRating: number;
   onAddToCart: (product: Product) => void;
   onBackToCatalog: () => void;
-  onChangeCommentText: (value: string) => void;
   onChangeFilter: (filter: string) => void;
-  onChangeRating: (rating: number) => void;
   onChangeSearch: (value: string) => void;
   onRefreshCatalog: () => void;
   onSelectProduct: (product: Product) => void;
-  onSubmitComment: () => void;
 };
 
 type AnimatedProductCellProps = {
@@ -99,44 +93,32 @@ function ProductSkeletonGrid() {
 
 export function HomeScreen({
   activeFilter,
-  commentText,
   filteredProducts,
+  filters,
   isLoading,
   isRefreshing,
   lastSyncAt,
   productsCount,
-  productComments,
   search,
   selectedProduct,
-  selectedRating,
   onAddToCart,
   onBackToCatalog,
-  onChangeCommentText,
   onChangeFilter,
-  onChangeRating,
   onChangeSearch,
   onRefreshCatalog,
   onSelectProduct,
-  onSubmitComment,
 }: HomeScreenProps) {
   if (selectedProduct) {
     return (
       <ProductDetailCard
         product={selectedProduct}
-        comments={productComments}
-        selectedRating={selectedRating}
-        commentText={commentText}
         onAddToCart={() => onAddToCart(selectedProduct)}
         onBack={onBackToCatalog}
-        onChangeCommentText={onChangeCommentText}
-        onChangeRating={onChangeRating}
-        onSubmitComment={onSubmitComment}
       />
     );
   }
 
   const availableProducts = filteredProducts.filter((product) => product.available).length;
-  const bestRating = filteredProducts.length > 0 ? Math.max(...filteredProducts.map((product) => product.rating)) : 0;
   const syncLabel = lastSyncAt
     ? `Sync ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Conectando';
@@ -170,10 +152,6 @@ export function HomeScreen({
           <View style={styles.trustPill}>
             <Text style={styles.trustValue}>{availableProducts}</Text>
             <Text style={styles.trustText}>disponibles</Text>
-          </View>
-          <View style={styles.trustPill}>
-            <Text style={styles.trustValue}>{bestRating.toFixed(1)}</Text>
-            <Text style={styles.trustText}>rating top</Text>
           </View>
         </View>
       </View>

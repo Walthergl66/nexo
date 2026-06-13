@@ -13,14 +13,11 @@ export type Product = {
   description: string;
   category: string;
   price: number;
-  shipping: 'Gratis' | 'Rapido' | 'Coordinado';
   stock: number;
   available: boolean;
-  rating: number;
   seller: string;
   condition: 'Nuevo' | 'Usado';
   visualTone: 'light' | 'dark' | 'cool' | 'warm';
-  comments: ProductComment[];
 };
 
 export type CartItem = {

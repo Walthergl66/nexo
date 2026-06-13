@@ -24,6 +24,7 @@ import { SellScreen } from './app/sell/SellScreen';
 import {
   addProductToCart,
   createOrderFromCart,
+  fetchCategoryNames,
   fetchCart,
   fetchProducts,
   removeCartItem,
@@ -31,7 +32,7 @@ import {
   updateCartItemQuantity,
 } from './services/marketplaceApi';
 import { colors, radii } from './theme/colors';
-import type { CartItem, Product, ProductComment, TabKey } from './types/marketplace';
+import type { CartItem, Product, TabKey } from './types/marketplace';
 
 type NavIconName = keyof typeof Ionicons.glyphMap;
 
@@ -50,11 +51,9 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [selectedRating, setSelectedRating] = useState(5);
-  const [commentText, setCommentText] = useState('');
-  const [customComments, setCustomComments] = useState<Record<string, ProductComment[]>>({});
   const [marketplaceProducts, setMarketplaceProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [categoryFilters, setCategoryFilters] = useState<string[]>(['Todo']);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
@@ -142,6 +141,26 @@ export default function App() {
   }, [activeFilter, applyCatalogFilters, catalogRequestKey, search]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    fetchCategoryNames()
+      .then((names) => {
+        if (isMounted) {
+          setCategoryFilters(['Todo', ...names]);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCategoryFilters(['Todo']);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [catalogRequestKey]);
+
+  useEffect(() => {
     setFilteredProducts(applyCatalogFilters(marketplaceProducts, activeFilter, search));
   }, [activeFilter, applyCatalogFilters, marketplaceProducts, search]);
 
@@ -170,14 +189,6 @@ export default function App() {
     [marketplaceProducts, selectedProductId],
   );
   const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !selectedProduct;
-
-  const selectedProductComments = useMemo(() => {
-    if (!selectedProduct) {
-      return [];
-    }
-
-    return [...selectedProduct.comments, ...(customComments[selectedProduct.id] ?? [])];
-  }, [customComments, selectedProduct]);
 
   const cartCount = useMemo(() => {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -222,8 +233,6 @@ export default function App() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProductId(product.id);
     setIsCartOpen(false);
-    setSelectedRating(5);
-    setCommentText('');
   };
 
   const handleBackToCatalog = () => {
@@ -288,25 +297,6 @@ export default function App() {
     } catch {
       return;
     }
-  };
-
-  const handleSubmitComment = () => {
-    if (!selectedProduct || commentText.trim().length === 0) {
-      return;
-    }
-
-    const comment: ProductComment = {
-      id: `C-${selectedProduct.id}-${Date.now()}`,
-      author: 'Walter',
-      rating: selectedRating,
-      text: commentText.trim(),
-    };
-
-    setCustomComments((current) => ({
-      ...current,
-      [selectedProduct.id]: [...(current[selectedProduct.id] ?? []), comment],
-    }));
-    setCommentText('');
   };
 
   useEffect(() => {
@@ -442,25 +432,20 @@ export default function App() {
         return (
           <HomeScreen
             activeFilter={activeFilter}
-            commentText={commentText}
             filteredProducts={filteredProducts}
+            filters={categoryFilters}
             isLoading={isCatalogLoading}
             isRefreshing={isCatalogRefreshing}
             lastSyncAt={lastCatalogSync}
             productsCount={marketplaceProducts.length}
-            productComments={selectedProductComments}
             search={search}
             selectedProduct={selectedProduct}
-            selectedRating={selectedRating}
             onAddToCart={handleAddToCart}
             onBackToCatalog={handleBackToCatalog}
-            onChangeCommentText={setCommentText}
             onChangeFilter={setActiveFilter}
-            onChangeRating={setSelectedRating}
             onChangeSearch={setSearch}
             onRefreshCatalog={handleRefreshCatalog}
             onSelectProduct={handleSelectProduct}
-            onSubmitComment={handleSubmitComment}
           />
         );
       case 'Vender':

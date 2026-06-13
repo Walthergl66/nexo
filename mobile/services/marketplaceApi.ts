@@ -64,6 +64,14 @@ export async function fetchProducts(): Promise<Product[]> {
   return response.data.map(mapApiProductToProduct);
 }
 
+export async function fetchCategoryNames(): Promise<string[]> {
+  const response = await request<ApiCollection<{ name?: unknown }>>('/categories');
+
+  return response.data
+    .map((category) => (typeof category.name === 'string' ? category.name : null))
+    .filter((name): name is string => name !== null);
+}
+
 export async function fetchCart(token = supabaseAccessToken): Promise<CartItem[]> {
   if (!token) {
     return [];

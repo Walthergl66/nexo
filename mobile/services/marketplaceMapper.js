@@ -22,14 +22,11 @@ function mapApiProductToProduct(product) {
     description: String(product?.description ?? 'Producto publicado por un vendedor verificado en NEXO.'),
     category,
     price: centsToAmount(product?.price_cents),
-    shipping: 'Coordinado',
     stock,
     available: product?.status === 'active' && stock > 0,
-    rating: 5,
     seller,
     condition: 'Nuevo',
     visualTone: pickTone(product?.id),
-    comments: [],
   };
 }
 

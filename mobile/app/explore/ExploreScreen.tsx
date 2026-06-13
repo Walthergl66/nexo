@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ProductCard } from '../../components/cards/ProductCard';
-import { filters } from '../../constants/navigation';
 import { colors, radii } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 
 type ExploreScreenProps = {
   activeFilter: string;
+  filters: string[];
   filteredProducts: Product[];
   search: string;
-  onAddToCart: () => void;
+  onAddToCart: (product: Product) => void;
   onChangeFilter: (filter: string) => void;
   onChangeSearch: (value: string) => void;
   onSelectProduct?: (product: Product) => void;
@@ -17,6 +17,7 @@ type ExploreScreenProps = {
 
 export function ExploreScreen({
   activeFilter,
+  filters,
   filteredProducts,
   search,
   onAddToCart,
@@ -73,7 +74,7 @@ export function ExploreScreen({
       <View style={styles.productGrid}>
         {filteredProducts.map((product) => (
           <View key={product.id} style={styles.productColumn}>
-            <ProductCard product={product} onAddToCart={onAddToCart} onSelectProduct={() => onSelectProduct(product)} />
+            <ProductCard product={product} onAddToCart={() => onAddToCart(product)} onSelectProduct={() => onSelectProduct(product)} />
           </View>
         ))}
       </View>

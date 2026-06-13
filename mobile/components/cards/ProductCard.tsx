@@ -64,10 +64,6 @@ export function ProductCard({ product, onAddToCart, onSelectProduct }: ProductCa
       onPress={onSelectProduct}
     >
       <View style={styles.visual}>
-        <View style={styles.ratingPill}>
-          <Ionicons name="star" size={10} color={colors.brandBlue} />
-          <Text style={styles.ratingText}>{product.rating.toFixed(1)}</Text>
-        </View>
         <View style={[styles.leaf, styles.leafLeft, { backgroundColor: palette.leaf }]} />
         <View style={[styles.leaf, styles.leafRight, { backgroundColor: palette.leafAlt }]} />
         <View style={styles.productShape}>
@@ -90,8 +86,6 @@ export function ProductCard({ product, onAddToCart, onSelectProduct }: ProductCa
         {product.condition} / {product.seller}
       </Text>
       <View style={styles.metaRow}>
-        <Text style={styles.metaText}>{product.shipping}</Text>
-        <Text style={styles.metaDot}>/</Text>
         <Text style={styles.metaText}>{product.stock} disp.</Text>
       </View>
       <View style={styles.bottomRow}>
@@ -144,24 +138,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     overflow: 'hidden',
     position: 'relative',
-  },
-  ratingPill: {
-    position: 'absolute',
-    right: 8,
-    top: 8,
-    zIndex: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-  },
-  ratingText: {
-    color: colors.brandBlue,
-    fontSize: 10,
-    fontWeight: '900',
   },
   leaf: {
     position: 'absolute',
@@ -263,11 +239,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     color: colors.brandBlue,
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  metaDot: {
-    color: colors.silver,
     fontSize: 9,
     fontWeight: '900',
   },

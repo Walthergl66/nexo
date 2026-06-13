@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { Tag } from '../../components/common/Tag';
 import { fetchProfile } from '../../services/marketplaceApi';
@@ -66,24 +65,15 @@ export function AccountScreen({ onExplore }: AccountScreenProps) {
         )}
       </View>
 
-      <SectionTitle
-        title="RNF visibles en la experiencia"
-        subtitle="Lo que la interfaz ya sugiere desde el prototipo."
-      />
-      <View style={styles.logicList}>
-        <LogicCard
-          title="Seguridad"
-          description="Autenticacion, pagos protegidos, trazabilidad y permisos."
-        />
-        <LogicCard
-          title="Rendimiento"
-          description="Carga rapida de catalogo, scroll fluido y busqueda reactiva."
-        />
-        <LogicCard
-          title="Escalabilidad"
-          description="Modelo pensado para multiples categorias, ciudades y vendedores."
-        />
-      </View>
+      {!isGuest && (
+        <>
+          <SectionTitle title="Permisos" subtitle="Datos devueltos por Laravel." />
+          <View style={styles.accountCard}>
+            <Text style={styles.accountName}>{profile.role}</Text>
+            <Text style={styles.accountEmail}>Verificacion: {profile.verification_status}</Text>
+          </View>
+        </>
+      )}
     </>
   );
 }
@@ -145,8 +135,5 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: colors.surface,
     fontWeight: '900',
-  },
-  logicList: {
-    gap: 12,
   },
 });
