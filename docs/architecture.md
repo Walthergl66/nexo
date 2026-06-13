@@ -16,9 +16,21 @@ La primera base del sistema incluye:
 * Tabla `profiles` enlazada por `supabase_user_id`.
 * Endpoint `GET /api/me`.
 * Policy base de perfiles.
+* Tabla `seller_verification_requests` para historial de solicitudes de vendedor.
+* Endpoints protegidos para solicitar, listar y revisar verificaciones de vendedor.
 
 ## JWT
 
 La validacion inicial es local con `SUPABASE_JWT_SECRET` y `HS256`.
 
 Antes de produccion, si el proyecto de Supabase usa llaves asimetricas, el backend debe validar con JWKS y cachear las llaves publicas.
+
+## Seller Verification
+
+Un buyer puede solicitar verificacion de vendedor. La solicitud queda en estado `pending` y un admin puede cambiarla a:
+
+* `approved`: el perfil pasa a `role=seller` y `verification_status=approved`.
+* `rejected`: el perfil queda como `role=buyer` y `verification_status=rejected`.
+* `suspended`: el perfil queda como `role=seller` y `verification_status=suspended`.
+
+Cada revision registra `reviewed_by` y `reviewed_at`.

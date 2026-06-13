@@ -72,6 +72,9 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
 * `GET /api/me` crea automáticamente el `profile` si el JWT de Supabase es válido y aún no existe.
 * Los roles y estados se modelan como strings controlados por constantes del modelo `Profile` para mantener portabilidad entre PostgreSQL y SQLite de pruebas.
+* Las solicitudes para convertirse en vendedor se guardan en `seller_verification_requests` para conservar historial.
+* La aprobación de una solicitud cambia el perfil a `role=seller` y `verification_status=approved`.
+* El rechazo cambia el perfil a `role=buyer` y `verification_status=rejected`; la suspensión deja `role=seller` y usa `verification_status=suspended`.
 
 ## Roles
 
@@ -234,3 +237,11 @@ backend/
 * Crear sincronización automática de profile.
 * Crear roles `buyer`, `seller` y `admin`.
 * Crear policies base.
+
+### Fase 2: Seller Verification
+
+* Crear tabla `seller_verification_requests`.
+* Crear endpoint para solicitar verificación de vendedor.
+* Crear endpoints administrativos para listar y revisar solicitudes.
+* Aprobar, rechazar o suspender vendedores desde Laravel.
+* Mantener historial de revisiones y auditoría mínima con `reviewed_by` y `reviewed_at`.

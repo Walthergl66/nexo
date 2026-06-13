@@ -58,6 +58,37 @@ Si el JWT es valido y no existe un profile local, el backend lo crea automaticam
 * `role=buyer`
 * `verification_status=pending`
 
+### Seller Verification
+
+```http
+POST /api/seller-verification/request
+Authorization: Bearer <supabase_access_token>
+```
+
+Payload:
+
+```json
+{
+  "business_name": "Nexo Store",
+  "business_description": "Productos hechos por emprendedores.",
+  "document_type": "ruc",
+  "document_number": "1234567890001"
+}
+```
+
+Endpoints admin:
+
+```http
+GET /api/admin/seller-verification-requests
+PATCH /api/admin/seller-verification-requests/{sellerVerificationRequest}
+```
+
+Estados permitidos en revision admin:
+
+* `approved`
+* `rejected`
+* `suspended`
+
 ## Tests
 
 ```bash
