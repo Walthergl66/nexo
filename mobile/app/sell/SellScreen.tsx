@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { InfoRow } from '../../components/common/InfoRow';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { fetchMyStore, fetchProfile } from '../../services/marketplaceApi';
+import { fetchMyStore, fetchProfile, supabaseAccessToken } from '../../services/marketplaceApi';
 import { colors, radii } from '../../theme/colors';
 
 export function SellScreen() {
@@ -15,8 +15,15 @@ export function SellScreen() {
     name: string;
     status: string;
   } | null>(null);
+  const isAuthenticated = supabaseAccessToken.length > 0;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setProfile(null);
+      setStore(null);
+      return;
+    }
+
     let isMounted = true;
 
     Promise.all([
@@ -32,7 +39,25 @@ export function SellScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <SectionTitle title="Centro de ventas" subtitle="Ventas protegidas por verificacion." />
+        <View style={styles.logicList}>
+          <LogicCard
+            title="Inicia sesion"
+            description="Para vender necesitas una cuenta, solicitar verificacion y tener una tienda activa."
+          />
+          <LogicCard
+            title="Catalogo publico"
+            description="Puedes seguir explorando productos como visitante mientras decides registrarte."
+          />
+        </View>
+      </>
+    );
+  }
 
   return (
     <>

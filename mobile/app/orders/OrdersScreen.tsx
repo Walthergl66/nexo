@@ -4,13 +4,19 @@ import { LogicCard } from '../../components/cards/LogicCard';
 import { OrderCard } from '../../components/cards/OrderCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { orders } from '../../data/mockMarketplace';
-import { fetchOrders } from '../../services/marketplaceApi';
+import { fetchOrders, supabaseAccessToken } from '../../services/marketplaceApi';
 import type { Order } from '../../types/marketplace';
 
 export function OrdersScreen() {
   const [remoteOrders, setRemoteOrders] = useState<Order[]>([]);
+  const isAuthenticated = supabaseAccessToken.length > 0;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setRemoteOrders([]);
+      return;
+    }
+
     let isMounted = true;
 
     fetchOrders()
@@ -28,9 +34,23 @@ export function OrdersScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthenticated]);
 
-  const visibleOrders = remoteOrders.length > 0 ? remoteOrders : orders;
+  const visibleOrders = isAuthenticated && remoteOrders.length > 0 ? remoteOrders : orders;
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <SectionTitle title="Pedidos" subtitle="Historial y seguimiento protegidos." />
+        <View style={styles.logicList}>
+          <LogicCard
+            title="Inicia sesion"
+            description="Necesitas una cuenta para crear ordenes, ver pagos pendientes y consultar el historial de compras."
+          />
+        </View>
+      </>
+    );
+  }
 
   return (
     <>

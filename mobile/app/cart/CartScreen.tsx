@@ -7,6 +7,7 @@ import type { CartItem } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
 
 type CartScreenProps = {
+  isAuthenticated: boolean;
   items: CartItem[];
   shipping: number;
   onBackToCatalog: () => void;
@@ -88,6 +89,7 @@ function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: CartLineI
 }
 
 export function CartScreen({
+  isAuthenticated,
   items,
   shipping,
   onBackToCatalog,
@@ -104,8 +106,12 @@ export function CartScreen({
         <View style={styles.emptyIcon}>
           <Ionicons name="cart-outline" size={42} color={colors.brandBlue} />
         </View>
-        <Text style={styles.emptyTitle}>Tu carrito esta vacio</Text>
-        <Text style={styles.emptyText}>Agrega productos desde el catalogo para verlos aqui.</Text>
+        <Text style={styles.emptyTitle}>{isAuthenticated ? 'Tu carrito esta vacio' : 'Inicia sesion para comprar'}</Text>
+        <Text style={styles.emptyText}>
+          {isAuthenticated
+            ? 'Agrega productos desde el catalogo para verlos aqui.'
+            : 'El catalogo es publico, pero el carrito y el checkout requieren una cuenta.'}
+        </Text>
         <Pressable style={styles.primaryButton} onPress={onBackToCatalog}>
           <Text style={styles.primaryButtonText}>Explorar productos</Text>
         </Pressable>

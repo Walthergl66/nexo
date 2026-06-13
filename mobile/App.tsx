@@ -14,7 +14,6 @@ import {
   View,
 } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { CheckoutSummary } from './components/cards/CheckoutSummary';
 import { BrandLogo } from './components/common/BrandLogo';
 import { tabs } from './constants/navigation';
 import { AccountScreen } from './app/account/AccountScreen';
@@ -49,7 +48,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [activeFilter, setActiveFilter] = useState('Todo');
   const [search, setSearch] = useState('');
-  const [cartQuantities, setCartQuantities] = useState<Record<string, number>>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedRating, setSelectedRating] = useState(5);
@@ -78,6 +76,7 @@ export default function App() {
   const screenScale = useRef(new Animated.Value(1)).current;
   const activeIndex = tabs.indexOf(activeTab);
   const isProductPresentation = activeTab === 'Inicio';
+  const isAuthenticated = supabaseAccessToken.length > 0;
   const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
   const navGap = 0;
   const tabWidth = navWidth > 0 ? navWidth / tabs.length : 0;
@@ -153,7 +152,6 @@ export default function App() {
       .then((items) => {
         if (isMounted) {
           setCartItems(items);
-          setCartQuantities(Object.fromEntries(items.map((item) => [item.product.id, item.quantity])));
         }
       })
       .catch(() => {
@@ -185,41 +183,23 @@ export default function App() {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
   }, [cartItems]);
 
-  const cartSubtotal = useMemo(() => {
-    return cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  }, [cartItems]);
-
   const handleAddToCart = async (product: Product) => {
     if (!product.available || product.stock <= 0) {
       return;
     }
 
-    if (supabaseAccessToken) {
-      try {
-        const nextItems = await addProductToCart(product.id);
-        setCartItems(nextItems);
-        setCartQuantities(Object.fromEntries(nextItems.map((item) => [item.product.id, item.quantity])));
-      } catch {
-        return;
-      }
-    } else {
-      setCartQuantities((current) => {
-        const nextQuantity = (current[product.id] ?? 0) + 1;
-        setCartItems((items) => {
-          const currentItem = items.find((item) => item.product.id === product.id);
+    if (!isAuthenticated) {
+      setSelectedProductId(null);
+      setIsCartOpen(false);
+      setActiveTab('Cuenta');
+      return;
+    }
 
-          if (currentItem) {
-            return items.map((item) => (item.product.id === product.id ? { ...item, quantity: nextQuantity } : item));
-          }
-
-          return [...items, { product, quantity: nextQuantity }];
-        });
-
-        return {
-          ...current,
-          [product.id]: nextQuantity,
-        };
-      });
+    try {
+      const nextItems = await addProductToCart(product.id);
+      setCartItems(nextItems);
+    } catch {
+      return;
     }
 
     cartPulse.setValue(0.92);
@@ -264,7 +244,13 @@ export default function App() {
   const handleChangeCartQuantity = async (productId: string, quantity: number) => {
     const currentItem = cartItems.find((item) => item.product.id === productId);
 
-    if (supabaseAccessToken && currentItem?.id) {
+    if (!isAuthenticated) {
+      setActiveTab('Cuenta');
+      setIsCartOpen(false);
+      return;
+    }
+
+    if (currentItem?.id) {
       try {
         const nextItems =
           quantity <= 0
@@ -272,32 +258,12 @@ export default function App() {
             : await updateCartItemQuantity(currentItem.id, quantity);
 
         setCartItems(nextItems);
-        setCartQuantities(Object.fromEntries(nextItems.map((item) => [item.product.id, item.quantity])));
       } catch {
         return;
       }
 
       return;
     }
-
-    setCartQuantities((current) => {
-      const next = { ...current };
-
-      if (quantity <= 0) {
-        delete next[productId];
-      } else {
-        next[productId] = quantity;
-      }
-
-      return next;
-    });
-    setCartItems((items) => {
-      if (quantity <= 0) {
-        return items.filter((item) => item.product.id !== productId);
-      }
-
-      return items.map((item) => (item.product.id === productId ? { ...item, quantity } : item));
-    });
   };
 
   const handleRemoveCartItem = (productId: string) => {
@@ -306,13 +272,17 @@ export default function App() {
 
   const handleCheckout = async () => {
     if (!supabaseAccessToken || cartItems.length === 0) {
+      if (!supabaseAccessToken) {
+        setActiveTab('Cuenta');
+        setIsCartOpen(false);
+      }
+
       return;
     }
 
     try {
       await createOrderFromCart();
       setCartItems([]);
-      setCartQuantities({});
       setActiveTab('Pedidos');
       setIsCartOpen(false);
     } catch {
@@ -456,6 +426,7 @@ export default function App() {
     if (isCartOpen) {
       return (
         <CartScreen
+          isAuthenticated={isAuthenticated}
           items={cartItems}
           shipping={4.99}
           onBackToCatalog={handleBackToCatalog}
@@ -497,7 +468,7 @@ export default function App() {
       case 'Pedidos':
         return <OrdersScreen />;
       case 'Cuenta':
-        return <AccountScreen />;
+        return <AccountScreen onExplore={() => setActiveTab('Inicio')} />;
     }
   };
 
@@ -559,7 +530,6 @@ export default function App() {
             ]}
           >
             {renderActiveScreen()}
-            {!isProductPresentation && <CheckoutSummary subtotal={cartSubtotal} shipping={4.99} />}
           </Animated.View>
         </Animated.ScrollView>
 
