@@ -156,6 +156,27 @@ class ProfileOnboardingTest extends TestCase
             ->assertJsonValidationErrors('national_id');
     }
 
+    public function test_profile_completion_rejects_phone_without_ten_ecuadorian_mobile_digits(): void
+    {
+        $profile = Profile::query()->create([
+            'supabase_user_id' => '018f1d4c-40a5-7fd2-9a5a-000000000005',
+            'email' => 'new@example.com',
+            'role' => Profile::ROLE_BUYER,
+            'verification_status' => Profile::VERIFICATION_PENDING,
+        ]);
+
+        $this->withToken($this->tokenFor($profile))
+            ->patchJson('/api/me/profile', [
+                'national_id' => '1710034065',
+                'first_name' => 'Maria',
+                'last_name' => 'Lopez',
+                'address' => 'Av. Siempre Viva 123',
+                'phone' => '021234567',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('phone');
+    }
+
     private function tokenFor(Profile $profile): string
     {
         return $this->supabaseToken([

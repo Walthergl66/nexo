@@ -39,7 +39,7 @@ class CompleteProfileRequest extends FormRequest
             'age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'gender' => ['nullable', 'string', 'max:30'],
             'address' => ['required', 'string', 'min:5', 'max:255'],
-            'phone' => ['required', 'string', 'regex:/^[0-9+\-\s()]{7,30}$/'],
+            'phone' => ['required', 'string', 'regex:/^09\d{8}$/'],
         ];
     }
 
@@ -47,6 +47,7 @@ class CompleteProfileRequest extends FormRequest
     {
         $this->merge([
             'national_id' => preg_replace('/\D+/', '', (string) $this->input('national_id')),
+            'phone' => preg_replace('/\D+/', '', (string) $this->input('phone')),
         ]);
     }
 }

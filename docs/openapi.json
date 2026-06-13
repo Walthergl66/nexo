@@ -772,7 +772,13 @@
           "age": { "type": ["integer", "null"], "minimum": 0, "maximum": 120 },
           "gender": { "type": ["string", "null"], "maxLength": 30 },
           "address": { "type": "string", "minLength": 5, "maxLength": 255 },
-          "phone": { "type": "string", "minLength": 7, "maxLength": 30 }
+          "phone": {
+            "type": "string",
+            "pattern": "^09\\d{8}$",
+            "minLength": 10,
+            "maxLength": 10,
+            "example": "0991234567"
+          }
         }
       },
       "AddCartItemPayload": {

@@ -460,11 +460,12 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
               <Text style={styles.inputLabel}>Telefono</Text>
               <TextInput
                 keyboardType="phone-pad"
+                maxLength={10}
                 placeholder="0991234567"
                 placeholderTextColor={colors.inkSoft}
                 style={styles.input}
                 value={registerForm.phone}
-                onChangeText={(value) => updateRegisterField('phone', value)}
+                onChangeText={(value) => updateRegisterField('phone', value.replace(/\D+/g, '').slice(0, 10))}
               />
             </View>
           </View>
@@ -517,8 +518,8 @@ function validateRegisterForm(
     return 'Ingresa una direccion valida.';
   }
 
-  if (!/^[0-9+\-\s()]{7,30}$/.test(form.phone)) {
-    return 'Ingresa un telefono valido.';
+  if (!/^09\d{8}$/.test(form.phone)) {
+    return 'Ingresa un telefono ecuatoriano de 10 digitos que empiece con 09.';
   }
 
   return null;
