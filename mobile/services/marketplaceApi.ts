@@ -137,3 +137,39 @@ export async function fetchOrders(token = supabaseAccessToken): Promise<Order[]>
 
   return response.data.map(mapApiOrderToOrder);
 }
+
+export async function fetchProfile(token = supabaseAccessToken): Promise<{
+  display_name: string | null;
+  email: string | null;
+  role: string;
+  verification_status: string;
+} | null> {
+  if (!token) {
+    return null;
+  }
+
+  const response = await request<ApiDocument<{
+    display_name: string | null;
+    email: string | null;
+    role: string;
+    verification_status: string;
+  }>>('/me', { token });
+
+  return response.data;
+}
+
+export async function fetchMyStore(token = supabaseAccessToken): Promise<{
+  name: string;
+  status: string;
+} | null> {
+  if (!token) {
+    return null;
+  }
+
+  const response = await request<ApiDocument<{
+    name: string;
+    status: string;
+  }>>('/my-store', { token });
+
+  return response.data;
+}

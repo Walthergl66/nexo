@@ -1,20 +1,52 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { Tag } from '../../components/common/Tag';
+import { fetchProfile } from '../../services/marketplaceApi';
 import { colors, radii } from '../../theme/colors';
 
 export function AccountScreen() {
+  const [profile, setProfile] = useState<{
+    display_name: string | null;
+    email: string | null;
+    role: string;
+    verification_status: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchProfile()
+      .then((nextProfile) => {
+        if (isMounted) {
+          setProfile(nextProfile);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setProfile(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const displayName = profile?.display_name ?? 'Usuario NEXO';
+  const email = profile?.email ?? 'Configura EXPO_PUBLIC_SUPABASE_ACCESS_TOKEN';
+
   return (
     <>
       <SectionTitle title="Perfil del usuario" subtitle="Datos, seguridad y personalizacion." />
       <View style={styles.accountCard}>
-        <Text style={styles.accountName}>Walter · Comprador/Vendedor</Text>
-        <Text style={styles.accountEmail}>walter@nexo.app</Text>
+        <Text style={styles.accountName}>{displayName}</Text>
+        <Text style={styles.accountEmail}>{email}</Text>
         <View style={styles.accountTags}>
-          <Tag text="2FA pendiente" tone="warning" />
-          <Tag text="3 direcciones guardadas" tone="default" />
-          <Tag text="Nivel Plata" tone="success" />
+          <Tag text={profile?.role ?? 'buyer'} tone="default" />
+          <Tag text={profile?.verification_status ?? 'sin sesion'} tone={profile?.verification_status === 'approved' ? 'success' : 'warning'} />
+          <Tag text="Supabase Auth" tone="success" />
         </View>
       </View>
 

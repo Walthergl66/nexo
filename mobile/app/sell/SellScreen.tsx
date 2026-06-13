@@ -1,18 +1,47 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { InfoRow } from '../../components/common/InfoRow';
 import { SectionTitle } from '../../components/common/SectionTitle';
+import { fetchMyStore, fetchProfile } from '../../services/marketplaceApi';
 import { colors, radii } from '../../theme/colors';
 
 export function SellScreen() {
+  const [profile, setProfile] = useState<{
+    role: string;
+    verification_status: string;
+  } | null>(null);
+  const [store, setStore] = useState<{
+    name: string;
+    status: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([
+      fetchProfile().catch(() => null),
+      fetchMyStore().catch(() => null),
+    ]).then(([nextProfile, nextStore]) => {
+      if (isMounted) {
+        setProfile(nextProfile);
+        setStore(nextStore);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <>
       <SectionTitle title="Centro de ventas" subtitle="Publicacion, comision, inventario y despacho." />
       <View style={styles.panel}>
-        <InfoRow label="Estado de cuenta" value="Verificada" />
-        <InfoRow label="Comision sugerida" value="8% + envio" />
-        <InfoRow label="Tiempo de aprobacion" value="< 24 horas" />
-        <InfoRow label="Inventario critico" value="2 productos por reponer" />
+        <InfoRow label="Rol" value={profile?.role ?? 'buyer'} />
+        <InfoRow label="Verificacion" value={profile?.verification_status ?? 'sin sesion'} />
+        <InfoRow label="Tienda" value={store?.name ?? 'Sin tienda activa'} />
+        <InfoRow label="Estado tienda" value={store?.status ?? 'No disponible'} />
       </View>
 
       <SectionTitle title="Reglas operativas" subtitle="Base para RF del lado vendedor." />
