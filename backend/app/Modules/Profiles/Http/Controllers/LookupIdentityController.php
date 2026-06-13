@@ -14,7 +14,7 @@ class LookupIdentityController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'identificacion' => ['required', 'string', 'min:10', 'max:20'],
+            'identificacion' => ['required', 'string', 'size:10'],
         ]);
 
         $identity = $this->service->lookup($validated['identificacion']);

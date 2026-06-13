@@ -78,6 +78,13 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
 
   const handleLookupIdentity = async () => {
     setMessage(null);
+
+    if (!/^\d{10}$/.test(registerForm.nationalId)) {
+      setIdentity(null);
+      setMessage('La cedula debe tener exactamente 10 digitos.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -287,11 +294,12 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
                 <Text style={styles.inputLabel}>Cedula</Text>
                 <TextInput
                   keyboardType="number-pad"
+                  maxLength={10}
                   placeholder="10 digitos"
                   placeholderTextColor={colors.inkSoft}
                   style={styles.input}
                   value={registerForm.nationalId}
-                  onChangeText={(value) => updateRegisterField('nationalId', value)}
+                  onChangeText={(value) => updateRegisterField('nationalId', value.replace(/\D+/g, '').slice(0, 10))}
                 />
               </View>
               <Pressable
@@ -490,6 +498,10 @@ function validateRegisterForm(
   passwordError: string | null,
   identity: IdentityLookup | null,
 ): string | null {
+  if (!/^\d{10}$/.test(form.nationalId)) {
+    return 'La cedula debe tener exactamente 10 digitos.';
+  }
+
   if (identity === null || identity.national_id !== form.nationalId) {
     return 'Valida la cedula antes de crear la cuenta.';
   }
