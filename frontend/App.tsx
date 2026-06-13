@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -29,10 +30,12 @@ type NavIconName = keyof typeof Ionicons.glyphMap;
 
 const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> = {
   Inicio: { active: 'home', inactive: 'home-outline' },
-  Vender: { active: 'add-circle', inactive: 'add-circle-outline' },
-  Pedidos: { active: 'receipt', inactive: 'receipt-outline' },
-  Cuenta: { active: 'person-circle', inactive: 'person-circle-outline' },
+  Vender: { active: 'pricetag', inactive: 'pricetag-outline' },
+  Pedidos: { active: 'trophy', inactive: 'trophy-outline' },
+  Cuenta: { active: 'person', inactive: 'person-outline' },
 };
+
+const activeNavSize = 62;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -44,44 +47,84 @@ export default function App() {
   const [selectedRating, setSelectedRating] = useState(5);
   const [commentText, setCommentText] = useState('');
   const [customComments, setCustomComments] = useState<Record<string, ProductComment[]>>({});
+  const [marketplaceProducts, setMarketplaceProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true);
+  const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
+  const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
+  const [catalogRequestKey, setCatalogRequestKey] = useState(0);
   const [navWidth, setNavWidth] = useState(0);
   const activePillX = useRef(new Animated.Value(0)).current;
+  const activeBubbleScale = useRef(new Animated.Value(1)).current;
   const cartPulse = useRef(new Animated.Value(1)).current;
+  const hasLoadedCatalog = useRef(false);
   const headerVisibility = useRef(new Animated.Value(1)).current;
   const isHeaderVisible = useRef(true);
   const lastProductScrollY = useRef(0);
+  const previousActiveIndex = useRef(0);
+  const scrollViewRef = useRef<ScrollView>(null);
   const screenOpacity = useRef(new Animated.Value(1)).current;
+  const screenTranslateX = useRef(new Animated.Value(0)).current;
   const screenTranslateY = useRef(new Animated.Value(0)).current;
   const screenScale = useRef(new Animated.Value(1)).current;
   const activeIndex = tabs.indexOf(activeTab);
   const isProductPresentation = activeTab === 'Inicio';
   const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const navGap = 6;
-  const tabWidth = navWidth > 0 ? (navWidth - navGap * (tabs.length - 1)) / tabs.length : 0;
+  const navGap = 0;
+  const tabWidth = navWidth > 0 ? navWidth / tabs.length : 0;
   const headerTranslateY = headerVisibility.interpolate({
     inputRange: [0, 1],
     outputRange: [-94, 0],
     extrapolate: 'clamp',
   });
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesFilter = activeFilter === 'Todo' || product.category === activeFilter;
-      const normalizedQuery = search.trim().toLowerCase();
-      const matchesSearch =
-        normalizedQuery.length === 0 ||
-        product.title.toLowerCase().includes(normalizedQuery) ||
-        product.seller.toLowerCase().includes(normalizedQuery) ||
-        product.category.toLowerCase().includes(normalizedQuery) ||
-        product.description.toLowerCase().includes(normalizedQuery);
+  useEffect(() => {
+    const isInitialLoad = !hasLoadedCatalog.current;
+    const requestDelay = isInitialLoad ? 680 : 360;
 
-      return matchesFilter && matchesSearch;
-    });
-  }, [activeFilter, search]);
+    if (isInitialLoad) {
+      setIsCatalogLoading(true);
+    } else {
+      setIsCatalogRefreshing(true);
+    }
+
+    const request = setTimeout(() => {
+      const nextProducts = products.map((product) => {
+        const stock = Math.max(product.stock - (cartQuantities[product.id] ?? 0), 0);
+
+        return {
+          ...product,
+          stock,
+          available: product.available && stock > 0,
+        };
+      });
+      const normalizedQuery = search.trim().toLowerCase();
+      const nextFilteredProducts = nextProducts.filter((product) => {
+        const matchesFilter = activeFilter === 'Todo' || product.category === activeFilter;
+        const matchesSearch =
+          normalizedQuery.length === 0 ||
+          product.title.toLowerCase().includes(normalizedQuery) ||
+          product.seller.toLowerCase().includes(normalizedQuery) ||
+          product.category.toLowerCase().includes(normalizedQuery) ||
+          product.description.toLowerCase().includes(normalizedQuery);
+
+        return matchesFilter && matchesSearch;
+      });
+
+      setMarketplaceProducts(nextProducts);
+      setFilteredProducts(nextFilteredProducts);
+      setLastCatalogSync(new Date());
+      hasLoadedCatalog.current = true;
+      setIsCatalogLoading(false);
+      setIsCatalogRefreshing(false);
+    }, requestDelay);
+
+    return () => clearTimeout(request);
+  }, [activeFilter, catalogRequestKey, cartQuantities, search]);
 
   const selectedProduct = useMemo(() => {
-    return products.find((product) => product.id === selectedProductId) ?? null;
-  }, [selectedProductId]);
+    return marketplaceProducts.find((product) => product.id === selectedProductId) ?? null;
+  }, [marketplaceProducts, selectedProductId]);
   const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !selectedProduct;
 
   const selectedProductComments = useMemo(() => {
@@ -93,13 +136,15 @@ export default function App() {
   }, [customComments, selectedProduct]);
 
   const cartItems = useMemo<CartItem[]>(() => {
-    return products
+    const sourceProducts = marketplaceProducts.length > 0 ? marketplaceProducts : products;
+
+    return sourceProducts
       .map((product) => ({
         product,
         quantity: cartQuantities[product.id] ?? 0,
       }))
       .filter((item) => item.quantity > 0);
-  }, [cartQuantities]);
+  }, [cartQuantities, marketplaceProducts]);
 
   const cartCount = useMemo(() => {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -110,6 +155,10 @@ export default function App() {
   }, [cartItems]);
 
   const handleAddToCart = (product: Product) => {
+    if (!product.available || product.stock <= 0) {
+      return;
+    }
+
     setCartQuantities((current) => ({
       ...current,
       [product.id]: (current[product.id] ?? 0) + 1,
@@ -147,6 +196,10 @@ export default function App() {
     setActiveTab('Inicio');
     setSelectedProductId(null);
     setIsCartOpen(true);
+  };
+
+  const handleRefreshCatalog = () => {
+    setCatalogRequestKey((current) => current + 1);
   };
 
   const handleChangeCartQuantity = (productId: string, quantity: number) => {
@@ -191,40 +244,71 @@ export default function App() {
       return;
     }
 
-    Animated.timing(activePillX, {
-      toValue: activeIndex * (tabWidth + navGap),
-      duration: 220,
-      easing: Easing.bezier(0.23, 1, 0.32, 1),
-      useNativeDriver: true,
-    }).start();
-  }, [activeIndex, activePillX, tabWidth]);
+    Animated.parallel([
+      Animated.spring(activePillX, {
+        toValue: activeIndex * (tabWidth + navGap) + tabWidth / 2 - activeNavSize / 2,
+        damping: 18,
+        mass: 0.85,
+        stiffness: 180,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(activeBubbleScale, {
+          toValue: 0.9,
+          duration: 90,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.spring(activeBubbleScale, {
+          toValue: 1,
+          damping: 11,
+          stiffness: 170,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [activeBubbleScale, activeIndex, activePillX, navGap, tabWidth]);
 
   useEffect(() => {
+    const transitionDirection = activeIndex >= previousActiveIndex.current ? 1 : -1;
+
     screenOpacity.setValue(0);
-    screenTranslateY.setValue(10);
-    screenScale.setValue(0.985);
+    screenTranslateX.setValue(26 * transitionDirection);
+    screenTranslateY.setValue(8);
+    screenScale.setValue(0.975);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
 
     Animated.parallel([
       Animated.timing(screenOpacity, {
         toValue: 1,
-        duration: 200,
+        duration: 240,
         easing: Easing.bezier(0.23, 1, 0.32, 1),
+        useNativeDriver: true,
+      }),
+      Animated.spring(screenTranslateX, {
+        toValue: 0,
+        damping: 18,
+        mass: 0.75,
+        stiffness: 190,
         useNativeDriver: true,
       }),
       Animated.timing(screenTranslateY, {
         toValue: 0,
-        duration: 200,
+        duration: 220,
         easing: Easing.bezier(0.23, 1, 0.32, 1),
         useNativeDriver: true,
       }),
-      Animated.timing(screenScale, {
+      Animated.spring(screenScale, {
         toValue: 1,
-        duration: 200,
-        easing: Easing.bezier(0.23, 1, 0.32, 1),
+        damping: 17,
+        mass: 0.8,
+        stiffness: 180,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [screenOpacity, screenScale, screenTransitionKey, screenTranslateY]);
+    ]).start(() => {
+      previousActiveIndex.current = activeIndex;
+    });
+  }, [activeIndex, screenOpacity, screenScale, screenTransitionKey, screenTranslateX, screenTranslateY]);
 
   useEffect(() => {
     if (shouldShowHeader) {
@@ -288,6 +372,10 @@ export default function App() {
             activeFilter={activeFilter}
             commentText={commentText}
             filteredProducts={filteredProducts}
+            isLoading={isCatalogLoading}
+            isRefreshing={isCatalogRefreshing}
+            lastSyncAt={lastCatalogSync}
+            productsCount={marketplaceProducts.length}
             productComments={selectedProductComments}
             search={search}
             selectedProduct={selectedProduct}
@@ -298,6 +386,7 @@ export default function App() {
             onChangeFilter={setActiveFilter}
             onChangeRating={setSelectedRating}
             onChangeSearch={setSearch}
+            onRefreshCatalog={handleRefreshCatalog}
             onSelectProduct={handleSelectProduct}
             onSubmitComment={handleSubmitComment}
           />
@@ -326,15 +415,10 @@ export default function App() {
               },
             ]}
           >
-            <View style={styles.statusBar}>
-              <Text style={styles.statusText}>9:41</Text>
-              <Text style={styles.statusText}>Senal  Wi-Fi</Text>
-            </View>
             <View style={styles.headerBrand}>
               <BrandLogo />
               <View>
                 <Text style={styles.headerTitle}>NEXO</Text>
-                <Text style={styles.headerSubtitle}>Compra y vende con confianza.</Text>
               </View>
             </View>
             <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
@@ -355,6 +439,7 @@ export default function App() {
         )}
 
         <Animated.ScrollView
+          ref={scrollViewRef}
           contentContainerStyle={[
             styles.content,
             isProductPresentation && styles.productContent,
@@ -368,7 +453,7 @@ export default function App() {
               styles.screenTransition,
               {
                 opacity: screenOpacity,
-                transform: [{ translateY: screenTranslateY }, { scale: screenScale }],
+                transform: [{ translateX: screenTranslateX }, { translateY: screenTranslateY }, { scale: screenScale }],
               },
             ]}
           >
@@ -380,20 +465,41 @@ export default function App() {
         <View style={styles.bottomNav}>
           <View style={styles.bottomNavTrack} onLayout={handleNavLayout}>
             {tabWidth > 0 && (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.bottomNavIndicator,
-                  {
-                    width: tabWidth,
-                    transform: [{ translateX: activePillX }],
-                  },
-                ]}
-              />
+              <>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.bottomNavPocket,
+                    {
+                      transform: [{ translateX: activePillX }],
+                    },
+                  ]}
+                />
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.bottomNavHalo,
+                    {
+                      transform: [{ translateX: activePillX }, { scale: activeBubbleScale }],
+                    },
+                  ]}
+                />
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.bottomNavBubble,
+                    {
+                      transform: [{ translateX: activePillX }, { scale: activeBubbleScale }],
+                    },
+                  ]}
+                >
+                  <Ionicons name={navIcons[activeTab].active} size={30} color={colors.surface} />
+                </Animated.View>
+              </>
             )}
             {tabs.map((tab) => {
               const isActive = tab === activeTab;
-              const iconName = isActive ? navIcons[tab].active : navIcons[tab].inactive;
+              const iconName = navIcons[tab].inactive;
 
               return (
                 <Pressable
@@ -413,9 +519,12 @@ export default function App() {
                 >
                   <Ionicons
                     name={iconName}
-                    size={isActive ? 25 : 23}
-                    color={isActive ? colors.surface : colors.brandBlueMuted}
+                    size={23}
+                    color={isActive ? 'transparent' : colors.inkMuted}
                   />
+                  <Text style={[styles.bottomNavLabel, isActive && styles.bottomNavLabelActive]}>
+                    {tab}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -543,61 +652,104 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingTop: 2,
-    paddingBottom: 110,
+    paddingBottom: 132,
   },
   contentWithHeader: {
-    paddingTop: 124,
+    paddingTop: 104,
   },
   productContent: {
-    paddingTop: 12,
+    paddingTop: 0,
   },
   screenTransition: {
     gap: 14,
   },
   bottomNav: {
     position: 'absolute',
-    left: 14,
-    right: 14,
-    bottom: 14,
-    backgroundColor: colors.brandBlueSoft,
-    borderRadius: 34,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
+    left: 18,
+    right: 18,
+    bottom: 16,
+    height: 94,
+    justifyContent: 'flex-end',
   },
   bottomNavTrack: {
-    minHeight: 48,
+    height: 72,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     position: 'relative',
+    backgroundColor: Platform.OS === 'web' ? '#fbfdff' : colors.surface,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.12,
+    shadowRadius: 26,
+    elevation: 14,
   },
-  bottomNavIndicator: {
+  bottomNavPocket: {
     position: 'absolute',
+    top: -22,
     left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlue,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 8,
+    width: activeNavSize,
+    height: activeNavSize,
+    borderRadius: activeNavSize / 2,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
   },
-  bottomNavItem: {
-    minHeight: 48,
+  bottomNavHalo: {
+    position: 'absolute',
+    top: -27,
+    left: 0,
+    width: activeNavSize,
+    height: activeNavSize,
+    borderRadius: activeNavSize / 2,
+    backgroundColor: colors.brandBlueSoft,
+    shadowColor: colors.brandBlue,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    elevation: 15,
+    opacity: 0.72,
+  },
+  bottomNavBubble: {
+    position: 'absolute',
+    top: -31,
+    left: 0,
+    width: activeNavSize,
+    height: activeNavSize,
+    borderRadius: activeNavSize / 2,
+    backgroundColor: colors.brandBlue,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.pill,
+    borderWidth: 4,
+    borderColor: colors.surface,
+    shadowColor: colors.brandBlue,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  bottomNavItem: {
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    borderRadius: radii.large,
+    gap: 3,
+    paddingBottom: 10,
     transform: [{ scale: 1 }],
   },
   bottomNavItemPressed: {
     transform: [{ scale: 0.96 }],
+  },
+  bottomNavLabel: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    letterSpacing: 0,
+  },
+  bottomNavLabelActive: {
+    color: colors.brandBlue,
   },
 });
