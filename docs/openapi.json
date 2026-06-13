@@ -1,0 +1,724 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "nexo API",
+    "version": "0.6.0",
+    "description": "API REST modular de nexo. Supabase Auth identifica al usuario y Laravel valida permisos, perfiles, tiendas, productos, carrito y ordenes."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8000/api",
+      "description": "Laravel local"
+    }
+  ],
+  "security": [
+    {
+      "supabaseBearer": []
+    }
+  ],
+  "paths": {
+    "/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Lista productos publicos activos",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Productos activos de tiendas activas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductCollection"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Crea un producto para la tienda propia",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Producto creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDocument"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/products/{product}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Muestra un producto publico activo",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Product"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Producto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Products"],
+        "summary": "Actualiza un producto propio",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Product"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Producto actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDocument"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Lista categorias activas",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Categorias",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryCollection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stores": {
+      "get": {
+        "tags": ["Stores"],
+        "summary": "Lista tiendas publicas activas",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Tiendas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreCollection"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Stores"],
+        "summary": "Crea tienda propia para seller aprobado",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorePayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tienda creada"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/stores/{store}": {
+      "get": {
+        "tags": ["Stores"],
+        "summary": "Muestra una tienda publica activa",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Store"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tienda",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreDocument"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Stores"],
+        "summary": "Actualiza tienda propia",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Store"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorePayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tienda actualizada"
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": ["Profiles"],
+        "summary": "Obtiene o crea el profile interno desde el JWT Supabase",
+        "responses": {
+          "200": {
+            "description": "Profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDocument"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/my-store": {
+      "get": {
+        "tags": ["Stores"],
+        "summary": "Obtiene la tienda propia",
+        "responses": {
+          "200": {
+            "description": "Tienda propia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/seller-verification/request": {
+      "post": {
+        "tags": ["Seller Verification"],
+        "summary": "Solicita verificacion para convertirse en seller",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerVerificationPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Solicitud creada"
+          }
+        }
+      }
+    },
+    "/cart": {
+      "get": {
+        "tags": ["Cart"],
+        "summary": "Lista el carrito del profile autenticado",
+        "responses": {
+          "200": {
+            "description": "Items de carrito",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartCollection"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Vacia el carrito",
+        "responses": {
+          "204": {
+            "description": "Carrito vaciado"
+          }
+        }
+      }
+    },
+    "/cart/items": {
+      "post": {
+        "tags": ["Cart"],
+        "summary": "Agrega producto activo al carrito",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCartItemPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item agregado"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/cart/items/{cartItem}": {
+      "patch": {
+        "tags": ["Cart"],
+        "summary": "Actualiza cantidad de un item propio",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CartItem"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCartItemPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item actualizado"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Elimina un item propio",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CartItem"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Item eliminado"
+          }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Lista ordenes del profile autenticado",
+        "responses": {
+          "200": {
+            "description": "Ordenes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderCollection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/from-cart": {
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Crea una orden pendiente desde el carrito",
+        "responses": {
+          "201": {
+            "description": "Orden creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDocument"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/orders/{order}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Muestra una orden propia",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Order"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDocument"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "supabaseBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT emitido por Supabase Auth."
+      }
+    },
+    "parameters": {
+      "Product": {
+        "name": "product",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Store": {
+        "name": "store",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CartItem": {
+        "name": "cartItem",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Order": {
+        "name": "order",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "JWT ausente o invalido"
+      },
+      "Forbidden": {
+        "description": "El profile no tiene permisos para la accion"
+      },
+      "NotFound": {
+        "description": "Recurso no encontrado"
+      },
+      "ValidationError": {
+        "description": "Payload invalido o regla de negocio incumplida"
+      }
+    },
+    "schemas": {
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "supabase_user_id": { "type": "string" },
+          "email": { "type": ["string", "null"] },
+          "display_name": { "type": ["string", "null"] },
+          "role": { "type": "string", "enum": ["buyer", "seller", "admin"] },
+          "verification_status": { "type": "string", "enum": ["pending", "approved", "rejected", "suspended"] }
+        }
+      },
+      "Store": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "profile_id": { "type": "string" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "logo_url": { "type": ["string", "null"] },
+          "banner_url": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["pending", "active", "suspended"] }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "parent_id": { "type": ["string", "null"] },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "status": { "type": "string" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "store_id": { "type": "string" },
+          "category_id": { "type": ["string", "null"] },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "price_cents": { "type": "integer", "minimum": 0 },
+          "currency": { "type": "string", "example": "USD" },
+          "stock": { "type": "integer", "minimum": 0 },
+          "status": { "type": "string", "enum": ["draft", "active", "paused", "rejected"] },
+          "store": { "$ref": "#/components/schemas/Store" },
+          "category": { "$ref": "#/components/schemas/Category" }
+        }
+      },
+      "CartItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "product_id": { "type": "string" },
+          "quantity": { "type": "integer" },
+          "unit_price_cents": { "type": "integer" },
+          "subtotal_cents": { "type": "integer" },
+          "currency": { "type": ["string", "null"] },
+          "product": { "$ref": "#/components/schemas/Product" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "order_number": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "processing", "shipped", "delivered", "cancelled"] },
+          "payment_status": { "type": "string", "enum": ["pending", "paid", "failed", "refunded"] },
+          "currency": { "type": "string" },
+          "subtotal_cents": { "type": "integer" },
+          "total_cents": { "type": "integer" },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "ProductPayload": {
+        "type": "object",
+        "properties": {
+          "category_id": { "type": ["string", "null"] },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "price_cents": { "type": "integer" },
+          "currency": { "type": "string", "default": "USD" },
+          "stock": { "type": "integer" },
+          "status": { "type": "string", "enum": ["draft", "active", "paused", "rejected"] }
+        }
+      },
+      "StorePayload": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "logo_url": { "type": ["string", "null"] },
+          "banner_url": { "type": ["string", "null"] }
+        }
+      },
+      "SellerVerificationPayload": {
+        "type": "object",
+        "required": ["business_name", "document_type", "document_number"],
+        "properties": {
+          "business_name": { "type": "string" },
+          "document_type": { "type": "string" },
+          "document_number": { "type": "string" },
+          "notes": { "type": ["string", "null"] }
+        }
+      },
+      "AddCartItemPayload": {
+        "type": "object",
+        "required": ["product_id", "quantity"],
+        "properties": {
+          "product_id": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 999 }
+        }
+      },
+      "UpdateCartItemPayload": {
+        "type": "object",
+        "required": ["quantity"],
+        "properties": {
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 999 }
+        }
+      },
+      "ProfileDocument": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/Profile" }
+        }
+      },
+      "StoreDocument": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/Store" }
+        }
+      },
+      "ProductDocument": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/Product" }
+        }
+      },
+      "OrderDocument": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/Order" }
+        }
+      },
+      "StoreCollection": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Store" }
+          }
+        }
+      },
+      "CategoryCollection": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Category" }
+          }
+        }
+      },
+      "ProductCollection": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Product" }
+          }
+        }
+      },
+      "CartCollection": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CartItem" }
+          }
+        }
+      },
+      "OrderCollection": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Order" }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Profiles" },
+    { "name": "Seller Verification" },
+    { "name": "Stores" },
+    { "name": "Categories" },
+    { "name": "Products" },
+    { "name": "Cart" },
+    { "name": "Orders" }
+  ]
+}
