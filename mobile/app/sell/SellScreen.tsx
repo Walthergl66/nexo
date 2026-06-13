@@ -3,10 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { InfoRow } from '../../components/common/InfoRow';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { fetchMyStore, fetchProfile, supabaseAccessToken } from '../../services/marketplaceApi';
+import { fetchMyStore, fetchProfile } from '../../services/marketplaceApi';
 import { colors, radii } from '../../theme/colors';
 
-export function SellScreen() {
+type SellScreenProps = {
+  accessToken: string | null;
+};
+
+export function SellScreen({ accessToken }: SellScreenProps) {
   const [profile, setProfile] = useState<{
     role: string;
     verification_status: string;
@@ -15,7 +19,7 @@ export function SellScreen() {
     name: string;
     status: string;
   } | null>(null);
-  const isAuthenticated = supabaseAccessToken.length > 0;
+  const isAuthenticated = accessToken !== null;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -27,8 +31,8 @@ export function SellScreen() {
     let isMounted = true;
 
     Promise.all([
-      fetchProfile().catch(() => null),
-      fetchMyStore().catch(() => null),
+      fetchProfile(accessToken ?? undefined).catch(() => null),
+      fetchMyStore(accessToken ?? undefined).catch(() => null),
     ]).then(([nextProfile, nextStore]) => {
       if (isMounted) {
         setProfile(nextProfile);
@@ -39,7 +43,7 @@ export function SellScreen() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated]);
+  }, [accessToken, isAuthenticated]);
 
   if (!isAuthenticated) {
     return (

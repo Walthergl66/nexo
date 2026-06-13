@@ -150,8 +150,10 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * La app Expo activa vive en `mobile/`.
 * La carpeta histórica `frontend/` fue migrada a `mobile/` y retirada del monorepo.
 * `mobile/` consume el backend con `EXPO_PUBLIC_API_BASE_URL`.
-* `mobile/` puede usar `EXPO_PUBLIC_SUPABASE_ACCESS_TOKEN` temporalmente para desarrollo manual de rutas protegidas.
+* `mobile/` usa Supabase Auth con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`; el JWT de la sesion activa se envia a Laravel para rutas protegidas.
 * `mobile/` consume el catálogo público desde `GET /api/products` y usa JWT para carrito, órdenes, perfil y tienda propia.
+* `mobile/` registra usuarios desde la pantalla Cuenta: valida cedula por backend, crea usuario en Supabase Auth y completa el perfil interno en Laravel.
+* Laravel expone `GET /api/identity/lookup`, `GET /api/profiles/availability` y `PATCH /api/me/profile` para onboarding de perfiles.
 * La documentación OpenAPI/Swagger del backend vive en `/api/docs` y `/api/docs/openapi.json`.
 * El contrato OpenAPI se mantiene en `docs/openapi.json` y se sirve sin paquete externo de Swagger.
 

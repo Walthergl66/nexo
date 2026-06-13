@@ -28,9 +28,9 @@ import {
   fetchCart,
   fetchProducts,
   removeCartItem,
-  supabaseAccessToken,
   updateCartItemQuantity,
 } from './services/marketplaceApi';
+import { getCurrentSession, onAuthStateChange } from './services/authService';
 import { colors, radii } from './theme/colors';
 import type { CartItem, Product, TabKey } from './types/marketplace';
 
@@ -55,6 +55,7 @@ export default function App() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [categoryFilters, setCategoryFilters] = useState<string[]>(['Todo']);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
@@ -75,7 +76,7 @@ export default function App() {
   const screenScale = useRef(new Animated.Value(1)).current;
   const activeIndex = tabs.indexOf(activeTab);
   const isProductPresentation = activeTab === 'Inicio';
-  const isAuthenticated = supabaseAccessToken.length > 0;
+  const isAuthenticated = accessToken !== null;
   const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
   const navGap = 0;
   const tabWidth = navWidth > 0 ? navWidth / tabs.length : 0;
@@ -167,7 +168,32 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    fetchCart()
+    getCurrentSession()
+      .then((session) => {
+        if (isMounted) {
+          setAccessToken(session?.access_token ?? null);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAccessToken(null);
+        }
+      });
+
+    const subscription = onAuthStateChange((session) => {
+      setAccessToken(session?.access_token ?? null);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchCart(accessToken ?? undefined)
       .then((items) => {
         if (isMounted) {
           setCartItems(items);
@@ -182,7 +208,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [accessToken]);
 
   const selectedProduct = useMemo(
     () => marketplaceProducts.find((product) => product.id === selectedProductId) ?? null,
@@ -207,7 +233,7 @@ export default function App() {
     }
 
     try {
-      const nextItems = await addProductToCart(product.id);
+      const nextItems = await addProductToCart(product.id, 1, accessToken);
       setCartItems(nextItems);
     } catch {
       return;
@@ -263,8 +289,8 @@ export default function App() {
       try {
         const nextItems =
           quantity <= 0
-            ? await removeCartItem(currentItem.id)
-            : await updateCartItemQuantity(currentItem.id, quantity);
+            ? await removeCartItem(currentItem.id, accessToken)
+            : await updateCartItemQuantity(currentItem.id, quantity, accessToken);
 
         setCartItems(nextItems);
       } catch {
@@ -280,8 +306,8 @@ export default function App() {
   };
 
   const handleCheckout = async () => {
-    if (!supabaseAccessToken || cartItems.length === 0) {
-      if (!supabaseAccessToken) {
+    if (!accessToken || cartItems.length === 0) {
+      if (!accessToken) {
         setActiveTab('Cuenta');
         setIsCartOpen(false);
       }
@@ -290,7 +316,7 @@ export default function App() {
     }
 
     try {
-      await createOrderFromCart();
+      await createOrderFromCart(accessToken);
       setCartItems([]);
       setActiveTab('Pedidos');
       setIsCartOpen(false);
@@ -449,11 +475,11 @@ export default function App() {
           />
         );
       case 'Vender':
-        return <SellScreen />;
+        return <SellScreen accessToken={accessToken} />;
       case 'Pedidos':
-        return <OrdersScreen />;
+        return <OrdersScreen accessToken={accessToken} />;
       case 'Cuenta':
-        return <AccountScreen onExplore={() => setActiveTab('Inicio')} />;
+        return <AccountScreen accessToken={accessToken} onExplore={() => setActiveTab('Inicio')} />;
     }
   };
 

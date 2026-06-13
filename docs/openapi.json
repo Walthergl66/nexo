@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "nexo API",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "description": "API REST modular de nexo. Supabase Auth identifica al usuario y Laravel valida permisos, perfiles, tiendas, productos, carrito y ordenes."
   },
   "servers": [
@@ -254,6 +254,118 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/me/profile": {
+      "patch": {
+        "tags": ["Profiles"],
+        "summary": "Completa datos de identidad y contacto del profile autenticado",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteProfilePayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDocument"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/identity/lookup": {
+      "get": {
+        "tags": ["Profiles"],
+        "summary": "Valida una cedula ecuatoriana y consulta datos personales externos",
+        "security": [],
+        "parameters": [
+          {
+            "name": "identificacion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 10,
+              "example": "1710034065"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos normalizados de identidad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityLookupDocument"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/profiles/availability": {
+      "get": {
+        "tags": ["Profiles"],
+        "summary": "Verifica si correo y cedula estan disponibles para registro",
+        "security": [],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "email",
+              "example": "comprador@nexo.test"
+            }
+          },
+          {
+            "name": "national_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "1710034065"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disponibilidad de identificadores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileAvailabilityDocument"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
           }
         }
       }
@@ -519,8 +631,32 @@
           "supabase_user_id": { "type": "string" },
           "email": { "type": ["string", "null"] },
           "display_name": { "type": ["string", "null"] },
+          "national_id": { "type": ["string", "null"] },
+          "first_name": { "type": ["string", "null"] },
+          "last_name": { "type": ["string", "null"] },
+          "age": { "type": ["integer", "null"], "minimum": 0, "maximum": 120 },
+          "gender": { "type": ["string", "null"] },
+          "address": { "type": ["string", "null"] },
+          "phone": { "type": ["string", "null"] },
           "role": { "type": "string", "enum": ["buyer", "seller", "admin"] },
           "verification_status": { "type": "string", "enum": ["pending", "approved", "rejected", "suspended"] }
+        }
+      },
+      "IdentityLookup": {
+        "type": "object",
+        "properties": {
+          "national_id": { "type": "string" },
+          "first_name": { "type": ["string", "null"] },
+          "last_name": { "type": ["string", "null"] },
+          "age": { "type": ["integer", "null"] },
+          "gender": { "type": ["string", "null"] }
+        }
+      },
+      "ProfileAvailability": {
+        "type": "object",
+        "properties": {
+          "email_available": { "type": "boolean" },
+          "national_id_available": { "type": "boolean" }
         }
       },
       "Store": {
@@ -626,6 +762,25 @@
           "notes": { "type": ["string", "null"] }
         }
       },
+      "CompleteProfilePayload": {
+        "type": "object",
+        "required": ["national_id", "first_name", "last_name", "address", "phone"],
+        "properties": {
+          "national_id": { "type": "string", "minLength": 10, "maxLength": 10 },
+          "first_name": { "type": "string", "maxLength": 120 },
+          "last_name": { "type": "string", "maxLength": 120 },
+          "age": { "type": ["integer", "null"], "minimum": 0, "maximum": 120 },
+          "gender": { "type": ["string", "null"], "maxLength": 30 },
+          "address": { "type": "string", "minLength": 5, "maxLength": 255 },
+          "phone": {
+            "type": "string",
+            "pattern": "^09\\d{8}$",
+            "minLength": 10,
+            "maxLength": 10,
+            "example": "0991234567"
+          }
+        }
+      },
       "AddCartItemPayload": {
         "type": "object",
         "required": ["product_id", "quantity"],
@@ -645,6 +800,18 @@
         "type": "object",
         "properties": {
           "data": { "$ref": "#/components/schemas/Profile" }
+        }
+      },
+      "IdentityLookupDocument": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/IdentityLookup" }
+        }
+      },
+      "ProfileAvailabilityDocument": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/ProfileAvailability" }
         }
       },
       "StoreDocument": {
