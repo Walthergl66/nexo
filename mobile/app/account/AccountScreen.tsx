@@ -47,6 +47,9 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
   const [identity, setIdentity] = useState<IdentityLookup | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenderOpen, setIsGenderOpen] = useState(false);
+  const [isLoginPasswordVisible, setIsLoginPasswordVisible] = useState(false);
+  const [isRegisterPasswordVisible, setIsRegisterPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const isGuest = accessToken === null;
@@ -97,7 +100,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
         lastName: data.last_name ?? '',
         age: data.age === null ? '' : String(data.age),
       }));
-      setMessage('Cedula validada.');
+      setMessage('Cédula validada.');
     } catch (error) {
       setIdentity(null);
       setMessage(error instanceof Error ? error.message : 'No se pudo validar la cedula.');
@@ -113,7 +116,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
     try {
       await signInWithEmail(loginEmail, loginPassword);
       setLoginPassword('');
-      setMessage('Sesion iniciada.');
+      setMessage('Sesión iniciada.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo iniciar sesion.');
     } finally {
@@ -189,7 +192,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
     try {
       await signOut();
       setProfile(null);
-      setMessage('Sesion cerrada.');
+      setMessage('Sesión cerrada.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo cerrar sesion.');
     } finally {
@@ -222,9 +225,9 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
           </View>
           {profile.national_id && (
             <View style={styles.dataGrid}>
-              <Text style={styles.dataText}>Cedula: {profile.national_id}</Text>
-              <Text style={styles.dataText}>Telefono: {profile.phone ?? 'No registrado'}</Text>
-              <Text style={styles.dataText}>Direccion: {profile.address ?? 'No registrada'}</Text>
+              <Text style={styles.dataText}>Cédula: {profile.national_id}</Text>
+              <Text style={styles.dataText}>Teléfono: {profile.phone ?? 'No registrado'}</Text>
+              <Text style={styles.dataText}>Dirección: {profile.address ?? 'No registrada'}</Text>
               <Text style={styles.dataText}>Edad: {profile.age ?? 'No registrada'}</Text>
               <Text style={styles.dataText}>Genero: {profile.gender ?? 'No registrado'}</Text>
             </View>
@@ -267,14 +270,23 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
             value={loginEmail}
             onChangeText={setLoginEmail}
           />
-          <TextInput
-            placeholder="Contrasena"
-            placeholderTextColor={colors.inkSoft}
-            secureTextEntry
-            style={styles.input}
-            value={loginPassword}
-            onChangeText={setLoginPassword}
-          />
+          <View style={styles.passwordInputWrap}>
+            <TextInput
+              placeholder="Contraseña"
+              placeholderTextColor={colors.inkSoft}
+              secureTextEntry={!isLoginPasswordVisible}
+              style={[styles.input, styles.passwordInput]}
+              value={loginPassword}
+              onChangeText={setLoginPassword}
+            />
+            <Pressable
+              accessibilityLabel={isLoginPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              style={({ pressed }) => [styles.passwordToggle, pressed && styles.buttonPressed]}
+              onPress={() => setIsLoginPasswordVisible((current) => !current)}
+            >
+              <Ionicons name={isLoginPasswordVisible ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.inkMuted} />
+            </Pressable>
+          </View>
           <Pressable disabled={isLoading} style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={handleLogin}>
             {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
           </Pressable>
@@ -287,11 +299,11 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
           <View style={styles.formSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionKicker}>Identidad</Text>
-              <Text style={styles.sectionHint}>Validacion por cedula</Text>
+              <Text style={styles.sectionHint}>Validación por cédula</Text>
             </View>
             <View style={styles.inlineRow}>
               <View style={styles.fieldWrap}>
-                <Text style={styles.inputLabel}>Cedula</Text>
+                <Text style={styles.inputLabel}>Cédula</Text>
                 <TextInput
                   keyboardType="number-pad"
                   maxLength={10}
@@ -425,27 +437,45 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
               />
             </View>
             <View style={styles.fieldWrap}>
-              <Text style={styles.inputLabel}>Contrasena</Text>
-              <TextInput
-                placeholder="Minimo 8 caracteres"
-                placeholderTextColor={colors.inkSoft}
-                secureTextEntry
-                style={styles.input}
-                value={registerForm.password}
-                onChangeText={(value) => updateRegisterField('password', value)}
-              />
+              <Text style={styles.inputLabel}>Contraseña</Text>
+              <View style={styles.passwordInputWrap}>
+                <TextInput
+                  placeholder="Minimo 8 caracteres"
+                  placeholderTextColor={colors.inkSoft}
+                  secureTextEntry={!isRegisterPasswordVisible}
+                  style={[styles.input, styles.passwordInput]}
+                  value={registerForm.password}
+                  onChangeText={(value) => updateRegisterField('password', value)}
+                />
+                <Pressable
+                  accessibilityLabel={isRegisterPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  style={({ pressed }) => [styles.passwordToggle, pressed && styles.buttonPressed]}
+                  onPress={() => setIsRegisterPasswordVisible((current) => !current)}
+                >
+                  <Ionicons name={isRegisterPasswordVisible ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.inkMuted} />
+                </Pressable>
+              </View>
               {passwordError && <Text style={styles.validationText}>{passwordError}</Text>}
             </View>
             <View style={styles.fieldWrap}>
-              <Text style={styles.inputLabel}>Confirmar contrasena</Text>
-              <TextInput
-                placeholder="Repite tu contrasena"
-                placeholderTextColor={colors.inkSoft}
-                secureTextEntry
-                style={styles.input}
-                value={registerForm.confirmPassword}
-                onChangeText={(value) => updateRegisterField('confirmPassword', value)}
-              />
+              <Text style={styles.inputLabel}>Confirmar contraseña</Text>
+              <View style={styles.passwordInputWrap}>
+                <TextInput
+                  placeholder="Repite tu contraseña"
+                  placeholderTextColor={colors.inkSoft}
+                  secureTextEntry={!isConfirmPasswordVisible}
+                  style={[styles.input, styles.passwordInput]}
+                  value={registerForm.confirmPassword}
+                  onChangeText={(value) => updateRegisterField('confirmPassword', value)}
+                />
+                <Pressable
+                  accessibilityLabel={isConfirmPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  style={({ pressed }) => [styles.passwordToggle, pressed && styles.buttonPressed]}
+                  onPress={() => setIsConfirmPasswordVisible((current) => !current)}
+                >
+                  <Ionicons name={isConfirmPasswordVisible ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.inkMuted} />
+                </Pressable>
+              </View>
             </View>
           </View>
 
@@ -455,7 +485,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
               <Text style={styles.sectionHint}>Para entregas y soporte</Text>
             </View>
             <View style={styles.fieldWrap}>
-              <Text style={styles.inputLabel}>Direccion</Text>
+              <Text style={styles.inputLabel}>Dirección</Text>
               <TextInput
                 placeholder="Calle, numero, referencia"
                 placeholderTextColor={colors.inkSoft}
@@ -465,7 +495,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
               />
             </View>
             <View style={styles.fieldWrap}>
-              <Text style={styles.inputLabel}>Telefono</Text>
+              <Text style={styles.inputLabel}>Teléfono</Text>
               <TextInput
                 keyboardType="phone-pad"
                 maxLength={10}
@@ -523,7 +553,7 @@ function validateRegisterForm(
   }
 
   if (form.password !== form.confirmPassword) {
-    return 'Las contrasenas no coinciden.';
+    return 'Las contraseñas no coinciden.';
   }
 
   if (form.address.trim().length < 5) {
@@ -543,7 +573,7 @@ function validatePassword(password: string): string | null {
   }
 
   if (password.length < 8) {
-    return 'La contrasena debe tener minimo 8 caracteres.';
+    return 'La contraseña debe tener mínimo 8 caracteres.';
   }
 
   if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
@@ -625,6 +655,21 @@ const styles = StyleSheet.create({
     color: colors.ink,
     paddingHorizontal: 12,
     fontSize: 13,
+  },
+  passwordInputWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  passwordInput: {
+    paddingRight: 46,
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 2,
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inputLabel: {
     color: colors.ink,
