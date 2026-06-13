@@ -109,6 +109,42 @@ Authorization: Bearer <supabase_access_token>
 
 Solo un perfil con `role=seller` y `verification_status=approved` puede crear tienda. Cada seller puede tener una sola tienda y se crea con `status=active`.
 
+### Categories
+
+Endpoint publico:
+
+```http
+GET /api/categories
+```
+
+Endpoints admin:
+
+```http
+POST /api/admin/categories
+PATCH /api/admin/categories/{slug}
+Authorization: Bearer <supabase_access_token>
+```
+
+### Products
+
+Endpoints publicos:
+
+```http
+GET /api/products
+GET /api/products/{slug}
+```
+
+Endpoints protegidos para sellers:
+
+```http
+GET /api/my-products
+POST /api/products
+PATCH /api/products/{slug}
+Authorization: Bearer <supabase_access_token>
+```
+
+Los productos guardan precio como `price_cents`, usan `currency` ISO de 3 letras y nacen como `draft` si no se envia otro estado. Solo se publican productos de tiendas activas.
+
 ## Tests
 
 ```bash

@@ -8,27 +8,23 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Store extends Model
+class Category extends Model
 {
     use HasFactory;
     use HasUlids;
 
-    public const STATUS_PENDING = 'pending';
-
     public const STATUS_ACTIVE = 'active';
 
-    public const STATUS_SUSPENDED = 'suspended';
+    public const STATUS_INACTIVE = 'inactive';
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'profile_id',
+        'parent_id',
         'name',
         'slug',
         'description',
-        'logo_url',
-        'banner_url',
         'status',
         'metadata',
     ];
@@ -54,11 +50,19 @@ class Store extends Model
     }
 
     /**
-     * @return BelongsTo<Profile, $this>
+     * @return BelongsTo<Category, $this>
      */
-    public function profile(): BelongsTo
+    public function parent(): BelongsTo
     {
-        return $this->belongsTo(Profile::class);
+        return $this->belongsTo(Category::class, 'parent_id');
+    }
+
+    /**
+     * @return HasMany<Category, $this>
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(Category::class, 'parent_id');
     }
 
     /**

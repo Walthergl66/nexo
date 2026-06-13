@@ -8,27 +8,31 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Store extends Model
+class Product extends Model
 {
     use HasFactory;
     use HasUlids;
 
-    public const STATUS_PENDING = 'pending';
+    public const STATUS_DRAFT = 'draft';
 
     public const STATUS_ACTIVE = 'active';
 
-    public const STATUS_SUSPENDED = 'suspended';
+    public const STATUS_PAUSED = 'paused';
+
+    public const STATUS_REJECTED = 'rejected';
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'profile_id',
+        'store_id',
+        'category_id',
         'name',
         'slug',
         'description',
-        'logo_url',
-        'banner_url',
+        'price_cents',
+        'currency',
+        'stock',
         'status',
         'metadata',
     ];
@@ -40,6 +44,8 @@ class Store extends Model
     {
         return [
             'metadata' => 'array',
+            'price_cents' => 'integer',
+            'stock' => 'integer',
         ];
     }
 
@@ -54,18 +60,26 @@ class Store extends Model
     }
 
     /**
-     * @return BelongsTo<Profile, $this>
+     * @return BelongsTo<Store, $this>
      */
-    public function profile(): BelongsTo
+    public function store(): BelongsTo
     {
-        return $this->belongsTo(Profile::class);
+        return $this->belongsTo(Store::class);
     }
 
     /**
-     * @return HasMany<Product, $this>
+     * @return BelongsTo<Category, $this>
      */
-    public function products(): HasMany
+    public function category(): BelongsTo
     {
-        return $this->hasMany(Product::class);
+        return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * @return HasMany<ProductImage, $this>
+     */
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('position');
     }
 }

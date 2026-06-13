@@ -1,5 +1,13 @@
 <?php
 
+use App\Modules\Categories\Http\Controllers\CreateCategoryController;
+use App\Modules\Categories\Http\Controllers\ListCategoriesController;
+use App\Modules\Categories\Http\Controllers\UpdateCategoryController;
+use App\Modules\Products\Http\Controllers\CreateProductController;
+use App\Modules\Products\Http\Controllers\ListMyProductsController;
+use App\Modules\Products\Http\Controllers\ListProductsController;
+use App\Modules\Products\Http\Controllers\ShowProductController;
+use App\Modules\Products\Http\Controllers\UpdateProductController;
 use App\Modules\Profiles\Http\Controllers\MeController;
 use App\Modules\Sellers\Http\Controllers\ListSellerVerificationRequestsController;
 use App\Modules\Sellers\Http\Controllers\ReviewSellerVerificationRequestController;
@@ -13,6 +21,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/stores', ListStoresController::class);
 Route::get('/stores/{store}', ShowStoreController::class);
+Route::get('/categories', ListCategoriesController::class);
+Route::get('/products', ListProductsController::class);
+Route::get('/products/{product}', ShowProductController::class);
 
 Route::middleware('supabase.jwt')->group(function (): void {
     Route::get('/me', MeController::class);
@@ -23,6 +34,12 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::post('/stores', CreateStoreController::class);
     Route::patch('/stores/{store}', UpdateStoreController::class);
 
+    Route::get('/my-products', ListMyProductsController::class);
+    Route::post('/products', CreateProductController::class);
+    Route::patch('/products/{product}', UpdateProductController::class);
+
     Route::get('/admin/seller-verification-requests', ListSellerVerificationRequestsController::class);
     Route::patch('/admin/seller-verification-requests/{sellerVerificationRequest}', ReviewSellerVerificationRequestController::class);
+    Route::post('/admin/categories', CreateCategoryController::class);
+    Route::patch('/admin/categories/{category}', UpdateCategoryController::class);
 });

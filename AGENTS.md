@@ -78,6 +78,11 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * Cada vendedor aprobado puede tener una sola tienda en `stores`.
 * Como la verificación del vendedor ya es el control principal, una tienda nueva creada por un seller aprobado inicia con `store_status=active`.
 * Los listados públicos de tiendas solo muestran tiendas `active`.
+* Las categorías se administran por admin y solo las categorías `active` aparecen en listados públicos.
+* Los productos pertenecen a una tienda y pueden tener una categoría opcional.
+* Los precios de productos se guardan como enteros en centavos (`price_cents`) y moneda ISO de 3 letras (`currency`).
+* Los productos nuevos inician como `draft` salvo que el seller publique explícitamente con `status=active`.
+* Los listados públicos de productos solo muestran productos `active` de tiendas `active`.
 
 ## Roles
 
@@ -256,3 +261,14 @@ backend/
 * Restringir a una tienda por perfil vendedor.
 * Crear endpoints públicos para listar y ver tiendas activas.
 * Crear endpoints protegidos para ver y actualizar la tienda propia.
+
+### Fase 4: Categories y Products
+
+* Crear tabla `categories`.
+* Crear tabla `products`.
+* Crear tabla `product_images`.
+* Administrar categorías desde endpoints admin.
+* Permitir a sellers con tienda activa crear y actualizar productos.
+* Crear productos como `draft` por defecto.
+* Permitir publicar productos solo si la tienda está activa.
+* Exponer públicamente solo productos activos de tiendas activas.

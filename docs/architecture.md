@@ -21,6 +21,10 @@ La primera base del sistema incluye:
 * Tabla `stores` con una tienda por perfil vendedor.
 * Endpoints publicos para listar y ver tiendas activas.
 * Endpoints protegidos para crear, ver y actualizar tienda propia.
+* Tabla `categories` administrada por admin.
+* Tablas `products` y `product_images`.
+* Endpoints publicos para listar y ver productos activos.
+* Endpoints protegidos para que sellers gestionen sus productos.
 
 ## JWT
 
@@ -43,3 +47,11 @@ Cada revision registra `reviewed_by` y `reviewed_at`.
 Un seller aprobado puede crear una sola tienda. La tienda inicia como `active` porque la verificacion de vendedor es el control principal antes de permitir ventas.
 
 Los endpoints publicos solo exponen tiendas `active`. Las tiendas `suspended` no aparecen en el marketplace publico.
+
+## Categories y Products
+
+Las categorias son administradas por admins y los listados publicos solo muestran categorias `active`.
+
+Los productos pertenecen a una tienda y pueden pertenecer a una categoria. Se crean como `draft` por defecto. Solo pueden publicarse si la tienda asociada está `active`.
+
+Los precios se guardan como enteros en centavos (`price_cents`) para evitar errores de precision en pagos. La moneda se guarda como codigo ISO de 3 letras en `currency`.
