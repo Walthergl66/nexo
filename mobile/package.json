@@ -12,11 +12,14 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.108.1",
     "expo": "^55.0.26",
     "expo-status-bar": "~55.0.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-native": "^0.83.6",
+    "react-native-url-polyfill": "^3.0.0",
     "react-native-web": "^0.21.0"
   },
   "devDependencies": {

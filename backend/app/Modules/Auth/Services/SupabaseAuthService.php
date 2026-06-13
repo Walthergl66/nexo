@@ -62,6 +62,7 @@ class SupabaseAuthService
                 [
                     'email' => is_string($email) ? $email : null,
                     'display_name' => $this->displayNameFromMetadata($metadata),
+                    ...$this->profileFieldsFromMetadata($metadata),
                     'role' => Profile::ROLE_BUYER,
                     'verification_status' => Profile::VERIFICATION_PENDING,
                     'metadata' => is_array($metadata) ? $metadata : [],
@@ -70,6 +71,15 @@ class SupabaseAuthService
 
             if (is_string($email) && $email !== '' && $profile->email !== $email) {
                 $profile->forceFill(['email' => $email])->save();
+            }
+
+            $metadataFields = $this->profileFieldsFromMetadata($metadata);
+            $missingMetadataFields = collect($metadataFields)
+                ->filter(fn (mixed $value, string $key): bool => $value !== null && blank($profile->{$key}))
+                ->all();
+
+            if ($missingMetadataFields !== []) {
+                $profile->forceFill($missingMetadataFields)->save();
             }
 
             return $profile->refresh();
@@ -168,5 +178,39 @@ class SupabaseAuthService
         $name = $metadata['name'] ?? $metadata['full_name'] ?? $metadata['display_name'] ?? null;
 
         return is_string($name) && $name !== '' ? $name : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function profileFieldsFromMetadata(mixed $metadata): array
+    {
+        if (! is_array($metadata)) {
+            return [];
+        }
+
+        $firstName = $this->stringFromMetadata($metadata, 'first_name');
+        $lastName = $this->stringFromMetadata($metadata, 'last_name');
+
+        return [
+            'national_id' => preg_replace('/\D+/', '', $this->stringFromMetadata($metadata, 'national_id') ?? '') ?: null,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'age' => is_numeric($metadata['age'] ?? null) ? (int) $metadata['age'] : null,
+            'gender' => $this->stringFromMetadata($metadata, 'gender'),
+            'address' => $this->stringFromMetadata($metadata, 'address'),
+            'phone' => $this->stringFromMetadata($metadata, 'phone'),
+            'display_name' => trim(($firstName ?? '').' '.($lastName ?? '')) ?: $this->displayNameFromMetadata($metadata),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function stringFromMetadata(array $metadata, string $key): ?string
+    {
+        $value = $metadata[$key] ?? null;
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 }

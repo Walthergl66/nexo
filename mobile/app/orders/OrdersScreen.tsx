@@ -3,12 +3,16 @@ import { StyleSheet, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { OrderCard } from '../../components/cards/OrderCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { fetchOrders, supabaseAccessToken } from '../../services/marketplaceApi';
+import { fetchOrders } from '../../services/marketplaceApi';
 import type { Order } from '../../types/marketplace';
 
-export function OrdersScreen() {
+type OrdersScreenProps = {
+  accessToken: string | null;
+};
+
+export function OrdersScreen({ accessToken }: OrdersScreenProps) {
   const [remoteOrders, setRemoteOrders] = useState<Order[]>([]);
-  const isAuthenticated = supabaseAccessToken.length > 0;
+  const isAuthenticated = accessToken !== null;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -18,7 +22,7 @@ export function OrdersScreen() {
 
     let isMounted = true;
 
-    fetchOrders()
+    fetchOrders(accessToken ?? undefined)
       .then((items) => {
         if (isMounted) {
           setRemoteOrders(items);
@@ -33,7 +37,7 @@ export function OrdersScreen() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated]);
+  }, [accessToken, isAuthenticated]);
 
   if (!isAuthenticated) {
     return (

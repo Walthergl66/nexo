@@ -16,6 +16,9 @@ use App\Modules\Products\Http\Controllers\ListMyProductsController;
 use App\Modules\Products\Http\Controllers\ListProductsController;
 use App\Modules\Products\Http\Controllers\ShowProductController;
 use App\Modules\Products\Http\Controllers\UpdateProductController;
+use App\Modules\Profiles\Http\Controllers\CheckProfileAvailabilityController;
+use App\Modules\Profiles\Http\Controllers\CompleteProfileController;
+use App\Modules\Profiles\Http\Controllers\LookupIdentityController;
 use App\Modules\Profiles\Http\Controllers\MeController;
 use App\Modules\Sellers\Http\Controllers\ListSellerVerificationRequestsController;
 use App\Modules\Sellers\Http\Controllers\ReviewSellerVerificationRequestController;
@@ -32,9 +35,12 @@ Route::get('/stores/{store}', ShowStoreController::class);
 Route::get('/categories', ListCategoriesController::class);
 Route::get('/products', ListProductsController::class);
 Route::get('/products/{product}', ShowProductController::class);
+Route::get('/identity/lookup', LookupIdentityController::class);
+Route::get('/profiles/availability', CheckProfileAvailabilityController::class);
 
 Route::middleware('supabase.jwt')->group(function (): void {
     Route::get('/me', MeController::class);
+    Route::patch('/me/profile', CompleteProfileController::class);
 
     Route::post('/seller-verification/request', SubmitSellerVerificationRequestController::class);
 

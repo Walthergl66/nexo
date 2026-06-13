@@ -22,7 +22,6 @@ type RequestOptions = {
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 
 export const apiBaseUrl = normalizeBaseUrl(env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000/api');
-export const supabaseAccessToken = env.EXPO_PUBLIC_SUPABASE_ACCESS_TOKEN ?? '';
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, '');
@@ -72,7 +71,30 @@ export async function fetchCategoryNames(): Promise<string[]> {
     .filter((name): name is string => name !== null);
 }
 
-export async function fetchCart(token = supabaseAccessToken): Promise<CartItem[]> {
+export type ProfileResource = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  national_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  age: number | null;
+  gender: string | null;
+  address: string | null;
+  phone: string | null;
+  role: string;
+  verification_status: string;
+};
+
+export type IdentityLookup = {
+  national_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  age: number | null;
+  gender: string | null;
+};
+
+export async function fetchCart(token?: string): Promise<CartItem[]> {
   if (!token) {
     return [];
   }
@@ -82,7 +104,7 @@ export async function fetchCart(token = supabaseAccessToken): Promise<CartItem[]
   return mapApiCartItemsToCartItems(response.data);
 }
 
-export async function addProductToCart(productId: string, quantity = 1, token = supabaseAccessToken): Promise<CartItem[]> {
+export async function addProductToCart(productId: string, quantity = 1, token?: string): Promise<CartItem[]> {
   if (!token) {
     return [];
   }
@@ -96,11 +118,7 @@ export async function addProductToCart(productId: string, quantity = 1, token = 
   return fetchCart(token);
 }
 
-export async function updateCartItemQuantity(
-  cartItemId: string,
-  quantity: number,
-  token = supabaseAccessToken,
-): Promise<CartItem[]> {
+export async function updateCartItemQuantity(cartItemId: string, quantity: number, token?: string): Promise<CartItem[]> {
   if (!token) {
     return [];
   }
@@ -114,7 +132,7 @@ export async function updateCartItemQuantity(
   return fetchCart(token);
 }
 
-export async function removeCartItem(cartItemId: string, token = supabaseAccessToken): Promise<CartItem[]> {
+export async function removeCartItem(cartItemId: string, token?: string): Promise<CartItem[]> {
   if (!token) {
     return [];
   }
@@ -127,7 +145,7 @@ export async function removeCartItem(cartItemId: string, token = supabaseAccessT
   return fetchCart(token);
 }
 
-export async function createOrderFromCart(token = supabaseAccessToken): Promise<Order> {
+export async function createOrderFromCart(token?: string): Promise<Order> {
   const response = await request<ApiDocument<unknown>>('/orders/from-cart', {
     method: 'POST',
     token,
@@ -136,7 +154,7 @@ export async function createOrderFromCart(token = supabaseAccessToken): Promise<
   return mapApiOrderToOrder(response.data);
 }
 
-export async function fetchOrders(token = supabaseAccessToken): Promise<Order[]> {
+export async function fetchOrders(token?: string): Promise<Order[]> {
   if (!token) {
     return [];
   }
@@ -146,27 +164,17 @@ export async function fetchOrders(token = supabaseAccessToken): Promise<Order[]>
   return response.data.map(mapApiOrderToOrder);
 }
 
-export async function fetchProfile(token = supabaseAccessToken): Promise<{
-  display_name: string | null;
-  email: string | null;
-  role: string;
-  verification_status: string;
-} | null> {
+export async function fetchProfile(token?: string): Promise<ProfileResource | null> {
   if (!token) {
     return null;
   }
 
-  const response = await request<ApiDocument<{
-    display_name: string | null;
-    email: string | null;
-    role: string;
-    verification_status: string;
-  }>>('/me', { token });
+  const response = await request<ApiDocument<ProfileResource>>('/me', { token });
 
   return response.data;
 }
 
-export async function fetchMyStore(token = supabaseAccessToken): Promise<{
+export async function fetchMyStore(token?: string): Promise<{
   name: string;
   status: string;
 } | null> {
@@ -178,6 +186,49 @@ export async function fetchMyStore(token = supabaseAccessToken): Promise<{
     name: string;
     status: string;
   }>>('/my-store', { token });
+
+  return response.data;
+}
+
+export async function lookupIdentity(nationalId: string): Promise<IdentityLookup> {
+  const response = await request<ApiDocument<IdentityLookup>>(
+    `/identity/lookup?identificacion=${encodeURIComponent(nationalId)}`,
+  );
+
+  return response.data;
+}
+
+export async function checkProfileAvailability(email: string, nationalId: string): Promise<{
+  email_available: boolean;
+  national_id_available: boolean;
+}> {
+  const response = await request<ApiDocument<{
+    email_available: boolean;
+    national_id_available: boolean;
+  }>>(
+    `/profiles/availability?email=${encodeURIComponent(email)}&national_id=${encodeURIComponent(nationalId)}`,
+  );
+
+  return response.data;
+}
+
+export async function completeProfile(
+  token: string,
+  payload: {
+    national_id: string;
+    first_name: string;
+    last_name: string;
+    age?: number | null;
+    gender?: string | null;
+    address: string;
+    phone: string;
+  },
+): Promise<ProfileResource> {
+  const response = await request<ApiDocument<ProfileResource>>('/me/profile', {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
 
   return response.data;
 }

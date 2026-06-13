@@ -14,10 +14,11 @@ Variables usadas por Expo:
 
 ```txt
 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api
-EXPO_PUBLIC_SUPABASE_ACCESS_TOKEN=
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-El catalogo publico usa `GET /products`. Carrito, ordenes, perfil y tienda propia usan rutas protegidas de Laravel y requieren un JWT valido de Supabase en `EXPO_PUBLIC_SUPABASE_ACCESS_TOKEN` para pruebas manuales.
+El catalogo publico usa `GET /products`. La cuenta usa Supabase Auth directamente desde Expo y envia el JWT real al backend para carrito, ordenes, perfil y tienda propia.
 
 ## Pruebas
 
