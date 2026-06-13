@@ -25,6 +25,8 @@ La primera base del sistema incluye:
 * Tablas `products` y `product_images`.
 * Endpoints publicos para listar y ver productos activos.
 * Endpoints protegidos para que sellers gestionen sus productos.
+* Tabla `cart_items` por perfil comprador.
+* Endpoints protegidos para gestionar carrito.
 
 ## JWT
 
@@ -55,3 +57,9 @@ Las categorias son administradas por admins y los listados publicos solo muestra
 Los productos pertenecen a una tienda y pueden pertenecer a una categoria. Se crean como `draft` por defecto. Solo pueden publicarse si la tienda asociada está `active`.
 
 Los precios se guardan como enteros en centavos (`price_cents`) para evitar errores de precision en pagos. La moneda se guarda como codigo ISO de 3 letras en `currency`.
+
+## Cart
+
+El carrito se guarda como items por `profile_id`. Cada usuario tiene un solo carrito activo implicito.
+
+Agregar o actualizar items valida que el producto esté `active`, que la tienda esté `active` y que la cantidad no exceda el stock actual. El carrito no descuenta inventario; checkout y pagos deberán revalidar los items antes de crear orden o confirmar stock.

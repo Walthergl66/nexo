@@ -83,6 +83,9 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * Los precios de productos se guardan como enteros en centavos (`price_cents`) y moneda ISO de 3 letras (`currency`).
 * Los productos nuevos inician como `draft` salvo que el seller publique explícitamente con `status=active`.
 * Los listados públicos de productos solo muestran productos `active` de tiendas `active`.
+* El carrito se modela con `cart_items` por `profile_id`; no existe tabla `carts` mientras solo haya un carrito activo por usuario.
+* Agregar al carrito valida producto `active`, tienda `active` y stock suficiente, pero no descuenta stock.
+* El checkout deberá revalidar carrito, precio, disponibilidad y stock antes de crear órdenes o iniciar pago.
 
 ## Roles
 
@@ -272,3 +275,11 @@ backend/
 * Crear productos como `draft` por defecto.
 * Permitir publicar productos solo si la tienda está activa.
 * Exponer públicamente solo productos activos de tiendas activas.
+
+### Fase 5: Cart
+
+* Crear tabla `cart_items`.
+* Permitir agregar productos activos de tiendas activas.
+* Validar cantidad contra stock disponible sin descontar inventario.
+* Permitir listar, actualizar, eliminar items y vaciar carrito.
+* Restringir cada item al `profile` propietario.

@@ -80,4 +80,12 @@ class Profile extends Model
     {
         return $this->hasOne(Store::class);
     }
+
+    /**
+     * @return HasMany<CartItem, $this>
+     */
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class);
+    }
 }

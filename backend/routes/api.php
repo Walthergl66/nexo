@@ -1,5 +1,10 @@
 <?php
 
+use App\Modules\Cart\Http\Controllers\AddCartItemController;
+use App\Modules\Cart\Http\Controllers\ClearCartController;
+use App\Modules\Cart\Http\Controllers\ListCartController;
+use App\Modules\Cart\Http\Controllers\RemoveCartItemController;
+use App\Modules\Cart\Http\Controllers\UpdateCartItemController;
 use App\Modules\Categories\Http\Controllers\CreateCategoryController;
 use App\Modules\Categories\Http\Controllers\ListCategoriesController;
 use App\Modules\Categories\Http\Controllers\UpdateCategoryController;
@@ -37,6 +42,12 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::get('/my-products', ListMyProductsController::class);
     Route::post('/products', CreateProductController::class);
     Route::patch('/products/{product}', UpdateProductController::class);
+
+    Route::get('/cart', ListCartController::class);
+    Route::post('/cart/items', AddCartItemController::class);
+    Route::patch('/cart/items/{cartItem}', UpdateCartItemController::class);
+    Route::delete('/cart/items/{cartItem}', RemoveCartItemController::class);
+    Route::delete('/cart', ClearCartController::class);
 
     Route::get('/admin/seller-verification-requests', ListSellerVerificationRequestsController::class);
     Route::patch('/admin/seller-verification-requests/{sellerVerificationRequest}', ReviewSellerVerificationRequestController::class);

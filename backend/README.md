@@ -145,6 +145,30 @@ Authorization: Bearer <supabase_access_token>
 
 Los productos guardan precio como `price_cents`, usan `currency` ISO de 3 letras y nacen como `draft` si no se envia otro estado. Solo se publican productos de tiendas activas.
 
+### Cart
+
+Endpoints protegidos:
+
+```http
+GET /api/cart
+POST /api/cart/items
+PATCH /api/cart/items/{cartItem}
+DELETE /api/cart/items/{cartItem}
+DELETE /api/cart
+Authorization: Bearer <supabase_access_token>
+```
+
+Payload para agregar item:
+
+```json
+{
+  "product_id": "01...",
+  "quantity": 2
+}
+```
+
+El carrito valida producto activo, tienda activa y stock suficiente. No descuenta stock; esa operacion queda para confirmacion de pago mediante webhook.
+
 ## Tests
 
 ```bash

@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('categories', function (Blueprint $table): void {
             $table->ulid('id')->primary();
-            $table->foreignUlid('parent_id')->nullable()->constrained('categories')->nullOnDelete();
+            $table->ulid('parent_id')->nullable();
             $table->string('name');
             $table->string('slug')->unique();
             $table->text('description')->nullable();
@@ -20,6 +20,10 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['parent_id', 'status']);
+        });
+
+        Schema::table('categories', function (Blueprint $table): void {
+            $table->foreign('parent_id')->references('id')->on('categories')->nullOnDelete();
         });
     }
 
