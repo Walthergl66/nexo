@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SectionTitle } from '../../components/common/SectionTitle';
@@ -21,6 +22,8 @@ type AccountScreenProps = {
 
 type Mode = 'login' | 'register';
 
+const genderOptions = ['Femenino', 'Masculino', 'Otro', 'Prefiero no decir'] as const;
+
 const initialRegisterForm = {
   nationalId: '',
   firstName: '',
@@ -43,6 +46,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
   const [registerForm, setRegisterForm] = useState(initialRegisterForm);
   const [identity, setIdentity] = useState<IdentityLookup | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGenderOpen, setIsGenderOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const isGuest = accessToken === null;
@@ -85,7 +89,6 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
         firstName: data.first_name ?? '',
         lastName: data.last_name ?? '',
         age: data.age === null ? '' : String(data.age),
-        gender: data.gender ?? '',
       }));
       setMessage('Cedula validada.');
     } catch (error) {
@@ -163,6 +166,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
 
       setRegisterForm(initialRegisterForm);
       setIdentity(null);
+      setIsGenderOpen(false);
       setMode('login');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo crear la cuenta.');
@@ -231,7 +235,13 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
     <>
       <SectionTitle title="Cuenta" subtitle="Ingresa o crea una cuenta para comprar y vender." />
       <View style={styles.switchRow}>
-        <Pressable style={[styles.switchButton, mode === 'login' && styles.switchButtonActive]} onPress={() => setMode('login')}>
+        <Pressable
+          style={[styles.switchButton, mode === 'login' && styles.switchButtonActive]}
+          onPress={() => {
+            setIsGenderOpen(false);
+            setMode('login');
+          }}
+        >
           <Text style={[styles.switchText, mode === 'login' && styles.switchTextActive]}>Iniciar sesion</Text>
         </Pressable>
         <Pressable style={[styles.switchButton, mode === 'register' && styles.switchButtonActive]} onPress={() => setMode('register')}>
@@ -266,89 +276,204 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
           </Pressable>
         </View>
       ) : (
-        <View style={styles.accountCard}>
-          <View style={styles.inlineRow}>
-            <TextInput
-              keyboardType="number-pad"
-              placeholder="Cedula"
-              placeholderTextColor={colors.inkSoft}
-              style={[styles.input, styles.inlineInput]}
-              value={registerForm.nationalId}
-              onChangeText={(value) => updateRegisterField('nationalId', value)}
-            />
-            <Pressable disabled={isLoading} style={({ pressed }) => [styles.lookupButton, pressed && styles.buttonPressed]} onPress={handleLookupIdentity}>
-              <Text style={styles.lookupButtonText}>Validar</Text>
-            </Pressable>
+        <View style={[styles.accountCard, styles.registerCard]}>
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionKicker}>Identidad</Text>
+              <Text style={styles.sectionHint}>Validacion por cedula</Text>
+            </View>
+            <View style={styles.inlineRow}>
+              <View style={styles.fieldWrap}>
+                <Text style={styles.inputLabel}>Cedula</Text>
+                <TextInput
+                  keyboardType="number-pad"
+                  placeholder="10 digitos"
+                  placeholderTextColor={colors.inkSoft}
+                  style={styles.input}
+                  value={registerForm.nationalId}
+                  onChangeText={(value) => updateRegisterField('nationalId', value)}
+                />
+              </View>
+              <Pressable
+                disabled={isLoading}
+                style={({ pressed }) => [styles.lookupButton, isLoading && styles.buttonDisabled, pressed && styles.buttonPressed]}
+                onPress={handleLookupIdentity}
+              >
+                <Text style={styles.lookupButtonText}>Validar</Text>
+              </Pressable>
+            </View>
+            <View style={styles.inlineRow}>
+              <View style={styles.fieldWrap}>
+                <Text style={styles.inputLabel}>Nombre</Text>
+                <TextInput
+                  editable={false}
+                  placeholder="Se completa al validar"
+                  placeholderTextColor={colors.inkSoft}
+                  style={[styles.input, styles.inputDisabled]}
+                  value={registerForm.firstName}
+                />
+              </View>
+              <View style={styles.fieldWrap}>
+                <Text style={styles.inputLabel}>Apellido</Text>
+                <TextInput
+                  editable={false}
+                  placeholder="Se completa al validar"
+                  placeholderTextColor={colors.inkSoft}
+                  style={[styles.input, styles.inputDisabled]}
+                  value={registerForm.lastName}
+                />
+              </View>
+            </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.inputLabel}>Edad</Text>
+              <TextInput
+                editable={false}
+                placeholder="Se calcula al validar"
+                placeholderTextColor={colors.inkSoft}
+                style={[styles.input, styles.inputDisabled]}
+                value={registerForm.age}
+              />
+            </View>
           </View>
-          <TextInput
-            editable={false}
-            placeholder="Nombre"
-            placeholderTextColor={colors.inkSoft}
-            style={[styles.input, styles.inputDisabled]}
-            value={registerForm.firstName}
-          />
-          <TextInput
-            editable={false}
-            placeholder="Apellido"
-            placeholderTextColor={colors.inkSoft}
-            style={[styles.input, styles.inputDisabled]}
-            value={registerForm.lastName}
-          />
-          <View style={styles.inlineRow}>
-            <TextInput editable={false} placeholder="Edad" placeholderTextColor={colors.inkSoft} style={[styles.input, styles.inputDisabled, styles.halfInput]} value={registerForm.age} />
-            <TextInput editable={false} placeholder="Genero" placeholderTextColor={colors.inkSoft} style={[styles.input, styles.inputDisabled, styles.halfInput]} value={registerForm.gender} />
+
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionKicker}>Datos de cuenta</Text>
+              <Text style={styles.sectionHint}>Correo y seguridad</Text>
+            </View>
+            <View style={[styles.fieldWrap, isGenderOpen && styles.genderFieldOpen]}>
+              <Text style={styles.inputLabel}>Genero</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Seleccionar genero"
+                style={({ pressed }) => [styles.selectTrigger, pressed && styles.selectTriggerPressed]}
+                onPress={() => setIsGenderOpen((current) => !current)}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[styles.selectValue, registerForm.gender === '' && styles.selectPlaceholder]}
+                >
+                  {registerForm.gender || 'Selecciona una opcion'}
+                </Text>
+                <Ionicons
+                  name={isGenderOpen ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={colors.inkMuted}
+                />
+              </Pressable>
+              {isGenderOpen && (
+                <View style={styles.selectOptions}>
+                  {genderOptions.map((option) => {
+                    const isSelected = registerForm.gender === option;
+
+                    return (
+                      <Pressable
+                        key={option}
+                        style={({ pressed }) => [
+                          styles.selectOption,
+                          isSelected && styles.selectOptionActive,
+                          pressed && styles.selectOptionPressed,
+                        ]}
+                        onPress={() => {
+                          updateRegisterField('gender', option);
+                          setIsGenderOpen(false);
+                        }}
+                      >
+                        <Text
+                          numberOfLines={1}
+                          style={[styles.selectOptionText, isSelected && styles.selectOptionTextActive]}
+                        >
+                          {option}
+                        </Text>
+                        {isSelected && <Ionicons name="checkmark" size={17} color={colors.brandBlue} />}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.inputLabel}>Correo</Text>
+              <TextInput
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="correo@ejemplo.com"
+                placeholderTextColor={colors.inkSoft}
+                style={styles.input}
+                value={registerForm.email}
+                onChangeText={(value) => updateRegisterField('email', value)}
+              />
+            </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.inputLabel}>Confirmar correo</Text>
+              <TextInput
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="Repite tu correo"
+                placeholderTextColor={colors.inkSoft}
+                style={styles.input}
+                value={registerForm.confirmEmail}
+                onChangeText={(value) => updateRegisterField('confirmEmail', value)}
+              />
+            </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.inputLabel}>Contrasena</Text>
+              <TextInput
+                placeholder="Minimo 8 caracteres"
+                placeholderTextColor={colors.inkSoft}
+                secureTextEntry
+                style={styles.input}
+                value={registerForm.password}
+                onChangeText={(value) => updateRegisterField('password', value)}
+              />
+              {passwordError && <Text style={styles.validationText}>{passwordError}</Text>}
+            </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.inputLabel}>Confirmar contrasena</Text>
+              <TextInput
+                placeholder="Repite tu contrasena"
+                placeholderTextColor={colors.inkSoft}
+                secureTextEntry
+                style={styles.input}
+                value={registerForm.confirmPassword}
+                onChangeText={(value) => updateRegisterField('confirmPassword', value)}
+              />
+            </View>
           </View>
-          <TextInput
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="Correo"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={registerForm.email}
-            onChangeText={(value) => updateRegisterField('email', value)}
-          />
-          <TextInput
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="Confirmar correo"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={registerForm.confirmEmail}
-            onChangeText={(value) => updateRegisterField('confirmEmail', value)}
-          />
-          <TextInput
-            placeholder="Contrasena segura"
-            placeholderTextColor={colors.inkSoft}
-            secureTextEntry
-            style={styles.input}
-            value={registerForm.password}
-            onChangeText={(value) => updateRegisterField('password', value)}
-          />
-          {passwordError && <Text style={styles.validationText}>{passwordError}</Text>}
-          <TextInput
-            placeholder="Confirmar contrasena"
-            placeholderTextColor={colors.inkSoft}
-            secureTextEntry
-            style={styles.input}
-            value={registerForm.confirmPassword}
-            onChangeText={(value) => updateRegisterField('confirmPassword', value)}
-          />
-          <TextInput
-            placeholder="Direccion"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={registerForm.address}
-            onChangeText={(value) => updateRegisterField('address', value)}
-          />
-          <TextInput
-            keyboardType="phone-pad"
-            placeholder="Telefono"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={registerForm.phone}
-            onChangeText={(value) => updateRegisterField('phone', value)}
-          />
-          <Pressable disabled={isLoading} style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={handleRegister}>
+
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionKicker}>Contacto</Text>
+              <Text style={styles.sectionHint}>Para entregas y soporte</Text>
+            </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.inputLabel}>Direccion</Text>
+              <TextInput
+                placeholder="Calle, numero, referencia"
+                placeholderTextColor={colors.inkSoft}
+                style={styles.input}
+                value={registerForm.address}
+                onChangeText={(value) => updateRegisterField('address', value)}
+              />
+            </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.inputLabel}>Telefono</Text>
+              <TextInput
+                keyboardType="phone-pad"
+                placeholder="0991234567"
+                placeholderTextColor={colors.inkSoft}
+                style={styles.input}
+                value={registerForm.phone}
+                onChangeText={(value) => updateRegisterField('phone', value)}
+              />
+            </View>
+          </View>
+
+          <Pressable
+            disabled={isLoading}
+            style={({ pressed }) => [styles.primaryButton, isLoading && styles.buttonDisabled, pressed && styles.buttonPressed]}
+            onPress={handleRegister}
+          >
             {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Crear cuenta</Text>}
           </Pressable>
         </View>
@@ -374,6 +499,10 @@ function validateRegisterForm(
 
   if (form.email.trim().toLowerCase() !== form.confirmEmail.trim().toLowerCase()) {
     return 'Los correos no coinciden.';
+  }
+
+  if (form.gender.trim() === '') {
+    return 'Selecciona tu genero.';
   }
 
   if (passwordError !== null) {
@@ -419,6 +548,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     gap: 10,
+  },
+  registerCard: {
+    gap: 14,
   },
   accountName: {
     fontSize: 18,
@@ -481,22 +613,113 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 13,
   },
+  inputLabel: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '900',
+  },
   inputDisabled: {
     backgroundColor: colors.silverSoft,
     color: colors.inkMuted,
   },
   inlineRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
+    alignItems: 'flex-end',
   },
-  inlineInput: {
+  fieldWrap: {
     flex: 1,
+    minWidth: 132,
+    gap: 6,
   },
-  halfInput: {
+  genderFieldOpen: {
+    minHeight: 238,
+  },
+  formSection: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 12,
+    gap: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sectionKicker: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  sectionHint: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  selectTrigger: {
+    minHeight: 44,
+    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  selectTriggerPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  selectValue: {
     flex: 1,
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  selectPlaceholder: {
+    color: colors.inkSoft,
+    fontWeight: '700',
+  },
+  selectOptions: {
+    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  selectOption: {
+    minHeight: 42,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  selectOptionActive: {
+    backgroundColor: colors.brandBlueSoft,
+  },
+  selectOptionPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  selectOptionText: {
+    flex: 1,
+    color: colors.inkMuted,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  selectOptionTextActive: {
+    color: colors.brandBlue,
   },
   lookupButton: {
     width: 88,
+    height: 44,
     borderRadius: radii.small,
     alignItems: 'center',
     justifyContent: 'center',
@@ -527,6 +750,9 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     transform: [{ scale: 0.98 }],
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   primaryButtonText: {
     color: colors.surface,
