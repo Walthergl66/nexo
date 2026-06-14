@@ -60,6 +60,8 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileResource | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
@@ -208,23 +210,31 @@ export default function App() {
       setProfile(null);
       setCartItems([]);
       setIsProfileLoading(false);
+      setProfileError(null);
       return () => {
         isMounted = false;
       };
     }
 
     setIsProfileLoading(true);
+    setProfileError(null);
 
     fetchProfile(accessToken)
       .then((nextProfile) => {
         if (isMounted) {
           setProfile(nextProfile);
+          setProfileError(null);
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (isMounted) {
           setProfile(null);
           setCartItems([]);
+          setProfileError(
+            error instanceof Error
+              ? error.message
+              : 'No se pudo sincronizar el perfil interno con Laravel.',
+          );
         }
       })
       .finally(() => {
@@ -236,7 +246,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken]);
+  }, [accessToken, profileRefreshKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -575,9 +585,11 @@ export default function App() {
           <AccountScreen
             accessToken={accessToken}
             profile={profile}
+            profileError={profileError}
             isProfileLoading={isProfileLoading}
             onExplore={() => setActiveTab('Inicio')}
             onProfileChange={setProfile}
+            onRetryProfile={() => setProfileRefreshKey((current) => current + 1)}
             onSell={() => setActiveTab('Vender')}
           />
         );

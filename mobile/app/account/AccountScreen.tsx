@@ -17,9 +17,11 @@ import { colors, radii } from '../../theme/colors';
 type AccountScreenProps = {
   accessToken: string | null;
   profile: ProfileResource | null;
+  profileError: string | null;
   isProfileLoading: boolean;
   onExplore: () => void;
   onProfileChange: (profile: ProfileResource | null) => void;
+  onRetryProfile: () => void;
   onSell: () => void;
 };
 
@@ -44,9 +46,11 @@ const initialRegisterForm = {
 export function AccountScreen({
   accessToken,
   profile,
+  profileError,
   isProfileLoading,
   onExplore,
   onProfileChange,
+  onRetryProfile,
   onSell,
 }: AccountScreenProps) {
   const [mode, setMode] = useState<Mode>('login');
@@ -103,9 +107,13 @@ export function AccountScreen({
     setIsLoading(true);
 
     try {
-      await signInWithEmail(loginEmail, loginPassword);
+      const session = await signInWithEmail(loginEmail, loginPassword);
       setLoginPassword('');
-      setMessage('Sesión iniciada.');
+      setMessage(
+        session?.access_token
+          ? 'Sesion iniciada. Sincronizando perfil...'
+          : 'Credenciales aceptadas. Revisa tu correo si Supabase requiere confirmacion.',
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo iniciar sesion.');
     } finally {
@@ -245,6 +253,32 @@ export function AccountScreen({
         <View style={styles.accountCard}>
           <ActivityIndicator color={colors.brandBlue} />
           <Text style={styles.accountEmail}>Cargando datos de cuenta desde Laravel.</Text>
+        </View>
+      </>
+    );
+  }
+
+  if (!isGuest && profileError) {
+    return (
+      <>
+        <SectionTitle title="Cuenta" subtitle="Sesion activa, perfil pendiente." />
+        <View style={styles.accountCard}>
+          <Text style={styles.accountName}>Falta sincronizar Laravel</Text>
+          <Text style={styles.accountEmail}>
+            Supabase inicio sesion, pero no se pudo cargar tu perfil interno. Revisa que el backend este activo y vuelve a intentar.
+          </Text>
+          <Text style={styles.errorText}>{profileError}</Text>
+          <Pressable
+            disabled={isProfileLoading}
+            style={({ pressed }) => [styles.primaryButton, isProfileLoading && styles.buttonDisabled, pressed && styles.buttonPressed]}
+            onPress={onRetryProfile}
+          >
+            <Ionicons name="refresh" size={17} color={colors.surface} />
+            <Text style={styles.primaryButtonText}>Reintentar sincronizacion</Text>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]} onPress={handleLogout}>
+            <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
+          </Pressable>
         </View>
       </>
     );
@@ -836,6 +870,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginTop: 10,
+  },
+  errorText: {
+    color: '#9f1239',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 16,
   },
   validationText: {
     color: '#9f1239',

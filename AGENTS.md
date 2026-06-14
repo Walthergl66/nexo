@@ -67,8 +67,8 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 
 * El backend vive en `backend/` y usa Laravel 13 con PHP 8.3.
 * La API protegida usa middleware `supabase.jwt`.
-* La validación inicial de JWT se hace localmente con `SUPABASE_JWT_SECRET` y `SUPABASE_JWT_ALGORITHM=HS256`.
-* Si Supabase se configura con llaves asimétricas, se debe evolucionar `SupabaseAuthService` a validación JWKS antes de producción.
+* La validación de JWT soporta `HS256` con `SUPABASE_JWT_SECRET` y tokens asimétricos `RS256`/`ES256` mediante JWKS público de Supabase.
+* `SupabaseAuthService` obtiene las llaves desde `SUPABASE_URL/auth/v1/.well-known/jwks.json` y las cachea para validar tokens firmados con llaves rotables.
 * Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
 * `GET /api/me` crea automáticamente el `profile` si el JWT de Supabase es válido y aún no existe.
 * Los roles y estados se modelan como strings controlados por constantes del modelo `Profile` para mantener portabilidad entre PostgreSQL y SQLite de pruebas.
