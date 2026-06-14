@@ -21,6 +21,10 @@ import { formatPrice } from '../../utils/format';
 
 type SellScreenProps = {
   accessToken: string | null;
+  profile: ProfileResource | null;
+  isProfileLoading: boolean;
+  onGoToAccount: () => void;
+  onProfileChange: (profile: ProfileResource | null) => void;
 };
 
 type StoreForm = {
@@ -63,37 +67,46 @@ const initialProductForm: ProductForm = {
   publishNow: false,
 };
 
-export function SellScreen({ accessToken }: SellScreenProps) {
-  const [profile, setProfile] = useState<ProfileResource | null>(null);
+export function SellScreen({
+  accessToken,
+  profile,
+  isProfileLoading,
+  onGoToAccount,
+  onProfileChange,
+}: SellScreenProps) {
   const [store, setStore] = useState<StoreResource | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
   const [productForm, setProductForm] = useState(initialProductForm);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasPendingVerificationRequest, setHasPendingVerificationRequest] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
 
   const loadSellerState = useCallback(async () => {
-    if (!accessToken) {
-      setProfile(null);
+    if (!accessToken || !profile) {
       setStore(null);
       setProducts([]);
       return;
     }
 
-    const [nextProfile, nextStore, nextProducts] = await Promise.all([
-      fetchProfile(accessToken).catch(() => null),
+    if (!isApprovedSeller) {
+      setStore(null);
+      setProducts([]);
+      return;
+    }
+
+    const [nextStore, nextProducts] = await Promise.all([
       fetchMyStore(accessToken).catch(() => null),
       fetchMyProducts(accessToken).catch(() => []),
     ]);
 
-    setProfile(nextProfile);
     setStore(nextStore);
     setProducts(nextProducts);
-  }, [accessToken]);
+  }, [accessToken, isApprovedSeller, profile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -114,8 +127,16 @@ export function SellScreen({ accessToken }: SellScreenProps) {
       return 'Cuenta requerida';
     }
 
-    if (!profile || profile.verification_status === 'pending') {
-      return 'Verificacion pendiente';
+    if (!profile || isProfileLoading) {
+      return 'Sincronizando cuenta';
+    }
+
+    if (profile.role === 'buyer' && profile.verification_status === 'pending' && !hasPendingVerificationRequest) {
+      return 'Solicitar validacion';
+    }
+
+    if (profile.verification_status === 'pending') {
+      return 'Revision pendiente';
     }
 
     if (profile.verification_status === 'rejected') {
@@ -131,7 +152,7 @@ export function SellScreen({ accessToken }: SellScreenProps) {
     }
 
     return 'Publicar productos';
-  }, [isAuthenticated, profile, store]);
+  }, [hasPendingVerificationRequest, isAuthenticated, isProfileLoading, profile, store]);
 
   const handleRequestVerification = async () => {
     if (!accessToken) {
@@ -155,6 +176,9 @@ export function SellScreen({ accessToken }: SellScreenProps) {
         document_type: verificationForm.documentType.trim() || null,
         document_number: verificationForm.documentNumber.trim() || null,
       });
+      const nextProfile = await fetchProfile(accessToken).catch(() => profile);
+      onProfileChange(nextProfile);
+      setHasPendingVerificationRequest(true);
       setVerificationForm(initialVerificationForm);
       await loadSellerState();
       setMessage('Solicitud enviada. Un administrador debe revisarla.');
@@ -253,6 +277,25 @@ export function SellScreen({ accessToken }: SellScreenProps) {
             title="Catalogo publico"
             description="Puedes seguir explorando productos como visitante mientras decides registrarte."
           />
+          <PrimaryButton
+            disabled={false}
+            icon="log-in-outline"
+            label="Entrar o crear cuenta"
+            loading={false}
+            onPress={onGoToAccount}
+          />
+        </View>
+      </>
+    );
+  }
+
+  if (isProfileLoading || !profile) {
+    return (
+      <>
+        <SectionTitle title="Centro de ventas" subtitle="Sincronizando permisos." />
+        <View style={styles.statusPanel}>
+          <ActivityIndicator color={colors.brandBlue} />
+          <Text style={styles.statusSubtitle}>Cargando perfil interno antes de habilitar acciones de venta.</Text>
         </View>
       </>
     );
@@ -275,7 +318,7 @@ export function SellScreen({ accessToken }: SellScreenProps) {
         <InfoRow label="Estado tienda" value={store?.status ?? 'No disponible'} />
       </View>
 
-      {!profile || profile.verification_status === 'pending' ? (
+      {profile.role === 'buyer' && profile.verification_status === 'pending' && !hasPendingVerificationRequest ? (
         <View style={styles.formCard}>
           <Text style={styles.formTitle}>Solicitud de vendedor</Text>
           <TextInput
@@ -321,11 +364,63 @@ export function SellScreen({ accessToken }: SellScreenProps) {
         </View>
       ) : null}
 
-      {profile?.verification_status === 'rejected' && (
+      {hasPendingVerificationRequest && (
         <LogicCard
-          title="Solicitud rechazada"
-          description="Puedes corregir tus datos de negocio y volver a enviar una solicitud de vendedor."
+          title="Solicitud en revision"
+          description="Tu cuenta sigue como buyer hasta que un administrador apruebe la validacion de vendedor."
         />
+      )}
+
+      {profile?.verification_status === 'rejected' && (
+        <>
+          <LogicCard
+            title="Solicitud rechazada"
+            description="Puedes corregir tus datos de negocio y volver a enviar una solicitud de vendedor."
+          />
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>Nueva solicitud</Text>
+            <TextInput
+              placeholder="Nombre comercial"
+              placeholderTextColor={colors.inkSoft}
+              style={styles.input}
+              value={verificationForm.businessName}
+              onChangeText={(value) => setVerificationForm((current) => ({ ...current, businessName: value }))}
+            />
+            <TextInput
+              multiline
+              placeholder="Que cambiaste de tu solicitud anterior"
+              placeholderTextColor={colors.inkSoft}
+              style={[styles.input, styles.textArea]}
+              value={verificationForm.businessDescription}
+              onChangeText={(value) => setVerificationForm((current) => ({ ...current, businessDescription: value }))}
+            />
+            <View style={styles.inlineRow}>
+              <TextInput
+                autoCapitalize="none"
+                placeholder="Documento"
+                placeholderTextColor={colors.inkSoft}
+                style={[styles.input, styles.inlineInput]}
+                value={verificationForm.documentType}
+                onChangeText={(value) => setVerificationForm((current) => ({ ...current, documentType: value }))}
+              />
+              <TextInput
+                keyboardType="number-pad"
+                placeholder="Numero"
+                placeholderTextColor={colors.inkSoft}
+                style={[styles.input, styles.inlineInput]}
+                value={verificationForm.documentNumber}
+                onChangeText={(value) => setVerificationForm((current) => ({ ...current, documentNumber: value }))}
+              />
+            </View>
+            <PrimaryButton
+              disabled={isLoading}
+              icon="shield-checkmark"
+              label="Enviar nueva solicitud"
+              loading={isLoading}
+              onPress={handleRequestVerification}
+            />
+          </View>
+        </>
       )}
 
       {profile?.verification_status === 'suspended' && (

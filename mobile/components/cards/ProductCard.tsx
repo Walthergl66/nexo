@@ -6,6 +6,7 @@ import { formatPrice } from '../../utils/format';
 
 type ProductCardProps = {
   product: Product;
+  isAuthenticated: boolean;
   onAddToCart: () => void;
   onSelectProduct: () => void;
 };
@@ -54,8 +55,9 @@ const palettes: Record<Product['visualTone'], BottlePalette> = {
   },
 };
 
-export function ProductCard({ product, onAddToCart, onSelectProduct }: ProductCardProps) {
+export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectProduct }: ProductCardProps) {
   const palette = palettes[product.visualTone];
+  const addLabel = isAuthenticated ? `Agregar ${product.title} al carrito` : `Iniciar sesion para comprar ${product.title}`;
 
   return (
     <Pressable
@@ -94,7 +96,7 @@ export function ProductCard({ product, onAddToCart, onSelectProduct }: ProductCa
           <Text style={styles.priceHint}>Proteccion incluida</Text>
         </View>
         <Pressable
-          accessibilityLabel={`Agregar ${product.title} al carrito`}
+          accessibilityLabel={addLabel}
           disabled={!product.available}
           style={({ pressed }) => [
             styles.addButton,
@@ -106,7 +108,7 @@ export function ProductCard({ product, onAddToCart, onSelectProduct }: ProductCa
             onAddToCart();
           }}
         >
-          <Ionicons name="add" size={16} color={colors.surface} />
+          <Ionicons name={isAuthenticated ? 'add' : 'log-in-outline'} size={16} color={colors.surface} />
         </Pressable>
       </View>
     </Pressable>

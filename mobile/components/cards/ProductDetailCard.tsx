@@ -8,12 +8,14 @@ import { Tag } from '../common/Tag';
 
 type ProductDetailCardProps = {
   product: Product;
+  isAuthenticated: boolean;
   onAddToCart: () => void;
   onBack: () => void;
 };
 
 export function ProductDetailCard({
   product,
+  isAuthenticated,
   onAddToCart,
   onBack,
 }: ProductDetailCardProps) {
@@ -63,8 +65,8 @@ export function ProductDetailCard({
         ]}
         onPress={onAddToCart}
       >
-        <Ionicons name="cart" size={18} color={colors.surface} />
-        <Text style={styles.addCartText}>Agregar a carrito</Text>
+        <Ionicons name={isAuthenticated ? 'cart' : 'log-in-outline'} size={18} color={colors.surface} />
+        <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar a carrito' : 'Iniciar sesion para comprar'}</Text>
       </Pressable>
     </View>
   );

@@ -26,9 +26,11 @@ import {
   createOrderFromCart,
   fetchCategoryNames,
   fetchCart,
+  fetchProfile,
   fetchProducts,
   removeCartItem,
   updateCartItemQuantity,
+  type ProfileResource,
 } from './services/marketplaceApi';
 import { getCurrentSession, onAuthStateChange } from './services/authService';
 import { colors, radii } from './theme/colors';
@@ -56,6 +58,8 @@ export default function App() {
   const [categoryFilters, setCategoryFilters] = useState<string[]>(['Todo']);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProfileResource | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
@@ -74,12 +78,17 @@ export default function App() {
   const screenTranslateX = useRef(new Animated.Value(0)).current;
   const screenTranslateY = useRef(new Animated.Value(0)).current;
   const screenScale = useRef(new Animated.Value(1)).current;
-  const activeIndex = tabs.indexOf(activeTab);
   const isProductPresentation = activeTab === 'Inicio';
   const isAuthenticated = accessToken !== null;
+  const hasBusinessProfile = isAuthenticated && profile !== null;
+  const visibleTabs = useMemo<TabKey[]>(
+    () => (hasBusinessProfile ? tabs : ['Inicio', 'Cuenta']),
+    [hasBusinessProfile],
+  );
+  const visibleActiveIndex = Math.max(0, visibleTabs.indexOf(activeTab));
   const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
   const navGap = 0;
-  const tabWidth = navWidth > 0 ? navWidth / tabs.length : 0;
+  const tabWidth = navWidth > 0 ? navWidth / visibleTabs.length : 0;
   const headerTranslateY = headerVisibility.interpolate({
     inputRange: [0, 1],
     outputRange: [-94, 0],
@@ -182,6 +191,8 @@ export default function App() {
 
     const subscription = onAuthStateChange((session) => {
       setAccessToken(session?.access_token ?? null);
+      setSelectedProductId(null);
+      setIsCartOpen(false);
     });
 
     return () => {
@@ -193,7 +204,51 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    fetchCart(accessToken ?? undefined)
+    if (!accessToken) {
+      setProfile(null);
+      setCartItems([]);
+      setIsProfileLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsProfileLoading(true);
+
+    fetchProfile(accessToken)
+      .then((nextProfile) => {
+        if (isMounted) {
+          setProfile(nextProfile);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setProfile(null);
+          setCartItems([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsProfileLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!accessToken || !profile) {
+      setCartItems([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    fetchCart(accessToken)
       .then((items) => {
         if (isMounted) {
           setCartItems(items);
@@ -208,7 +263,15 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken]);
+  }, [accessToken, profile]);
+
+  useEffect(() => {
+    if (!hasBusinessProfile && (activeTab === 'Vender' || activeTab === 'Pedidos')) {
+      setActiveTab('Cuenta');
+      setIsCartOpen(false);
+      setSelectedProductId(null);
+    }
+  }, [activeTab, hasBusinessProfile]);
 
   const selectedProduct = useMemo(
     () => marketplaceProducts.find((product) => product.id === selectedProductId) ?? null,
@@ -225,7 +288,7 @@ export default function App() {
       return;
     }
 
-    if (!isAuthenticated) {
+    if (!hasBusinessProfile || isProfileLoading) {
       setSelectedProductId(null);
       setIsCartOpen(false);
       setActiveTab('Cuenta');
@@ -267,6 +330,13 @@ export default function App() {
   };
 
   const handleOpenCart = () => {
+    if (!hasBusinessProfile) {
+      setSelectedProductId(null);
+      setIsCartOpen(false);
+      setActiveTab('Cuenta');
+      return;
+    }
+
     setActiveTab('Inicio');
     setSelectedProductId(null);
     setIsCartOpen(true);
@@ -279,7 +349,7 @@ export default function App() {
   const handleChangeCartQuantity = async (productId: string, quantity: number) => {
     const currentItem = cartItems.find((item) => item.product.id === productId);
 
-    if (!isAuthenticated) {
+    if (!hasBusinessProfile || isProfileLoading) {
       setActiveTab('Cuenta');
       setIsCartOpen(false);
       return;
@@ -299,6 +369,19 @@ export default function App() {
 
       return;
     }
+  };
+
+  const handleSelectTab = (tab: TabKey) => {
+    if (!hasBusinessProfile && (tab === 'Vender' || tab === 'Pedidos')) {
+      setActiveTab('Cuenta');
+      setIsCartOpen(false);
+      setSelectedProductId(null);
+      return;
+    }
+
+    setActiveTab(tab);
+    setIsCartOpen(false);
+    setSelectedProductId(null);
   };
 
   const handleRemoveCartItem = (productId: string) => {
@@ -332,7 +415,7 @@ export default function App() {
 
     Animated.parallel([
       Animated.spring(activePillX, {
-        toValue: activeIndex * (tabWidth + navGap) + tabWidth / 2 - activeNavSize / 2,
+        toValue: visibleActiveIndex * (tabWidth + navGap) + tabWidth / 2 - activeNavSize / 2,
         damping: 18,
         mass: 0.85,
         stiffness: 180,
@@ -353,10 +436,10 @@ export default function App() {
         }),
       ]),
     ]).start();
-  }, [activeBubbleScale, activeIndex, activePillX, navGap, tabWidth]);
+  }, [activeBubbleScale, activePillX, navGap, tabWidth, visibleActiveIndex]);
 
   useEffect(() => {
-    const transitionDirection = activeIndex >= previousActiveIndex.current ? 1 : -1;
+    const transitionDirection = visibleActiveIndex >= previousActiveIndex.current ? 1 : -1;
 
     screenOpacity.setValue(0);
     screenTranslateX.setValue(26 * transitionDirection);
@@ -392,9 +475,9 @@ export default function App() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      previousActiveIndex.current = activeIndex;
+      previousActiveIndex.current = visibleActiveIndex;
     });
-  }, [activeIndex, screenOpacity, screenScale, screenTransitionKey, screenTranslateX, screenTranslateY]);
+  }, [screenOpacity, screenScale, screenTransitionKey, screenTranslateX, screenTranslateY, visibleActiveIndex]);
 
   useEffect(() => {
     if (shouldShowHeader) {
@@ -442,7 +525,7 @@ export default function App() {
     if (isCartOpen) {
       return (
         <CartScreen
-          isAuthenticated={isAuthenticated}
+          isAuthenticated={hasBusinessProfile}
           items={cartItems}
           shipping={4.99}
           onBackToCatalog={handleBackToCatalog}
@@ -466,6 +549,7 @@ export default function App() {
             productsCount={marketplaceProducts.length}
             search={search}
             selectedProduct={selectedProduct}
+            isAuthenticated={hasBusinessProfile}
             onAddToCart={handleAddToCart}
             onBackToCatalog={handleBackToCatalog}
             onChangeFilter={setActiveFilter}
@@ -475,11 +559,28 @@ export default function App() {
           />
         );
       case 'Vender':
-        return <SellScreen accessToken={accessToken} />;
+        return (
+          <SellScreen
+            accessToken={accessToken}
+            profile={profile}
+            isProfileLoading={isProfileLoading}
+            onGoToAccount={() => setActiveTab('Cuenta')}
+            onProfileChange={setProfile}
+          />
+        );
       case 'Pedidos':
-        return <OrdersScreen accessToken={accessToken} />;
+        return <OrdersScreen accessToken={hasBusinessProfile ? accessToken : null} />;
       case 'Cuenta':
-        return <AccountScreen accessToken={accessToken} onExplore={() => setActiveTab('Inicio')} />;
+        return (
+          <AccountScreen
+            accessToken={accessToken}
+            profile={profile}
+            isProfileLoading={isProfileLoading}
+            onExplore={() => setActiveTab('Inicio')}
+            onProfileChange={setProfile}
+            onSell={() => setActiveTab('Vender')}
+          />
+        );
     }
   };
 
@@ -504,20 +605,22 @@ export default function App() {
                 <Text style={styles.headerTitle}>NEXO</Text>
               </View>
             </View>
-            <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
-              <Pressable
-                accessibilityLabel="Abrir carrito"
-                style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
-                onPress={handleOpenCart}
-              >
-                <Ionicons name="cart" size={21} color={colors.surface} />
-                {cartCount > 0 && (
-                  <View style={styles.cartCountBubble}>
-                    <Text style={styles.cartCountText}>{cartCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-            </Animated.View>
+            {hasBusinessProfile && (
+              <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
+                <Pressable
+                  accessibilityLabel="Abrir carrito"
+                  style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
+                  onPress={handleOpenCart}
+                >
+                  <Ionicons name="cart" size={21} color={colors.surface} />
+                  {cartCount > 0 && (
+                    <View style={styles.cartCountBubble}>
+                      <Text style={styles.cartCountText}>{cartCount}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              </Animated.View>
+            )}
           </Animated.View>
         )}
 
@@ -579,7 +682,7 @@ export default function App() {
                 </Animated.View>
               </>
             )}
-            {tabs.map((tab) => {
+            {visibleTabs.map((tab) => {
               const isActive = tab === activeTab;
               const iconName = navIcons[tab].inactive;
 
@@ -595,8 +698,7 @@ export default function App() {
                     pressed && styles.bottomNavItemPressed,
                   ]}
                   onPress={() => {
-                    setActiveTab(tab);
-                    setIsCartOpen(false);
+                    handleSelectTab(tab);
                   }}
                 >
                   <Ionicons

@@ -8,6 +8,7 @@ type ExploreScreenProps = {
   activeFilter: string;
   filters: string[];
   filteredProducts: Product[];
+  isAuthenticated?: boolean;
   search: string;
   onAddToCart: (product: Product) => void;
   onChangeFilter: (filter: string) => void;
@@ -19,6 +20,7 @@ export function ExploreScreen({
   activeFilter,
   filters,
   filteredProducts,
+  isAuthenticated = false,
   search,
   onAddToCart,
   onChangeFilter,
@@ -74,7 +76,12 @@ export function ExploreScreen({
       <View style={styles.productGrid}>
         {filteredProducts.map((product) => (
           <View key={product.id} style={styles.productColumn}>
-            <ProductCard product={product} onAddToCart={() => onAddToCart(product)} onSelectProduct={() => onSelectProduct(product)} />
+            <ProductCard
+              product={product}
+              isAuthenticated={isAuthenticated}
+              onAddToCart={() => onAddToCart(product)}
+              onSelectProduct={() => onSelectProduct(product)}
+            />
           </View>
         ))}
       </View>
