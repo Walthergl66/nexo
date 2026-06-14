@@ -167,6 +167,28 @@ class ProductsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_suspended_seller_cannot_update_owned_product(): void
+    {
+        [$seller, $store] = $this->sellerWithStore();
+        $seller->forceFill([
+            'verification_status' => Profile::VERIFICATION_SUSPENDED,
+        ])->save();
+        $product = Product::query()->create([
+            'store_id' => $store->id,
+            'name' => 'Producto dueño',
+            'slug' => 'producto-dueno',
+            'price_cents' => 1000,
+            'stock' => 5,
+            'status' => Product::STATUS_DRAFT,
+        ]);
+
+        $this->withToken($this->tokenFor($seller))
+            ->patchJson('/api/products/'.$product->slug, [
+                'status' => Product::STATUS_ACTIVE,
+            ])
+            ->assertForbidden();
+    }
+
     /**
      * @param  array<string, mixed>  $storeOverrides
      * @return array{0: Profile, 1: Store}

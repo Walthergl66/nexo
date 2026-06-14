@@ -94,6 +94,23 @@ export type IdentityLookup = {
   gender: string | null;
 };
 
+export type StoreResource = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: string;
+};
+
+export type SellerVerificationResource = {
+  id: string;
+  business_name: string;
+  business_description: string | null;
+  document_type: string | null;
+  document_number: string | null;
+  status: string;
+};
+
 export async function fetchCart(token?: string): Promise<CartItem[]> {
   if (!token) {
     return [];
@@ -175,7 +192,10 @@ export async function fetchProfile(token?: string): Promise<ProfileResource | nu
 }
 
 export async function fetchMyStore(token?: string): Promise<{
+  id: string;
   name: string;
+  slug: string;
+  description: string | null;
   status: string;
 } | null> {
   if (!token) {
@@ -183,11 +203,79 @@ export async function fetchMyStore(token?: string): Promise<{
   }
 
   const response = await request<ApiDocument<{
+    id: string;
     name: string;
+    slug: string;
+    description: string | null;
     status: string;
   }>>('/my-store', { token });
 
   return response.data;
+}
+
+export async function submitSellerVerification(
+  token: string,
+  payload: {
+    business_name: string;
+    business_description?: string | null;
+    document_type?: string | null;
+    document_number?: string | null;
+  },
+): Promise<SellerVerificationResource> {
+  const response = await request<ApiDocument<SellerVerificationResource>>('/seller-verification/request', {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+
+  return response.data;
+}
+
+export async function createStore(
+  token: string,
+  payload: {
+    name: string;
+    description?: string | null;
+    logo_url?: string | null;
+    banner_url?: string | null;
+  },
+): Promise<StoreResource> {
+  const response = await request<ApiDocument<StoreResource>>('/stores', {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+
+  return response.data;
+}
+
+export async function fetchMyProducts(token?: string): Promise<Product[]> {
+  if (!token) {
+    return [];
+  }
+
+  const response = await request<ApiCollection<unknown>>('/my-products', { token });
+
+  return response.data.map(mapApiProductToProduct);
+}
+
+export async function createProduct(
+  token: string,
+  payload: {
+    name: string;
+    description?: string | null;
+    price_cents: number;
+    stock: number;
+    status?: 'draft' | 'active' | 'paused';
+  },
+): Promise<Product> {
+  const response = await request<ApiDocument<unknown>>('/products', {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+
+  return mapApiProductToProduct(response.data);
 }
 
 export async function lookupIdentity(nationalId: string): Promise<IdentityLookup> {
