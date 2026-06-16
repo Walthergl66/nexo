@@ -4,6 +4,7 @@ namespace Tests\Feature\Sellers;
 
 use App\Models\Profile;
 use App\Models\SellerVerificationRequest;
+use App\Models\Store;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -180,6 +181,51 @@ class SellerVerificationTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('rejection_reason');
+    }
+
+    public function test_suspending_seller_also_suspends_store(): void
+    {
+        $seller = Profile::query()->create([
+            'supabase_user_id' => '018f1d4c-40a5-7fd2-9a5a-123456789abc',
+            'email' => 'seller@example.com',
+            'role' => Profile::ROLE_SELLER,
+            'verification_status' => Profile::VERIFICATION_APPROVED,
+        ]);
+        $admin = Profile::query()->create([
+            'supabase_user_id' => '018f1d4c-40a5-7fd2-9a5a-abcdefabcdef',
+            'email' => 'admin@example.com',
+            'role' => Profile::ROLE_ADMIN,
+            'verification_status' => Profile::VERIFICATION_APPROVED,
+        ]);
+        $store = Store::query()->create([
+            'profile_id' => $seller->id,
+            'name' => 'Seller Store',
+            'slug' => 'seller-store',
+            'status' => Store::STATUS_ACTIVE,
+        ]);
+        $verificationRequest = SellerVerificationRequest::query()->create([
+            'profile_id' => $seller->id,
+            'business_name' => 'Seller Store',
+            'status' => SellerVerificationRequest::STATUS_APPROVED,
+        ]);
+
+        $this->withToken($this->supabaseToken([
+            'sub' => $admin->supabase_user_id,
+            'aud' => 'authenticated',
+            'email' => 'admin@example.com',
+            'exp' => time() + 3600,
+        ]))
+            ->patchJson('/api/admin/seller-verification-requests/'.$verificationRequest->id, [
+                'status' => SellerVerificationRequest::STATUS_SUSPENDED,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.profile.role', Profile::ROLE_SELLER)
+            ->assertJsonPath('data.profile.verification_status', Profile::VERIFICATION_SUSPENDED);
+
+        $this->assertDatabaseHas('stores', [
+            'id' => $store->id,
+            'status' => Store::STATUS_SUSPENDED,
+        ]);
     }
 
     /**

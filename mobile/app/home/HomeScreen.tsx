@@ -21,6 +21,7 @@ type HomeScreenProps = {
   filteredProducts: Product[];
   filters: string[];
   isLoading: boolean;
+  isAuthenticated: boolean;
   isRefreshing: boolean;
   lastSyncAt: Date | null;
   productsCount: number;
@@ -37,11 +38,12 @@ type HomeScreenProps = {
 type AnimatedProductCellProps = {
   index: number;
   product: Product;
+  isAuthenticated: boolean;
   onAddToCart: () => void;
   onSelectProduct: () => void;
 };
 
-function AnimatedProductCell({ index, product, onAddToCart, onSelectProduct }: AnimatedProductCellProps) {
+function AnimatedProductCell({ index, product, isAuthenticated, onAddToCart, onSelectProduct }: AnimatedProductCellProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
 
@@ -68,7 +70,12 @@ function AnimatedProductCell({ index, product, onAddToCart, onSelectProduct }: A
 
   return (
     <Animated.View style={[styles.productCell, { opacity, transform: [{ translateY }] }]}>
-      <ProductCard product={product} onAddToCart={onAddToCart} onSelectProduct={onSelectProduct} />
+      <ProductCard
+        product={product}
+        isAuthenticated={isAuthenticated}
+        onAddToCart={onAddToCart}
+        onSelectProduct={onSelectProduct}
+      />
     </Animated.View>
   );
 }
@@ -96,6 +103,7 @@ export function HomeScreen({
   filteredProducts,
   filters,
   isLoading,
+  isAuthenticated,
   isRefreshing,
   lastSyncAt,
   productsCount,
@@ -112,6 +120,7 @@ export function HomeScreen({
     return (
       <ProductDetailCard
         product={selectedProduct}
+        isAuthenticated={isAuthenticated}
         onAddToCart={() => onAddToCart(selectedProduct)}
         onBack={onBackToCatalog}
       />
@@ -217,6 +226,7 @@ export function HomeScreen({
             <AnimatedProductCell
               key={product.id}
               index={index}
+              isAuthenticated={isAuthenticated}
               product={product}
               onAddToCart={() => onAddToCart(product)}
               onSelectProduct={() => onSelectProduct(product)}

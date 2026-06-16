@@ -26,9 +26,11 @@ import {
   createOrderFromCart,
   fetchCategoryNames,
   fetchCart,
+  fetchProfile,
   fetchProducts,
   removeCartItem,
   updateCartItemQuantity,
+  type ProfileResource,
 } from './services/marketplaceApi';
 import { getCurrentSession, onAuthStateChange } from './services/authService';
 import { colors, radii } from './theme/colors';
@@ -39,11 +41,175 @@ type NavIconName = keyof typeof Ionicons.glyphMap;
 const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> = {
   Inicio: { active: 'home', inactive: 'home-outline' },
   Vender: { active: 'pricetag', inactive: 'pricetag-outline' },
-  Pedidos: { active: 'trophy', inactive: 'trophy-outline' },
+  Pedidos: { active: 'cube', inactive: 'cube-outline' },
   Cuenta: { active: 'person', inactive: 'person-outline' },
 };
 
-const activeNavSize = 62;
+const activeNavSize = 54;
+const activeNavCurveSize = 124;
+const bottomNavHorizontalPadding = 16;
+
+type IconSegmentProps = {
+  progress: Animated.Value;
+  start: number;
+  end: number;
+  style: object;
+  axis?: 'x' | 'y';
+  rotate?: string;
+};
+
+function IconSegment({ progress, start, end, style, axis = 'x', rotate = '0deg' }: IconSegmentProps) {
+  const opacity = progress.interpolate({
+    inputRange: [start, Math.min(start + 0.05, end), end],
+    outputRange: [0, 1, 1],
+    extrapolate: 'clamp',
+  });
+  const scale = progress.interpolate({
+    inputRange: [start, end],
+    outputRange: [0.05, 1],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.constructedIconSegment,
+        style,
+        {
+          opacity,
+          transform:
+            axis === 'x'
+              ? [{ rotate }, { scaleX: scale }]
+              : [{ rotate }, { scaleY: scale }],
+        },
+      ]}
+    />
+  );
+}
+
+function IconDot({
+  progress,
+  start,
+  end,
+  style,
+}: {
+  progress: Animated.Value;
+  start: number;
+  end: number;
+  style: object;
+}) {
+  const opacity = progress.interpolate({
+    inputRange: [start, end],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const scale = progress.interpolate({
+    inputRange: [start, end],
+    outputRange: [0.2, 1],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.constructedIconDot,
+        style,
+        {
+          opacity,
+          transform: [{ scale }],
+        },
+      ]}
+    />
+  );
+}
+
+function ConstructedNavIcon({ tab, progress }: { tab: TabKey; progress: Animated.Value }) {
+  const sketchOpacity = progress.interpolate({
+    inputRange: [0, 0.72, 0.92, 1],
+    outputRange: [1, 1, 0.18, 0],
+    extrapolate: 'clamp',
+  });
+  const finalOpacity = progress.interpolate({
+    inputRange: [0, 0.76, 1],
+    outputRange: [0, 0, 1],
+    extrapolate: 'clamp',
+  });
+  const finalScale = progress.interpolate({
+    inputRange: [0, 0.76, 1],
+    outputRange: [0.92, 0.92, 1],
+    extrapolate: 'clamp',
+  });
+  const finalIconName = navIcons[tab].inactive;
+
+  if (tab === 'Inicio') {
+    return (
+      <View style={styles.constructedIcon}>
+        <Animated.View style={[styles.constructedIconSketch, { opacity: sketchOpacity }]}>
+          <IconSegment progress={progress} start={0} end={0.24} style={styles.iconHomeRoofLeft} rotate="-42deg" />
+          <IconSegment progress={progress} start={0.16} end={0.4} style={styles.iconHomeRoofRight} rotate="42deg" />
+          <IconSegment progress={progress} start={0.34} end={0.54} style={styles.iconHomeWallLeft} axis="y" rotate="90deg" />
+          <IconSegment progress={progress} start={0.44} end={0.64} style={styles.iconHomeWallRight} axis="y" rotate="90deg" />
+          <IconSegment progress={progress} start={0.58} end={0.78} style={styles.iconHomeBase} />
+        </Animated.View>
+        <Animated.View style={[styles.constructedIconFinal, { opacity: finalOpacity, transform: [{ scale: finalScale }] }]}>
+          <Ionicons name={finalIconName} size={27} color={colors.surface} />
+        </Animated.View>
+      </View>
+    );
+  }
+
+  if (tab === 'Vender') {
+    return (
+      <View style={styles.constructedIcon}>
+        <Animated.View style={[styles.constructedIconSketch, { opacity: sketchOpacity }]}>
+          <IconSegment progress={progress} start={0} end={0.22} style={styles.iconTagTop} />
+          <IconSegment progress={progress} start={0.16} end={0.38} style={styles.iconTagRight} rotate="55deg" />
+          <IconSegment progress={progress} start={0.32} end={0.54} style={styles.iconTagBottom} />
+          <IconSegment progress={progress} start={0.48} end={0.7} style={styles.iconTagLeft} rotate="55deg" />
+          <IconDot progress={progress} start={0.68} end={0.86} style={styles.iconTagHole} />
+        </Animated.View>
+        <Animated.View style={[styles.constructedIconFinal, { opacity: finalOpacity, transform: [{ scale: finalScale }] }]}>
+          <Ionicons name={finalIconName} size={27} color={colors.surface} />
+        </Animated.View>
+      </View>
+    );
+  }
+
+  if (tab === 'Pedidos') {
+    return (
+      <View style={styles.constructedIcon}>
+        <Animated.View style={[styles.constructedIconSketch, { opacity: sketchOpacity }]}>
+          <IconSegment progress={progress} start={0} end={0.2} style={styles.iconBoxTopLeft} rotate="-28deg" />
+          <IconSegment progress={progress} start={0.12} end={0.32} style={styles.iconBoxTopRight} rotate="28deg" />
+          <IconSegment progress={progress} start={0.28} end={0.48} style={styles.iconBoxLeft} axis="y" rotate="90deg" />
+          <IconSegment progress={progress} start={0.4} end={0.6} style={styles.iconBoxRight} axis="y" rotate="90deg" />
+          <IconSegment progress={progress} start={0.54} end={0.74} style={styles.iconBoxBottomLeft} rotate="28deg" />
+          <IconSegment progress={progress} start={0.64} end={0.84} style={styles.iconBoxBottomRight} rotate="-28deg" />
+          <IconSegment progress={progress} start={0.72} end={0.94} style={styles.iconBoxCenter} axis="y" rotate="90deg" />
+        </Animated.View>
+        <Animated.View style={[styles.constructedIconFinal, { opacity: finalOpacity, transform: [{ scale: finalScale }] }]}>
+          <Ionicons name={finalIconName} size={27} color={colors.surface} />
+        </Animated.View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.constructedIcon}>
+      <Animated.View style={[styles.constructedIconSketch, { opacity: sketchOpacity }]}>
+        <IconDot progress={progress} start={0} end={0.2} style={styles.iconPersonHead} />
+        <IconSegment progress={progress} start={0.2} end={0.4} style={styles.iconPersonShoulderLeft} rotate="-24deg" />
+        <IconSegment progress={progress} start={0.34} end={0.54} style={styles.iconPersonShoulderRight} rotate="24deg" />
+        <IconSegment progress={progress} start={0.48} end={0.72} style={styles.iconPersonBodyLeft} axis="y" rotate="90deg" />
+        <IconSegment progress={progress} start={0.6} end={0.84} style={styles.iconPersonBodyRight} axis="y" rotate="90deg" />
+        <IconSegment progress={progress} start={0.76} end={1} style={styles.iconPersonBase} />
+      </Animated.View>
+      <Animated.View style={[styles.constructedIconFinal, { opacity: finalOpacity, transform: [{ scale: finalScale }] }]}>
+        <Ionicons name={finalIconName} size={27} color={colors.surface} />
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -56,6 +222,10 @@ export default function App() {
   const [categoryFilters, setCategoryFilters] = useState<string[]>(['Todo']);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProfileResource | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
@@ -63,6 +233,11 @@ export default function App() {
   const [navWidth, setNavWidth] = useState(0);
   const activePillX = useRef(new Animated.Value(0)).current;
   const activeBubbleScale = useRef(new Animated.Value(1)).current;
+  const activeBubbleScaleX = useRef(new Animated.Value(1)).current;
+  const activeBubbleScaleY = useRef(new Animated.Value(1)).current;
+  const activeBubbleRise = useRef(new Animated.Value(1)).current;
+  const activeIconBuild = useRef(new Animated.Value(1)).current;
+  const activeLiquidStretch = useRef(new Animated.Value(1)).current;
   const cartPulse = useRef(new Animated.Value(1)).current;
   const hasLoadedCatalog = useRef(false);
   const headerVisibility = useRef(new Animated.Value(1)).current;
@@ -74,15 +249,41 @@ export default function App() {
   const screenTranslateX = useRef(new Animated.Value(0)).current;
   const screenTranslateY = useRef(new Animated.Value(0)).current;
   const screenScale = useRef(new Animated.Value(1)).current;
-  const activeIndex = tabs.indexOf(activeTab);
   const isProductPresentation = activeTab === 'Inicio';
   const isAuthenticated = accessToken !== null;
+  const hasBusinessProfile = isAuthenticated && profile !== null;
+  const visibleTabs = useMemo<TabKey[]>(
+    () => (hasBusinessProfile ? tabs : ['Inicio', 'Cuenta']),
+    [hasBusinessProfile],
+  );
+  const visibleActiveIndex = Math.max(0, visibleTabs.indexOf(activeTab));
   const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
   const navGap = 0;
-  const tabWidth = navWidth > 0 ? navWidth / tabs.length : 0;
+  const tabWidth =
+    navWidth > 0 ? (navWidth - bottomNavHorizontalPadding * 2) / visibleTabs.length : 0;
   const headerTranslateY = headerVisibility.interpolate({
     inputRange: [0, 1],
     outputRange: [-94, 0],
+    extrapolate: 'clamp',
+  });
+  const bubbleLiftY = activeBubbleRise.interpolate({
+    inputRange: [0, 1],
+    outputRange: [14, 0],
+    extrapolate: 'clamp',
+  });
+  const liquidScaleY = activeLiquidStretch.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.72, 1],
+    extrapolate: 'clamp',
+  });
+  const liquidScaleX = activeLiquidStretch.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1.28, 1],
+    extrapolate: 'clamp',
+  });
+  const activeIconLift = activeIconBuild.interpolate({
+    inputRange: [0, 1],
+    outputRange: [8, 0],
     extrapolate: 'clamp',
   });
 
@@ -182,6 +383,8 @@ export default function App() {
 
     const subscription = onAuthStateChange((session) => {
       setAccessToken(session?.access_token ?? null);
+      setSelectedProductId(null);
+      setIsCartOpen(false);
     });
 
     return () => {
@@ -193,7 +396,59 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    fetchCart(accessToken ?? undefined)
+    if (!accessToken) {
+      setProfile(null);
+      setCartItems([]);
+      setIsProfileLoading(false);
+      setProfileError(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsProfileLoading(true);
+    setProfileError(null);
+
+    fetchProfile(accessToken)
+      .then((nextProfile) => {
+        if (isMounted) {
+          setProfile(nextProfile);
+          setProfileError(null);
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setProfile(null);
+          setCartItems([]);
+          setProfileError(
+            error instanceof Error
+              ? error.message
+              : 'No se pudo sincronizar el perfil interno con Laravel.',
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsProfileLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, profileRefreshKey]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!accessToken || !profile) {
+      setCartItems([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    fetchCart(accessToken)
       .then((items) => {
         if (isMounted) {
           setCartItems(items);
@@ -208,7 +463,15 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken]);
+  }, [accessToken, profile]);
+
+  useEffect(() => {
+    if (!hasBusinessProfile && (activeTab === 'Vender' || activeTab === 'Pedidos')) {
+      setActiveTab('Cuenta');
+      setIsCartOpen(false);
+      setSelectedProductId(null);
+    }
+  }, [activeTab, hasBusinessProfile]);
 
   const selectedProduct = useMemo(
     () => marketplaceProducts.find((product) => product.id === selectedProductId) ?? null,
@@ -225,7 +488,7 @@ export default function App() {
       return;
     }
 
-    if (!isAuthenticated) {
+    if (!hasBusinessProfile || isProfileLoading) {
       setSelectedProductId(null);
       setIsCartOpen(false);
       setActiveTab('Cuenta');
@@ -267,6 +530,13 @@ export default function App() {
   };
 
   const handleOpenCart = () => {
+    if (!hasBusinessProfile) {
+      setSelectedProductId(null);
+      setIsCartOpen(false);
+      setActiveTab('Cuenta');
+      return;
+    }
+
     setActiveTab('Inicio');
     setSelectedProductId(null);
     setIsCartOpen(true);
@@ -279,7 +549,7 @@ export default function App() {
   const handleChangeCartQuantity = async (productId: string, quantity: number) => {
     const currentItem = cartItems.find((item) => item.product.id === productId);
 
-    if (!isAuthenticated) {
+    if (!hasBusinessProfile || isProfileLoading) {
       setActiveTab('Cuenta');
       setIsCartOpen(false);
       return;
@@ -299,6 +569,19 @@ export default function App() {
 
       return;
     }
+  };
+
+  const handleSelectTab = (tab: TabKey) => {
+    if (!hasBusinessProfile && (tab === 'Vender' || tab === 'Pedidos')) {
+      setActiveTab('Cuenta');
+      setIsCartOpen(false);
+      setSelectedProductId(null);
+      return;
+    }
+
+    setActiveTab(tab);
+    setIsCartOpen(false);
+    setSelectedProductId(null);
   };
 
   const handleRemoveCartItem = (productId: string) => {
@@ -330,33 +613,103 @@ export default function App() {
       return;
     }
 
+    activeBubbleRise.setValue(0);
+    activeIconBuild.setValue(0);
+    activeLiquidStretch.setValue(0);
+
     Animated.parallel([
       Animated.spring(activePillX, {
-        toValue: activeIndex * (tabWidth + navGap) + tabWidth / 2 - activeNavSize / 2,
-        damping: 18,
-        mass: 0.85,
-        stiffness: 180,
+        toValue:
+          bottomNavHorizontalPadding +
+          visibleActiveIndex * (tabWidth + navGap) +
+          tabWidth / 2 -
+          activeNavSize / 2,
+        damping: 17,
+        mass: 0.82,
+        stiffness: 210,
         useNativeDriver: true,
       }),
       Animated.sequence([
-        Animated.timing(activeBubbleScale, {
-          toValue: 0.9,
-          duration: 90,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.spring(activeBubbleScale, {
+        Animated.parallel([
+          Animated.timing(activeBubbleScale, {
+            toValue: 0.94,
+            duration: 86,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(activeBubbleScaleX, {
+            toValue: 1.08,
+            duration: 86,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(activeBubbleScaleY, {
+            toValue: 0.9,
+            duration: 86,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.spring(activeBubbleScale, {
+            toValue: 1,
+            damping: 10,
+            stiffness: 185,
+            useNativeDriver: true,
+          }),
+          Animated.spring(activeBubbleScaleX, {
+            toValue: 1,
+            damping: 10,
+            stiffness: 180,
+            useNativeDriver: true,
+          }),
+          Animated.spring(activeBubbleScaleY, {
+            toValue: 1,
+            damping: 10,
+            stiffness: 180,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+      Animated.spring(activeBubbleRise, {
+        toValue: 1,
+        damping: 11,
+        mass: 0.72,
+        stiffness: 190,
+        useNativeDriver: true,
+      }),
+      Animated.spring(activeLiquidStretch, {
+        toValue: 1,
+        damping: 11,
+        mass: 0.75,
+        stiffness: 165,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(52),
+        Animated.timing(activeIconBuild, {
           toValue: 1,
-          damping: 11,
-          stiffness: 170,
+          duration: 560,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]),
     ]).start();
-  }, [activeBubbleScale, activeIndex, activePillX, navGap, tabWidth]);
+  }, [
+    activeBubbleRise,
+    activeBubbleScale,
+    activeBubbleScaleX,
+    activeBubbleScaleY,
+    activeIconBuild,
+    activeLiquidStretch,
+    activePillX,
+    navGap,
+    tabWidth,
+    visibleActiveIndex,
+  ]);
 
   useEffect(() => {
-    const transitionDirection = activeIndex >= previousActiveIndex.current ? 1 : -1;
+    const transitionDirection = visibleActiveIndex >= previousActiveIndex.current ? 1 : -1;
 
     screenOpacity.setValue(0);
     screenTranslateX.setValue(26 * transitionDirection);
@@ -392,9 +745,9 @@ export default function App() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      previousActiveIndex.current = activeIndex;
+      previousActiveIndex.current = visibleActiveIndex;
     });
-  }, [activeIndex, screenOpacity, screenScale, screenTransitionKey, screenTranslateX, screenTranslateY]);
+  }, [screenOpacity, screenScale, screenTransitionKey, screenTranslateX, screenTranslateY, visibleActiveIndex]);
 
   useEffect(() => {
     if (shouldShowHeader) {
@@ -442,7 +795,7 @@ export default function App() {
     if (isCartOpen) {
       return (
         <CartScreen
-          isAuthenticated={isAuthenticated}
+          isAuthenticated={hasBusinessProfile}
           items={cartItems}
           shipping={4.99}
           onBackToCatalog={handleBackToCatalog}
@@ -466,6 +819,7 @@ export default function App() {
             productsCount={marketplaceProducts.length}
             search={search}
             selectedProduct={selectedProduct}
+            isAuthenticated={hasBusinessProfile}
             onAddToCart={handleAddToCart}
             onBackToCatalog={handleBackToCatalog}
             onChangeFilter={setActiveFilter}
@@ -475,11 +829,30 @@ export default function App() {
           />
         );
       case 'Vender':
-        return <SellScreen accessToken={accessToken} />;
+        return (
+          <SellScreen
+            accessToken={accessToken}
+            profile={profile}
+            isProfileLoading={isProfileLoading}
+            onGoToAccount={() => setActiveTab('Cuenta')}
+            onProfileChange={setProfile}
+          />
+        );
       case 'Pedidos':
-        return <OrdersScreen accessToken={accessToken} />;
+        return <OrdersScreen accessToken={hasBusinessProfile ? accessToken : null} />;
       case 'Cuenta':
-        return <AccountScreen accessToken={accessToken} onExplore={() => setActiveTab('Inicio')} />;
+        return (
+          <AccountScreen
+            accessToken={accessToken}
+            profile={profile}
+            profileError={profileError}
+            isProfileLoading={isProfileLoading}
+            onExplore={() => setActiveTab('Inicio')}
+            onProfileChange={setProfile}
+            onRetryProfile={() => setProfileRefreshKey((current) => current + 1)}
+            onSell={() => setActiveTab('Vender')}
+          />
+        );
     }
   };
 
@@ -504,20 +877,22 @@ export default function App() {
                 <Text style={styles.headerTitle}>NEXO</Text>
               </View>
             </View>
-            <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
-              <Pressable
-                accessibilityLabel="Abrir carrito"
-                style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
-                onPress={handleOpenCart}
-              >
-                <Ionicons name="cart" size={21} color={colors.surface} />
-                {cartCount > 0 && (
-                  <View style={styles.cartCountBubble}>
-                    <Text style={styles.cartCountText}>{cartCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-            </Animated.View>
+            {hasBusinessProfile && (
+              <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
+                <Pressable
+                  accessibilityLabel="Abrir carrito"
+                  style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
+                  onPress={handleOpenCart}
+                >
+                  <Ionicons name="cart" size={21} color={colors.surface} />
+                  {cartCount > 0 && (
+                    <View style={styles.cartCountBubble}>
+                      <Text style={styles.cartCountText}>{cartCount}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              </Animated.View>
+            )}
           </Animated.View>
         )}
 
@@ -551,35 +926,52 @@ export default function App() {
                 <Animated.View
                   pointerEvents="none"
                   style={[
-                    styles.bottomNavPocket,
+                    styles.bottomNavLiquid,
                     {
-                      transform: [{ translateX: activePillX }],
+                      transform: [
+                        { translateX: activePillX },
+                        { translateY: bubbleLiftY },
+                        { scaleX: liquidScaleX },
+                        { scaleY: liquidScaleY },
+                      ],
                     },
                   ]}
-                />
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.bottomNavHalo,
-                    {
-                      transform: [{ translateX: activePillX }, { scale: activeBubbleScale }],
-                    },
-                  ]}
-                />
+                >
+                  <View style={styles.bottomNavLiquidLeft} />
+                  <View style={styles.bottomNavLiquidStem} />
+                  <View style={styles.bottomNavLiquidRight} />
+                  <View style={styles.bottomNavLiquidShell} />
+                </Animated.View>
                 <Animated.View
                   pointerEvents="none"
                   style={[
                     styles.bottomNavBubble,
                     {
-                      transform: [{ translateX: activePillX }, { scale: activeBubbleScale }],
+                      transform: [
+                        { translateX: activePillX },
+                        { translateY: bubbleLiftY },
+                        { scale: activeBubbleScale },
+                        { scaleX: activeBubbleScaleX },
+                        { scaleY: activeBubbleScaleY },
+                      ],
                     },
                   ]}
                 >
-                  <Ionicons name={navIcons[activeTab].active} size={30} color={colors.surface} />
+                  <Animated.View
+                    key={activeTab}
+                    style={[
+                      styles.bottomNavActiveIcon,
+                      {
+                        transform: [{ translateY: activeIconLift }],
+                      },
+                    ]}
+                  >
+                    <ConstructedNavIcon tab={activeTab} progress={activeIconBuild} />
+                  </Animated.View>
                 </Animated.View>
               </>
             )}
-            {tabs.map((tab) => {
+            {visibleTabs.map((tab) => {
               const isActive = tab === activeTab;
               const iconName = navIcons[tab].inactive;
 
@@ -595,14 +987,13 @@ export default function App() {
                     pressed && styles.bottomNavItemPressed,
                   ]}
                   onPress={() => {
-                    setActiveTab(tab);
-                    setIsCartOpen(false);
+                    handleSelectTab(tab);
                   }}
                 >
                   <Ionicons
                     name={iconName}
                     size={23}
-                    color={isActive ? 'transparent' : colors.inkMuted}
+                    color={isActive ? 'transparent' : colors.inkSoft}
                   />
                   <Text style={[styles.bottomNavLabel, isActive && styles.bottomNavLabelActive]}>
                     {tab}
@@ -734,7 +1125,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingTop: 2,
-    paddingBottom: 132,
+    paddingBottom: 112,
   },
   contentWithHeader: {
     paddingTop: 104,
@@ -750,53 +1141,87 @@ const styles = StyleSheet.create({
     left: 18,
     right: 18,
     bottom: 16,
-    height: 94,
+    height: 104,
     justifyContent: 'flex-end',
   },
   bottomNavTrack: {
-    height: 72,
+    height: 84,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     position: 'relative',
-    backgroundColor: Platform.OS === 'web' ? '#fbfdff' : colors.surface,
-    borderRadius: 30,
+    overflow: 'visible',
+    backgroundColor: colors.surface,
+    borderRadius: 32,
     borderWidth: 1,
     borderColor: colors.brandBlueLine,
+    paddingHorizontal: 16,
+    paddingBottom: 11,
     shadowColor: colors.ink,
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.12,
     shadowRadius: 26,
-    elevation: 14,
+    elevation: 18,
   },
-  bottomNavPocket: {
+  bottomNavLiquid: {
     position: 'absolute',
-    top: -22,
-    left: 0,
-    width: activeNavSize,
-    height: activeNavSize,
-    borderRadius: activeNavSize / 2,
-    backgroundColor: colors.background,
+    top: -44,
+    left: -(activeNavCurveSize - activeNavSize) / 2,
+    width: activeNavCurveSize,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  bottomNavLiquidShell: {
+    position: 'absolute',
+    top: 0,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#fbfdff',
     borderWidth: 1,
     borderColor: colors.brandBlueLine,
-  },
-  bottomNavHalo: {
-    position: 'absolute',
-    top: -27,
-    left: 0,
-    width: activeNavSize,
-    height: activeNavSize,
-    borderRadius: activeNavSize / 2,
-    backgroundColor: colors.brandBlueSoft,
     shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    elevation: 15,
-    opacity: 0.72,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 9,
+    zIndex: 3,
+  },
+  bottomNavLiquidStem: {
+    position: 'absolute',
+    bottom: -3,
+    width: 84,
+    height: 64,
+    borderRadius: 42,
+    backgroundColor: colors.surface,
+    zIndex: 2,
+  },
+  bottomNavLiquidLeft: {
+    position: 'absolute',
+    left: 5,
+    bottom: 0,
+    width: 54,
+    height: 48,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
+    transform: [{ rotate: '-8deg' }],
+    zIndex: 1,
+  },
+  bottomNavLiquidRight: {
+    position: 'absolute',
+    right: 5,
+    bottom: 0,
+    width: 54,
+    height: 48,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
+    transform: [{ rotate: '8deg' }],
+    zIndex: 1,
   },
   bottomNavBubble: {
     position: 'absolute',
-    top: -31,
+    top: -42,
     left: 0,
     width: activeNavSize,
     height: activeNavSize,
@@ -804,30 +1229,181 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandBlue,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: colors.surface,
+    overflow: 'hidden',
     shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.24,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
     elevation: 20,
+    zIndex: 3,
+  },
+  bottomNavActiveIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  constructedIcon: {
+    width: 32,
+    height: 32,
+    position: 'relative',
+  },
+  constructedIconSketch: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  constructedIconFinal: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  constructedIconSegment: {
+    position: 'absolute',
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  constructedIconDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  iconHomeRoofLeft: {
+    left: 6,
+    top: 11,
+    width: 13,
+  },
+  iconHomeRoofRight: {
+    right: 6,
+    top: 11,
+    width: 13,
+  },
+  iconHomeWallLeft: {
+    left: 8,
+    top: 15,
+    width: 9,
+  },
+  iconHomeWallRight: {
+    right: 8,
+    top: 15,
+    width: 9,
+  },
+  iconHomeBase: {
+    left: 9,
+    top: 23,
+    width: 14,
+  },
+  iconTagTop: {
+    left: 7,
+    top: 8,
+    width: 15,
+  },
+  iconTagRight: {
+    left: 18,
+    top: 13,
+    width: 13,
+  },
+  iconTagBottom: {
+    left: 10,
+    top: 22,
+    width: 17,
+    transform: [{ rotate: '0deg' }],
+  },
+  iconTagLeft: {
+    left: 3,
+    top: 14,
+    width: 15,
+  },
+  iconTagHole: {
+    left: 10,
+    top: 11,
+    width: 6,
+    height: 6,
+  },
+  iconBoxTopLeft: {
+    left: 7,
+    top: 8,
+    width: 11,
+  },
+  iconBoxTopRight: {
+    right: 7,
+    top: 8,
+    width: 11,
+  },
+  iconBoxLeft: {
+    left: 7,
+    top: 14,
+    width: 13,
+  },
+  iconBoxRight: {
+    right: 7,
+    top: 14,
+    width: 13,
+  },
+  iconBoxBottomLeft: {
+    left: 7,
+    top: 23,
+    width: 11,
+  },
+  iconBoxBottomRight: {
+    right: 7,
+    top: 23,
+    width: 11,
+  },
+  iconBoxCenter: {
+    left: 14.5,
+    top: 12,
+    width: 12,
+  },
+  iconPersonHead: {
+    left: 12,
+    top: 5,
+  },
+  iconPersonShoulderLeft: {
+    left: 6,
+    top: 19,
+    width: 12,
+  },
+  iconPersonShoulderRight: {
+    right: 6,
+    top: 19,
+    width: 12,
+  },
+  iconPersonBodyLeft: {
+    left: 10,
+    top: 18,
+    width: 8,
+  },
+  iconPersonBodyRight: {
+    right: 10,
+    top: 18,
+    width: 8,
+  },
+  iconPersonBase: {
+    left: 9,
+    top: 25,
+    width: 14,
   },
   bottomNavItem: {
-    height: 72,
+    height: 62,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    borderRadius: radii.large,
-    gap: 3,
-    paddingBottom: 10,
+    borderRadius: radii.pill,
+    gap: 5,
+    paddingBottom: 8,
     transform: [{ scale: 1 }],
+    zIndex: 4,
   },
   bottomNavItemPressed: {
     transform: [{ scale: 0.96 }],
   },
   bottomNavLabel: {
-    color: colors.inkMuted,
+    color: colors.inkSoft,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     lineHeight: 14,
     letterSpacing: 0,
   },

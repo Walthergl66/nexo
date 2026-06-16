@@ -20,7 +20,7 @@ class UpdateProductController extends Controller
         $profile = $request->attributes->get('profile');
         $store = $product->store()->firstOrFail();
 
-        abort_unless($profile->isAdmin() || $store->profile_id === $profile->id, 403);
+        abort_unless($profile->isAdmin() || ($profile->isVerifiedSeller() && $store->profile_id === $profile->id), 403);
 
         $product = $this->service->update($product, $request->validated());
 

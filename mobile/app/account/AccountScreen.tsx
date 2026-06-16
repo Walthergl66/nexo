@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { Tag } from '../../components/common/Tag';
 import {
   checkProfileAvailability,
   completeProfile,
-  fetchProfile,
   lookupIdentity,
   type IdentityLookup,
   type ProfileResource,
@@ -17,7 +16,13 @@ import { colors, radii } from '../../theme/colors';
 
 type AccountScreenProps = {
   accessToken: string | null;
+  profile: ProfileResource | null;
+  profileError: string | null;
+  isProfileLoading: boolean;
   onExplore: () => void;
+  onProfileChange: (profile: ProfileResource | null) => void;
+  onRetryProfile: () => void;
+  onSell: () => void;
 };
 
 type Mode = 'login' | 'register';
@@ -38,9 +43,17 @@ const initialRegisterForm = {
   phone: '',
 };
 
-export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
+export function AccountScreen({
+  accessToken,
+  profile,
+  profileError,
+  isProfileLoading,
+  onExplore,
+  onProfileChange,
+  onRetryProfile,
+  onSell,
+}: AccountScreenProps) {
   const [mode, setMode] = useState<Mode>('login');
-  const [profile, setProfile] = useState<ProfileResource | null>(null);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [registerForm, setRegisterForm] = useState(initialRegisterForm);
@@ -54,26 +67,6 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
 
   const isGuest = accessToken === null;
   const passwordError = useMemo(() => validatePassword(registerForm.password), [registerForm.password]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    fetchProfile(accessToken ?? undefined)
-      .then((nextProfile) => {
-        if (isMounted) {
-          setProfile(nextProfile);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setProfile(null);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [accessToken]);
 
   const updateRegisterField = (key: keyof typeof initialRegisterForm, value: string) => {
     setRegisterForm((current) => ({ ...current, [key]: value }));
@@ -114,9 +107,13 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
     setIsLoading(true);
 
     try {
-      await signInWithEmail(loginEmail, loginPassword);
+      const session = await signInWithEmail(loginEmail, loginPassword);
       setLoginPassword('');
-      setMessage('Sesión iniciada.');
+      setMessage(
+        session?.access_token
+          ? 'Sesion iniciada. Sincronizando perfil...'
+          : 'Credenciales aceptadas. Revisa tu correo si Supabase requiere confirmacion.',
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo iniciar sesion.');
     } finally {
@@ -168,7 +165,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
           address: registerForm.address,
           phone: registerForm.phone,
         });
-        setProfile(nextProfile);
+        onProfileChange(nextProfile);
         setMessage('Cuenta creada y perfil completado.');
       } else {
         setMessage('Cuenta creada. Revisa tu correo para confirmar la cuenta antes de iniciar sesion.');
@@ -191,7 +188,7 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
 
     try {
       await signOut();
-      setProfile(null);
+      onProfileChange(null);
       setMessage('Sesión cerrada.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo cerrar sesion.');
@@ -213,6 +210,8 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
   }
 
   if (!isGuest && profile) {
+    const canRequestSellerVerification = profile.role === 'buyer' && profile.verification_status !== 'suspended';
+
     return (
       <>
         <SectionTitle title="Cuenta" subtitle="Datos sincronizados desde Laravel." />
@@ -232,11 +231,55 @@ export function AccountScreen({ accessToken, onExplore }: AccountScreenProps) {
               <Text style={styles.dataText}>Genero: {profile.gender ?? 'No registrado'}</Text>
             </View>
           )}
+          {canRequestSellerVerification && (
+            <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={onSell}>
+              <Ionicons name="shield-checkmark" size={17} color={colors.surface} />
+              <Text style={styles.primaryButtonText}>Solicitar validacion para vender</Text>
+            </Pressable>
+          )}
           <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]} onPress={handleLogout}>
             <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
           </Pressable>
         </View>
         {message && <Text style={styles.message}>{message}</Text>}
+      </>
+    );
+  }
+
+  if (!isGuest && isProfileLoading) {
+    return (
+      <>
+        <SectionTitle title="Cuenta" subtitle="Sincronizando perfil interno." />
+        <View style={styles.accountCard}>
+          <ActivityIndicator color={colors.brandBlue} />
+          <Text style={styles.accountEmail}>Cargando datos de cuenta desde Laravel.</Text>
+        </View>
+      </>
+    );
+  }
+
+  if (!isGuest && profileError) {
+    return (
+      <>
+        <SectionTitle title="Cuenta" subtitle="Sesion activa, perfil pendiente." />
+        <View style={styles.accountCard}>
+          <Text style={styles.accountName}>Falta sincronizar Laravel</Text>
+          <Text style={styles.accountEmail}>
+            Supabase inicio sesion, pero no se pudo cargar tu perfil interno. Revisa que el backend este activo y vuelve a intentar.
+          </Text>
+          <Text style={styles.errorText}>{profileError}</Text>
+          <Pressable
+            disabled={isProfileLoading}
+            style={({ pressed }) => [styles.primaryButton, isProfileLoading && styles.buttonDisabled, pressed && styles.buttonPressed]}
+            onPress={onRetryProfile}
+          >
+            <Ionicons name="refresh" size={17} color={colors.surface} />
+            <Text style={styles.primaryButtonText}>Reintentar sincronizacion</Text>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]} onPress={handleLogout}>
+            <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
+          </Pressable>
+        </View>
       </>
     );
   }
@@ -793,6 +836,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     backgroundColor: colors.brandBlue,
     marginTop: 4,
   },
@@ -825,6 +870,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginTop: 10,
+  },
+  errorText: {
+    color: '#9f1239',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 16,
   },
   validationText: {
     color: '#9f1239',

@@ -4,6 +4,7 @@ namespace App\Modules\Sellers\Services;
 
 use App\Models\Profile;
 use App\Models\SellerVerificationRequest;
+use App\Models\Store;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -82,6 +83,11 @@ class SellerVerificationService
                     : Profile::ROLE_SELLER,
                 'verification_status' => $status,
             ])->save();
+
+            if ($status !== SellerVerificationRequest::STATUS_APPROVED) {
+                $sellerProfile->store()
+                    ->update(['status' => Store::STATUS_SUSPENDED]);
+            }
 
             return $verificationRequest->refresh()->load(['profile', 'reviewer']);
         });

@@ -67,14 +67,15 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 
 * El backend vive en `backend/` y usa Laravel 13 con PHP 8.3.
 * La API protegida usa middleware `supabase.jwt`.
-* La validación inicial de JWT se hace localmente con `SUPABASE_JWT_SECRET` y `SUPABASE_JWT_ALGORITHM=HS256`.
-* Si Supabase se configura con llaves asimétricas, se debe evolucionar `SupabaseAuthService` a validación JWKS antes de producción.
+* La validación de JWT soporta `HS256` con `SUPABASE_JWT_SECRET` y tokens asimétricos `RS256`/`ES256` mediante JWKS público de Supabase.
+* `SupabaseAuthService` obtiene las llaves desde `SUPABASE_URL/auth/v1/.well-known/jwks.json` y las cachea para validar tokens firmados con llaves rotables.
 * Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
 * `GET /api/me` crea automáticamente el `profile` si el JWT de Supabase es válido y aún no existe.
 * Los roles y estados se modelan como strings controlados por constantes del modelo `Profile` para mantener portabilidad entre PostgreSQL y SQLite de pruebas.
 * Las solicitudes para convertirse en vendedor se guardan en `seller_verification_requests` para conservar historial.
 * La aprobación de una solicitud cambia el perfil a `role=seller` y `verification_status=approved`.
 * El rechazo cambia el perfil a `role=buyer` y `verification_status=rejected`; la suspensión deja `role=seller` y usa `verification_status=suspended`.
+* El rechazo o suspensión de un vendedor suspende también su tienda para retirarla de listados públicos e impedir compras de sus productos.
 * Cada vendedor aprobado puede tener una sola tienda en `stores`.
 * Como la verificación del vendedor ya es el control principal, una tienda nueva creada por un seller aprobado inicia con `store_status=active`.
 * Los listados públicos de tiendas solo muestran tiendas `active`.
