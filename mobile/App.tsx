@@ -49,6 +49,168 @@ const activeNavSize = 54;
 const activeNavCurveSize = 124;
 const bottomNavHorizontalPadding = 16;
 
+type IconSegmentProps = {
+  progress: Animated.Value;
+  start: number;
+  end: number;
+  style: object;
+  axis?: 'x' | 'y';
+  rotate?: string;
+};
+
+function IconSegment({ progress, start, end, style, axis = 'x', rotate = '0deg' }: IconSegmentProps) {
+  const opacity = progress.interpolate({
+    inputRange: [start, Math.min(start + 0.05, end), end],
+    outputRange: [0, 1, 1],
+    extrapolate: 'clamp',
+  });
+  const scale = progress.interpolate({
+    inputRange: [start, end],
+    outputRange: [0.05, 1],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.constructedIconSegment,
+        style,
+        {
+          opacity,
+          transform:
+            axis === 'x'
+              ? [{ rotate }, { scaleX: scale }]
+              : [{ rotate }, { scaleY: scale }],
+        },
+      ]}
+    />
+  );
+}
+
+function IconDot({
+  progress,
+  start,
+  end,
+  style,
+}: {
+  progress: Animated.Value;
+  start: number;
+  end: number;
+  style: object;
+}) {
+  const opacity = progress.interpolate({
+    inputRange: [start, end],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const scale = progress.interpolate({
+    inputRange: [start, end],
+    outputRange: [0.2, 1],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.constructedIconDot,
+        style,
+        {
+          opacity,
+          transform: [{ scale }],
+        },
+      ]}
+    />
+  );
+}
+
+function ConstructedNavIcon({ tab, progress }: { tab: TabKey; progress: Animated.Value }) {
+  const sketchOpacity = progress.interpolate({
+    inputRange: [0, 0.72, 0.92, 1],
+    outputRange: [1, 1, 0.18, 0],
+    extrapolate: 'clamp',
+  });
+  const finalOpacity = progress.interpolate({
+    inputRange: [0, 0.76, 1],
+    outputRange: [0, 0, 1],
+    extrapolate: 'clamp',
+  });
+  const finalScale = progress.interpolate({
+    inputRange: [0, 0.76, 1],
+    outputRange: [0.92, 0.92, 1],
+    extrapolate: 'clamp',
+  });
+  const finalIconName = navIcons[tab].inactive;
+
+  if (tab === 'Inicio') {
+    return (
+      <View style={styles.constructedIcon}>
+        <Animated.View style={[styles.constructedIconSketch, { opacity: sketchOpacity }]}>
+          <IconSegment progress={progress} start={0} end={0.24} style={styles.iconHomeRoofLeft} rotate="-42deg" />
+          <IconSegment progress={progress} start={0.16} end={0.4} style={styles.iconHomeRoofRight} rotate="42deg" />
+          <IconSegment progress={progress} start={0.34} end={0.54} style={styles.iconHomeWallLeft} axis="y" rotate="90deg" />
+          <IconSegment progress={progress} start={0.44} end={0.64} style={styles.iconHomeWallRight} axis="y" rotate="90deg" />
+          <IconSegment progress={progress} start={0.58} end={0.78} style={styles.iconHomeBase} />
+        </Animated.View>
+        <Animated.View style={[styles.constructedIconFinal, { opacity: finalOpacity, transform: [{ scale: finalScale }] }]}>
+          <Ionicons name={finalIconName} size={27} color={colors.surface} />
+        </Animated.View>
+      </View>
+    );
+  }
+
+  if (tab === 'Vender') {
+    return (
+      <View style={styles.constructedIcon}>
+        <Animated.View style={[styles.constructedIconSketch, { opacity: sketchOpacity }]}>
+          <IconSegment progress={progress} start={0} end={0.22} style={styles.iconTagTop} />
+          <IconSegment progress={progress} start={0.16} end={0.38} style={styles.iconTagRight} rotate="55deg" />
+          <IconSegment progress={progress} start={0.32} end={0.54} style={styles.iconTagBottom} />
+          <IconSegment progress={progress} start={0.48} end={0.7} style={styles.iconTagLeft} rotate="55deg" />
+          <IconDot progress={progress} start={0.68} end={0.86} style={styles.iconTagHole} />
+        </Animated.View>
+        <Animated.View style={[styles.constructedIconFinal, { opacity: finalOpacity, transform: [{ scale: finalScale }] }]}>
+          <Ionicons name={finalIconName} size={27} color={colors.surface} />
+        </Animated.View>
+      </View>
+    );
+  }
+
+  if (tab === 'Pedidos') {
+    return (
+      <View style={styles.constructedIcon}>
+        <Animated.View style={[styles.constructedIconSketch, { opacity: sketchOpacity }]}>
+          <IconSegment progress={progress} start={0} end={0.2} style={styles.iconBoxTopLeft} rotate="-28deg" />
+          <IconSegment progress={progress} start={0.12} end={0.32} style={styles.iconBoxTopRight} rotate="28deg" />
+          <IconSegment progress={progress} start={0.28} end={0.48} style={styles.iconBoxLeft} axis="y" rotate="90deg" />
+          <IconSegment progress={progress} start={0.4} end={0.6} style={styles.iconBoxRight} axis="y" rotate="90deg" />
+          <IconSegment progress={progress} start={0.54} end={0.74} style={styles.iconBoxBottomLeft} rotate="28deg" />
+          <IconSegment progress={progress} start={0.64} end={0.84} style={styles.iconBoxBottomRight} rotate="-28deg" />
+          <IconSegment progress={progress} start={0.72} end={0.94} style={styles.iconBoxCenter} axis="y" rotate="90deg" />
+        </Animated.View>
+        <Animated.View style={[styles.constructedIconFinal, { opacity: finalOpacity, transform: [{ scale: finalScale }] }]}>
+          <Ionicons name={finalIconName} size={27} color={colors.surface} />
+        </Animated.View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.constructedIcon}>
+      <Animated.View style={[styles.constructedIconSketch, { opacity: sketchOpacity }]}>
+        <IconDot progress={progress} start={0} end={0.2} style={styles.iconPersonHead} />
+        <IconSegment progress={progress} start={0.2} end={0.4} style={styles.iconPersonShoulderLeft} rotate="-24deg" />
+        <IconSegment progress={progress} start={0.34} end={0.54} style={styles.iconPersonShoulderRight} rotate="24deg" />
+        <IconSegment progress={progress} start={0.48} end={0.72} style={styles.iconPersonBodyLeft} axis="y" rotate="90deg" />
+        <IconSegment progress={progress} start={0.6} end={0.84} style={styles.iconPersonBodyRight} axis="y" rotate="90deg" />
+        <IconSegment progress={progress} start={0.76} end={1} style={styles.iconPersonBase} />
+      </Animated.View>
+      <Animated.View style={[styles.constructedIconFinal, { opacity: finalOpacity, transform: [{ scale: finalScale }] }]}>
+        <Ionicons name={finalIconName} size={27} color={colors.surface} />
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [activeFilter, setActiveFilter] = useState('Todo');
@@ -117,21 +279,6 @@ export default function App() {
   const liquidScaleX = activeLiquidStretch.interpolate({
     inputRange: [0, 1],
     outputRange: [1.28, 1],
-    extrapolate: 'clamp',
-  });
-  const activeIconOpacity = activeIconBuild.interpolate({
-    inputRange: [0, 0.45, 1],
-    outputRange: [0, 0.42, 1],
-    extrapolate: 'clamp',
-  });
-  const activeIconScale = activeIconBuild.interpolate({
-    inputRange: [0, 0.55, 1],
-    outputRange: [0.18, 1.18, 1],
-    extrapolate: 'clamp',
-  });
-  const activeIconRotate = activeIconBuild.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['-28deg', '0deg'],
     extrapolate: 'clamp',
   });
   const activeIconLift = activeIconBuild.interpolate({
@@ -539,12 +686,11 @@ export default function App() {
         useNativeDriver: true,
       }),
       Animated.sequence([
-        Animated.delay(42),
-        Animated.spring(activeIconBuild, {
+        Animated.delay(52),
+        Animated.timing(activeIconBuild, {
           toValue: 1,
-          damping: 9,
-          mass: 0.62,
-          stiffness: 230,
+          duration: 560,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]),
@@ -816,16 +962,11 @@ export default function App() {
                     style={[
                       styles.bottomNavActiveIcon,
                       {
-                        opacity: activeIconOpacity,
-                        transform: [
-                          { translateY: activeIconLift },
-                          { rotate: activeIconRotate },
-                          { scale: activeIconScale },
-                        ],
+                        transform: [{ translateY: activeIconLift }],
                       },
                     ]}
                   >
-                    <Ionicons name={navIcons[activeTab].active} size={27} color={colors.surface} />
+                    <ConstructedNavIcon tab={activeTab} progress={activeIconBuild} />
                   </Animated.View>
                 </Animated.View>
               </>
@@ -1103,6 +1244,148 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  constructedIcon: {
+    width: 32,
+    height: 32,
+    position: 'relative',
+  },
+  constructedIconSketch: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  constructedIconFinal: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  constructedIconSegment: {
+    position: 'absolute',
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  constructedIconDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  iconHomeRoofLeft: {
+    left: 6,
+    top: 11,
+    width: 13,
+  },
+  iconHomeRoofRight: {
+    right: 6,
+    top: 11,
+    width: 13,
+  },
+  iconHomeWallLeft: {
+    left: 8,
+    top: 15,
+    width: 9,
+  },
+  iconHomeWallRight: {
+    right: 8,
+    top: 15,
+    width: 9,
+  },
+  iconHomeBase: {
+    left: 9,
+    top: 23,
+    width: 14,
+  },
+  iconTagTop: {
+    left: 7,
+    top: 8,
+    width: 15,
+  },
+  iconTagRight: {
+    left: 18,
+    top: 13,
+    width: 13,
+  },
+  iconTagBottom: {
+    left: 10,
+    top: 22,
+    width: 17,
+    transform: [{ rotate: '0deg' }],
+  },
+  iconTagLeft: {
+    left: 3,
+    top: 14,
+    width: 15,
+  },
+  iconTagHole: {
+    left: 10,
+    top: 11,
+    width: 6,
+    height: 6,
+  },
+  iconBoxTopLeft: {
+    left: 7,
+    top: 8,
+    width: 11,
+  },
+  iconBoxTopRight: {
+    right: 7,
+    top: 8,
+    width: 11,
+  },
+  iconBoxLeft: {
+    left: 7,
+    top: 14,
+    width: 13,
+  },
+  iconBoxRight: {
+    right: 7,
+    top: 14,
+    width: 13,
+  },
+  iconBoxBottomLeft: {
+    left: 7,
+    top: 23,
+    width: 11,
+  },
+  iconBoxBottomRight: {
+    right: 7,
+    top: 23,
+    width: 11,
+  },
+  iconBoxCenter: {
+    left: 14.5,
+    top: 12,
+    width: 12,
+  },
+  iconPersonHead: {
+    left: 12,
+    top: 5,
+  },
+  iconPersonShoulderLeft: {
+    left: 6,
+    top: 19,
+    width: 12,
+  },
+  iconPersonShoulderRight: {
+    right: 6,
+    top: 19,
+    width: 12,
+  },
+  iconPersonBodyLeft: {
+    left: 10,
+    top: 18,
+    width: 8,
+  },
+  iconPersonBodyRight: {
+    right: 10,
+    top: 18,
+    width: 8,
+  },
+  iconPersonBase: {
+    left: 9,
+    top: 25,
+    width: 14,
   },
   bottomNavItem: {
     height: 62,
