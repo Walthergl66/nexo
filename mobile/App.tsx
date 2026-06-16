@@ -794,6 +794,7 @@ export default function App() {
                   <View style={styles.bottomNavLiquidLeft} />
                   <View style={styles.bottomNavLiquidStem} />
                   <View style={styles.bottomNavLiquidRight} />
+                  <View style={styles.bottomNavLiquidShell} />
                 </Animated.View>
                 <Animated.View
                   pointerEvents="none"
@@ -1022,41 +1023,60 @@ const styles = StyleSheet.create({
   },
   bottomNavLiquid: {
     position: 'absolute',
-    top: -43,
+    top: -44,
     left: -(activeNavCurveSize - activeNavSize) / 2,
     width: activeNavCurveSize,
-    height: 70,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
   },
+  bottomNavLiquidShell: {
+    position: 'absolute',
+    top: 0,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#fbfdff',
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    shadowColor: colors.brandBlue,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 9,
+    zIndex: 3,
+  },
   bottomNavLiquidStem: {
     position: 'absolute',
     bottom: -3,
-    width: 82,
+    width: 84,
     height: 64,
-    borderRadius: 48,
+    borderRadius: 42,
     backgroundColor: colors.surface,
+    zIndex: 2,
   },
   bottomNavLiquidLeft: {
     position: 'absolute',
     left: 5,
-    bottom: 1,
+    bottom: 0,
     width: 54,
     height: 48,
-    borderRadius: 38,
+    borderRadius: 32,
     backgroundColor: colors.surface,
-    transform: [{ rotate: '-10deg' }],
+    transform: [{ rotate: '-8deg' }],
+    zIndex: 1,
   },
   bottomNavLiquidRight: {
     position: 'absolute',
     right: 5,
-    bottom: 1,
+    bottom: 0,
     width: 54,
     height: 48,
-    borderRadius: 38,
+    borderRadius: 32,
     backgroundColor: colors.surface,
-    transform: [{ rotate: '10deg' }],
+    transform: [{ rotate: '8deg' }],
+    zIndex: 1,
   },
   bottomNavBubble: {
     position: 'absolute',
