@@ -31,7 +31,7 @@ export function ExploreScreen({
     <View style={styles.screen}>
       <View style={styles.topBar}>
         <Pressable accessibilityLabel="Volver" style={styles.iconButton}>
-          <Ionicons name="chevron-back" size={19} color="#161616" />
+          <Ionicons name="chevron-back" size={19} color={colors.ink} />
         </Pressable>
         <Text style={styles.headerTitle}>Buscar producto</Text>
         <Image source={require('../../assets/icon.png')} style={styles.avatar} />
@@ -39,17 +39,17 @@ export function ExploreScreen({
 
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={14} color="#a4a8ae" />
+          <Ionicons name="search" size={14} color={colors.inkSoft} />
           <TextInput
             placeholder="Buscar productos"
-            placeholderTextColor="#9fa4aa"
+            placeholderTextColor={colors.inkSoft}
             style={styles.searchInput}
             value={search}
             onChangeText={onChangeSearch}
           />
         </View>
         <Pressable accessibilityLabel="Filtros" style={styles.filterButton}>
-          <Ionicons name="options" size={18} color="#151515" />
+          <Ionicons name="options" size={18} color={colors.brandBlue} />
         </Pressable>
       </View>
 
@@ -91,7 +91,7 @@ export function ExploreScreen({
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: '#f1f1f1',
+    backgroundColor: colors.background,
     borderRadius: 28,
     paddingHorizontal: 14,
     paddingTop: 18,
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    color: '#161616',
+    color: colors.ink,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -130,6 +130,8 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 8,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -138,7 +140,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 42,
-    color: '#171717',
+    color: colors.ink,
     fontSize: 12,
   },
   filterButton: {
@@ -146,6 +148,8 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 8,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -159,13 +163,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: radii.pill,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#111111',
+    backgroundColor: colors.brandBlue,
+    borderColor: colors.brandBlue,
   },
   filterChipText: {
-    color: '#717171',
+    color: colors.inkMuted,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -173,7 +180,7 @@ const styles = StyleSheet.create({
     color: colors.surface,
   },
   resultTitle: {
-    color: '#171717',
+    color: colors.ink,
     fontSize: 24,
     fontWeight: '900',
     lineHeight: 26,
