@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
-  LayoutChangeEvent,
   Platform,
   Pressable,
   SafeAreaView,
@@ -40,15 +39,13 @@ import type { CartItem, Product, TabKey } from './types/marketplace';
 type NavIconName = keyof typeof Ionicons.glyphMap;
 
 const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> = {
-  Inicio: { active: 'home-outline', inactive: 'home-outline' },
-  Vender: { active: 'flame-outline', inactive: 'flame-outline' },
-  Pedidos: { active: 'bag-handle-outline', inactive: 'bag-handle-outline' },
-  Cuenta: { active: 'settings-outline', inactive: 'settings-outline' },
+  Inicio: { active: 'home', inactive: 'home-outline' },
+  Vender: { active: 'flame', inactive: 'flame-outline' },
+  Pedidos: { active: 'bag-handle', inactive: 'bag-handle-outline' },
+  Cuenta: { active: 'person', inactive: 'person-outline' },
 };
 
-const activeNavSize = 54;
-const activeNavCurveSize = 38;
-const bottomNavHorizontalPadding = 12;
+const bottomNavHorizontalPadding = 16;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -69,14 +66,7 @@ export default function App() {
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
   const [catalogRequestKey, setCatalogRequestKey] = useState(0);
-  const [navWidth, setNavWidth] = useState(0);
-  const activePillX = useRef(new Animated.Value(0)).current;
-  const activeBubbleScale = useRef(new Animated.Value(1)).current;
-  const activeBubbleScaleX = useRef(new Animated.Value(1)).current;
-  const activeBubbleScaleY = useRef(new Animated.Value(1)).current;
-  const activeBubbleRise = useRef(new Animated.Value(1)).current;
   const activeIconBuild = useRef(new Animated.Value(1)).current;
-  const activeLiquidStretch = useRef(new Animated.Value(1)).current;
   const cartPulse = useRef(new Animated.Value(1)).current;
   const hasLoadedCatalog = useRef(false);
   const headerVisibility = useRef(new Animated.Value(1)).current;
@@ -97,32 +87,14 @@ export default function App() {
   );
   const visibleActiveIndex = Math.max(0, visibleTabs.indexOf(activeTab));
   const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const navGap = 0;
-  const tabWidth =
-    navWidth > 0 ? (navWidth - bottomNavHorizontalPadding * 2) / visibleTabs.length : 0;
   const headerTranslateY = headerVisibility.interpolate({
     inputRange: [0, 1],
     outputRange: [-94, 0],
     extrapolate: 'clamp',
   });
-  const bubbleLiftY = activeBubbleRise.interpolate({
-    inputRange: [0, 1],
-    outputRange: [10, 0],
-    extrapolate: 'clamp',
-  });
-  const liquidScaleY = activeLiquidStretch.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.82, 1],
-    extrapolate: 'clamp',
-  });
-  const liquidScaleX = activeLiquidStretch.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1.18, 1],
-    extrapolate: 'clamp',
-  });
-  const activeIconLift = activeIconBuild.interpolate({
-    inputRange: [0, 1],
-    outputRange: [5, 0],
+  const activeIconScale = activeIconBuild.interpolate({
+    inputRange: [0, 0.58, 1],
+    outputRange: [0.72, 1.16, 1],
     extrapolate: 'clamp',
   });
 
@@ -448,101 +420,23 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (tabWidth <= 0) {
-      return;
-    }
-
-    activeBubbleRise.setValue(0);
     activeIconBuild.setValue(0);
-    activeLiquidStretch.setValue(0);
-
-    Animated.parallel([
-      Animated.spring(activePillX, {
-        toValue:
-          bottomNavHorizontalPadding +
-          visibleActiveIndex * (tabWidth + navGap) +
-          tabWidth / 2 -
-          activeNavSize / 2,
-        damping: 21,
-        mass: 0.74,
-        stiffness: 235,
-        useNativeDriver: true,
-      }),
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(activeBubbleScale, {
-            toValue: 0.97,
-            duration: 90,
-            easing: Easing.bezier(0.23, 1, 0.32, 1),
-            useNativeDriver: true,
-          }),
-          Animated.timing(activeBubbleScaleX, {
-            toValue: 1.05,
-            duration: 90,
-            easing: Easing.bezier(0.23, 1, 0.32, 1),
-            useNativeDriver: true,
-          }),
-          Animated.timing(activeBubbleScaleY, {
-            toValue: 0.95,
-            duration: 90,
-            easing: Easing.bezier(0.23, 1, 0.32, 1),
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.spring(activeBubbleScale, {
-            toValue: 1,
-            damping: 15,
-            stiffness: 210,
-            useNativeDriver: true,
-          }),
-          Animated.spring(activeBubbleScaleX, {
-            toValue: 1,
-            damping: 15,
-            stiffness: 205,
-            useNativeDriver: true,
-          }),
-          Animated.spring(activeBubbleScaleY, {
-            toValue: 1,
-            damping: 15,
-            stiffness: 205,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-      Animated.spring(activeBubbleRise, {
-        toValue: 1,
-        damping: 16,
-        mass: 0.68,
-        stiffness: 220,
-        useNativeDriver: true,
-      }),
-      Animated.spring(activeLiquidStretch, {
-        toValue: 1,
-        damping: 17,
-        mass: 0.7,
-        stiffness: 205,
-        useNativeDriver: true,
-      }),
+    Animated.sequence([
       Animated.timing(activeIconBuild, {
-        toValue: 1,
-        duration: 145,
+        toValue: 0.58,
+        duration: 85,
         easing: Easing.bezier(0.23, 1, 0.32, 1),
         useNativeDriver: true,
       }),
+      Animated.spring(activeIconBuild, {
+        toValue: 1,
+        damping: 8,
+        mass: 0.5,
+        stiffness: 300,
+        useNativeDriver: true,
+      }),
     ]).start();
-  }, [
-    activeBubbleRise,
-    activeBubbleScale,
-    activeBubbleScaleX,
-    activeBubbleScaleY,
-    activeIconBuild,
-    activeLiquidStretch,
-    activePillX,
-    navGap,
-    tabWidth,
-    visibleActiveIndex,
-  ]);
+  }, [activeIconBuild, activeTab]);
 
   useEffect(() => {
     const transitionDirection = visibleActiveIndex >= previousActiveIndex.current ? 1 : -1;
@@ -592,10 +486,6 @@ export default function App() {
       headerVisibility.setValue(1);
     }
   }, [headerVisibility, shouldShowHeader]);
-
-  const handleNavLayout = (event: LayoutChangeEvent) => {
-    setNavWidth(event.nativeEvent.layout.width);
-  };
 
   const animateHeader = (visible: boolean) => {
     if (isHeaderVisible.current === visible) {
@@ -758,50 +648,9 @@ export default function App() {
         </Animated.ScrollView>
 
         <View style={styles.bottomNav}>
-          <View style={styles.bottomNavTrack} onLayout={handleNavLayout}>
-            {tabWidth > 0 && (
-              <>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.bottomNavNotch,
-                    {
-                      transform: [
-                        { translateX: activePillX },
-                        { scaleX: liquidScaleX },
-                        { scaleY: liquidScaleY },
-                      ],
-                    },
-                  ]}
-                />
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.bottomNavBubble,
-                    {
-                      transform: [
-                        { translateX: activePillX },
-                        { translateY: bubbleLiftY },
-                        { scale: activeBubbleScale },
-                        { scaleX: activeBubbleScaleX },
-                        { scaleY: activeBubbleScaleY },
-                      ],
-                    },
-                  ]}
-                >
-                  <Animated.View
-                    key={activeTab}
-                    style={[styles.bottomNavActiveIcon, { transform: [{ translateY: activeIconLift }] }]}
-                  >
-                    <Ionicons name={navIcons[activeTab].active} size={21} color={colors.brandBlue} />
-                    <Text style={styles.bottomNavActiveLabel}>{activeTab}</Text>
-                  </Animated.View>
-                </Animated.View>
-              </>
-            )}
+          <View style={styles.bottomNavTrack}>
             {visibleTabs.map((tab) => {
               const isActive = tab === activeTab;
-              const iconName = navIcons[tab].inactive;
 
               return (
                 <Pressable
@@ -811,16 +660,24 @@ export default function App() {
                   accessibilityState={{ selected: isActive }}
                   style={({ pressed }) => [
                     styles.bottomNavItem,
-                    { width: tabWidth || undefined },
                     pressed && styles.bottomNavItemPressed,
                   ]}
                   onPress={() => handleSelectTab(tab)}
                 >
-                  <Ionicons
-                    name={iconName}
-                    size={22}
-                    color={isActive ? 'transparent' : colors.inkSoft}
-                  />
+                  {isActive ? (
+                    <Animated.View
+                      key={tab}
+                      style={[
+                        styles.bottomNavActiveIcon,
+                        { transform: [{ scale: activeIconScale }] },
+                      ]}
+                    >
+                      <Ionicons name={navIcons[tab].active} size={22} color={colors.brandBlue} />
+                      <View pointerEvents="none" style={styles.bottomNavSelectionShadow} />
+                    </Animated.View>
+                  ) : (
+                    <Ionicons name={navIcons[tab].inactive} size={22} color={colors.ink} />
+                  )}
                 </Pressable>
               );
             })}
@@ -943,7 +800,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingTop: 2,
-    paddingBottom: 112,
+    paddingBottom: 142,
   },
   scrollLayer: {
     zIndex: 1,
@@ -959,78 +816,55 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 20,
-    height: 84,
+    left: 28,
+    right: 28,
+    bottom: 4,
+    height: 86,
     justifyContent: 'flex-end',
     zIndex: 20,
   },
   bottomNavTrack: {
-    height: 62,
+    height: 78,
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
     overflow: 'visible',
     backgroundColor: colors.surface,
-    borderRadius: 21,
+    borderRadius: 27,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: colors.brandBlueSoft,
     paddingHorizontal: bottomNavHorizontalPadding,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 9 },
-    shadowOpacity: 0.065,
+    shadowColor: colors.primarySoft,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
     shadowRadius: 22,
-    elevation: 10,
-  },
-  bottomNavNotch: {
-    position: 'absolute',
-    top: 0,
-    left: -(activeNavCurveSize - activeNavSize) / 2,
-    width: activeNavCurveSize,
-    height: 15,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    backgroundColor: colors.brandBlueSoft,
-    opacity: 0.7,
-    zIndex: 2,
-  },
-  bottomNavBubble: {
-    position: 'absolute',
-    top: 3,
-    left: 0,
-    width: activeNavSize,
-    height: 54,
-    borderRadius: 17,
-    backgroundColor: colors.brandBlueSoft,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'visible',
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    zIndex: 3,
+    elevation: 12,
   },
   bottomNavActiveIcon: {
-    width: activeNavSize,
-    height: 46,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
     zIndex: 4,
   },
-  bottomNavActiveLabel: {
-    color: colors.brandBlue,
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.1,
+  bottomNavSelectionShadow: {
+    position: 'absolute',
+    bottom: 5,
+    width: 25,
+    height: 5,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandAccent,
+    opacity: 0.09,
+    shadowColor: colors.brandAccent,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 1,
+    zIndex: -1,
   },
   bottomNavItem: {
-    height: 56,
+    flex: 1,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.pill,

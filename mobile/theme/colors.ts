@@ -19,6 +19,10 @@ export const colors = {
   silverSoft: '#EDF3F7',
   accent: '#63BEE8',
   accentSoft: '#DDF3FD',
+  popCoral: '#FF6B6B',
+  popYellow: '#FFD166',
+  popMint: '#57D6C7',
+  popLavender: '#A78BFA',
   success: '#E8F5F2',
   warning: '#FFF4DD',
 };
