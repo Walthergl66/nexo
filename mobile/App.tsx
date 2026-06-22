@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  LayoutChangeEvent,
   Platform,
   Pressable,
   SafeAreaView,
@@ -46,6 +47,7 @@ const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> =
 };
 
 const bottomNavHorizontalPadding = 16;
+const bottomNavDotSize = 7;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -66,7 +68,10 @@ export default function App() {
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
   const [catalogRequestKey, setCatalogRequestKey] = useState(0);
+  const [navWidth, setNavWidth] = useState(0);
   const activeIconBuild = useRef(new Animated.Value(1)).current;
+  const activeDotX = useRef(new Animated.Value(0)).current;
+  const activeDotJump = useRef(new Animated.Value(0)).current;
   const cartPulse = useRef(new Animated.Value(1)).current;
   const hasLoadedCatalog = useRef(false);
   const headerVisibility = useRef(new Animated.Value(1)).current;
@@ -95,6 +100,18 @@ export default function App() {
   const activeIconScale = activeIconBuild.interpolate({
     inputRange: [0, 0.58, 1],
     outputRange: [0.72, 1.16, 1],
+    extrapolate: 'clamp',
+  });
+  const navItemWidth =
+    navWidth > 0 ? (navWidth - bottomNavHorizontalPadding * 2) / visibleTabs.length : 0;
+  const activeDotY = activeDotJump.interpolate({
+    inputRange: [0, 0.52, 1],
+    outputRange: [0, -15, 0],
+    extrapolate: 'clamp',
+  });
+  const activeDotScale = activeDotJump.interpolate({
+    inputRange: [0, 0.52, 1],
+    outputRange: [1, 1.12, 1],
     extrapolate: 'clamp',
   });
 
@@ -439,6 +456,47 @@ export default function App() {
   }, [activeIconBuild, activeTab]);
 
   useEffect(() => {
+    if (navItemWidth <= 0) {
+      return;
+    }
+
+    activeDotJump.setValue(0);
+
+    Animated.parallel([
+      Animated.spring(activeDotX, {
+        toValue:
+          bottomNavHorizontalPadding +
+          visibleActiveIndex * navItemWidth +
+          navItemWidth / 2 -
+          bottomNavDotSize / 2,
+        damping: 18,
+        mass: 0.65,
+        stiffness: 230,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(activeDotJump, {
+          toValue: 0.52,
+          duration: 115,
+          easing: Easing.bezier(0.23, 1, 0.32, 1),
+          useNativeDriver: true,
+        }),
+        Animated.spring(activeDotJump, {
+          toValue: 1,
+          damping: 9,
+          mass: 0.48,
+          stiffness: 270,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [activeDotJump, activeDotX, navItemWidth, visibleActiveIndex]);
+
+  const handleNavLayout = (event: LayoutChangeEvent) => {
+    setNavWidth(event.nativeEvent.layout.width);
+  };
+
+  useEffect(() => {
     const transitionDirection = visibleActiveIndex >= previousActiveIndex.current ? 1 : -1;
 
     screenOpacity.setValue(0);
@@ -648,7 +706,22 @@ export default function App() {
         </Animated.ScrollView>
 
         <View style={styles.bottomNav}>
-          <View style={styles.bottomNavTrack}>
+          <View style={styles.bottomNavTrack} onLayout={handleNavLayout}>
+            {navItemWidth > 0 && (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.bottomNavMovingDot,
+                  {
+                    transform: [
+                      { translateX: activeDotX },
+                      { translateY: activeDotY },
+                      { scale: activeDotScale },
+                    ],
+                  },
+                ]}
+              />
+            )}
             {visibleTabs.map((tab) => {
               const isActive = tab === activeTab;
 
@@ -846,6 +919,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 4,
+  },
+  bottomNavMovingDot: {
+    position: 'absolute',
+    left: 0,
+    top: -4,
+    width: bottomNavDotSize,
+    height: bottomNavDotSize,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandBlue,
+    shadowColor: colors.brandAccent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 5,
   },
   bottomNavSelectionShadow: {
     position: 'absolute',
