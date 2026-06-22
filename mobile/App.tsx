@@ -47,7 +47,7 @@ const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> =
 };
 
 const bottomNavHorizontalPadding = 16;
-const bottomNavDotSize = 7;
+const bottomNavDotSize = 11;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -72,6 +72,9 @@ export default function App() {
   const activeIconBuild = useRef(new Animated.Value(1)).current;
   const activeDotX = useRef(new Animated.Value(0)).current;
   const activeDotJump = useRef(new Animated.Value(0)).current;
+  const activeIndentX = useRef(new Animated.Value(0)).current;
+  const activeIndentBuild = useRef(new Animated.Value(1)).current;
+  const hasPositionedNavIndicator = useRef(false);
   const cartPulse = useRef(new Animated.Value(1)).current;
   const hasLoadedCatalog = useRef(false);
   const headerVisibility = useRef(new Animated.Value(1)).current;
@@ -98,20 +101,55 @@ export default function App() {
     extrapolate: 'clamp',
   });
   const activeIconScale = activeIconBuild.interpolate({
-    inputRange: [0, 0.58, 1],
-    outputRange: [0.72, 1.16, 1],
+    inputRange: [0, 0.62, 1],
+    outputRange: [0.88, 1.07, 1],
     extrapolate: 'clamp',
   });
   const navItemWidth =
     navWidth > 0 ? (navWidth - bottomNavHorizontalPadding * 2) / visibleTabs.length : 0;
   const activeDotY = activeDotJump.interpolate({
     inputRange: [0, 0.52, 1],
-    outputRange: [0, -15, 0],
+    outputRange: [0, -12, 0],
     extrapolate: 'clamp',
   });
   const activeDotScale = activeDotJump.interpolate({
     inputRange: [0, 0.52, 1],
     outputRange: [1, 1.12, 1],
+    extrapolate: 'clamp',
+  });
+  const activeIndentScaleX = activeIndentBuild.interpolate({
+    inputRange: [0, 0.24, 0.48, 0.74, 0.9, 1],
+    outputRange: [1, 0.82, 0.72, 0.72, 1.1, 1],
+    extrapolate: 'clamp',
+  });
+  const activeIndentScaleY = activeIndentBuild.interpolate({
+    inputRange: [0, 0.24, 0.48, 0.74, 0.9, 1],
+    outputRange: [1, 0.42, 0.32, 0.32, 1.12, 1],
+    extrapolate: 'clamp',
+  });
+  const activeIndentY = activeIndentBuild.interpolate({
+    inputRange: [0, 0.24, 0.48, 0.74, 0.9, 1],
+    outputRange: [0, 5, 7, 7, -1, 0],
+    extrapolate: 'clamp',
+  });
+  const activeIndentOpacity = activeIndentBuild.interpolate({
+    inputRange: [0, 0.36, 0.48, 0.74, 0.82, 1],
+    outputRange: [1, 1, 0, 0, 1, 1],
+    extrapolate: 'clamp',
+  });
+  const activeIndentLeftRotation = activeIndentBuild.interpolate({
+    inputRange: [0, 0.24, 0.48, 0.74, 0.9, 1],
+    outputRange: ['31deg', '20deg', '15deg', '15deg', '36deg', '31deg'],
+    extrapolate: 'clamp',
+  });
+  const activeIndentRightRotation = activeIndentBuild.interpolate({
+    inputRange: [0, 0.24, 0.48, 0.74, 0.9, 1],
+    outputRange: ['-31deg', '-20deg', '-15deg', '-15deg', '-36deg', '-31deg'],
+    extrapolate: 'clamp',
+  });
+  const activeIndentTipScale = activeIndentBuild.interpolate({
+    inputRange: [0, 0.48, 0.74, 0.9, 1],
+    outputRange: [1, 0.65, 0.65, 1.14, 1],
     extrapolate: 'clamp',
   });
 
@@ -440,16 +478,16 @@ export default function App() {
     activeIconBuild.setValue(0);
     Animated.sequence([
       Animated.timing(activeIconBuild, {
-        toValue: 0.58,
-        duration: 85,
-        easing: Easing.bezier(0.23, 1, 0.32, 1),
+        toValue: 0.62,
+        duration: 135,
+        easing: Easing.bezier(0.32, 0.72, 0, 1),
         useNativeDriver: true,
       }),
       Animated.spring(activeIconBuild, {
         toValue: 1,
-        damping: 8,
-        mass: 0.5,
-        stiffness: 300,
+        damping: 14,
+        mass: 0.62,
+        stiffness: 210,
         useNativeDriver: true,
       }),
     ]).start();
@@ -460,15 +498,27 @@ export default function App() {
       return;
     }
 
+    const nextIndicatorX =
+      bottomNavHorizontalPadding +
+      visibleActiveIndex * navItemWidth +
+      navItemWidth / 2 -
+      bottomNavDotSize / 2;
+
+    if (!hasPositionedNavIndicator.current) {
+      activeDotX.setValue(nextIndicatorX);
+      activeIndentX.setValue(nextIndicatorX);
+      activeDotJump.setValue(1);
+      activeIndentBuild.setValue(1);
+      hasPositionedNavIndicator.current = true;
+      return;
+    }
+
     activeDotJump.setValue(0);
+    activeIndentBuild.setValue(0);
 
     Animated.parallel([
       Animated.spring(activeDotX, {
-        toValue:
-          bottomNavHorizontalPadding +
-          visibleActiveIndex * navItemWidth +
-          navItemWidth / 2 -
-          bottomNavDotSize / 2,
+        toValue: nextIndicatorX,
         damping: 18,
         mass: 0.65,
         stiffness: 230,
@@ -489,8 +539,44 @@ export default function App() {
           useNativeDriver: true,
         }),
       ]),
+      Animated.sequence([
+        Animated.timing(activeIndentBuild, {
+          toValue: 0.48,
+          duration: 90,
+          easing: Easing.bezier(0.23, 1, 0.32, 1),
+          useNativeDriver: true,
+        }),
+        Animated.parallel([
+          Animated.timing(activeIndentX, {
+            toValue: nextIndicatorX,
+            duration: 80,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }),
+          Animated.timing(activeIndentBuild, {
+            toValue: 0.74,
+            duration: 80,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.spring(activeIndentBuild, {
+          toValue: 1,
+          damping: 10,
+          mass: 0.48,
+          stiffness: 260,
+          useNativeDriver: true,
+        }),
+      ]),
     ]).start();
-  }, [activeDotJump, activeDotX, navItemWidth, visibleActiveIndex]);
+  }, [
+    activeDotJump,
+    activeDotX,
+    activeIndentBuild,
+    activeIndentX,
+    navItemWidth,
+    visibleActiveIndex,
+  ]);
 
   const handleNavLayout = (event: LayoutChangeEvent) => {
     setNavWidth(event.nativeEvent.layout.width);
@@ -708,19 +794,57 @@ export default function App() {
         <View style={styles.bottomNav}>
           <View style={styles.bottomNavTrack} onLayout={handleNavLayout}>
             {navItemWidth > 0 && (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.bottomNavMovingDot,
-                  {
-                    transform: [
-                      { translateX: activeDotX },
-                      { translateY: activeDotY },
-                      { scale: activeDotScale },
-                    ],
-                  },
-                ]}
-              />
+              <>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.bottomNavIndent,
+                    {
+                      transform: [
+                        { translateX: activeIndentX },
+                        { translateY: activeIndentY },
+                        { scaleX: activeIndentScaleX },
+                        { scaleY: activeIndentScaleY },
+                      ],
+                      opacity: activeIndentOpacity,
+                    },
+                  ]}
+                >
+                  <Animated.View
+                    style={[
+                      styles.bottomNavIndentArm,
+                      styles.bottomNavIndentArmLeft,
+                      { transform: [{ rotate: activeIndentLeftRotation }] },
+                    ]}
+                  />
+                  <Animated.View
+                    style={[
+                      styles.bottomNavIndentArm,
+                      styles.bottomNavIndentArmRight,
+                      { transform: [{ rotate: activeIndentRightRotation }] },
+                    ]}
+                  />
+                  <Animated.View
+                    style={[
+                      styles.bottomNavIndentTip,
+                      { transform: [{ scale: activeIndentTipScale }] },
+                    ]}
+                  />
+                </Animated.View>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.bottomNavMovingDot,
+                    {
+                      transform: [
+                        { translateX: activeDotX },
+                        { translateY: activeDotY },
+                        { scale: activeDotScale },
+                      ],
+                    },
+                  ]}
+                />
+              </>
             )}
             {visibleTabs.map((tab) => {
               const isActive = tab === activeTab;
@@ -745,11 +869,11 @@ export default function App() {
                         { transform: [{ scale: activeIconScale }] },
                       ]}
                     >
-                      <Ionicons name={navIcons[tab].active} size={22} color={colors.brandBlue} />
+                      <Ionicons name={navIcons[tab].active} size={24} color={colors.brandBlue} />
                       <View pointerEvents="none" style={styles.bottomNavSelectionShadow} />
                     </Animated.View>
                   ) : (
-                    <Ionicons name={navIcons[tab].inactive} size={22} color={colors.ink} />
+                    <Ionicons name={navIcons[tab].inactive} size={24} color={colors.inkSoft} />
                   )}
                 </Pressable>
               );
@@ -923,7 +1047,7 @@ const styles = StyleSheet.create({
   bottomNavMovingDot: {
     position: 'absolute',
     left: 0,
-    top: -4,
+    top: -1,
     width: bottomNavDotSize,
     height: bottomNavDotSize,
     borderRadius: radii.pill,
@@ -934,6 +1058,44 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     zIndex: 5,
+  },
+  bottomNavIndent: {
+    position: 'absolute',
+    left: -(38 - bottomNavDotSize) / 2,
+    top: -10,
+    width: 38,
+    height: 26,
+    shadowColor: colors.brandBlue,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.035,
+    shadowRadius: 4,
+    elevation: 1,
+    zIndex: 4,
+  },
+  bottomNavIndentArm: {
+    position: 'absolute',
+    top: 0,
+    width: 25,
+    height: 14,
+    borderRadius: radii.pill,
+    backgroundColor: colors.background,
+  },
+  bottomNavIndentArmLeft: {
+    left: 0,
+    transform: [{ rotate: '31deg' }],
+  },
+  bottomNavIndentArmRight: {
+    right: 0,
+    transform: [{ rotate: '-31deg' }],
+  },
+  bottomNavIndentTip: {
+    position: 'absolute',
+    left: 13,
+    top: 10,
+    width: 13,
+    height: 13,
+    borderRadius: 16,
+    backgroundColor: colors.background,
   },
   bottomNavSelectionShadow: {
     position: 'absolute',
