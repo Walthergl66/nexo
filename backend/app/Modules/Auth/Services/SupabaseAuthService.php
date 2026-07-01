@@ -204,9 +204,13 @@ class SupabaseAuthService
                 throw new AuthenticationException('Supabase URL is not configured.');
             }
 
-            $response = Http::timeout(5)
-                ->acceptJson()
-                ->get($supabaseUrl.'/auth/v1/.well-known/jwks.json');
+            $request = Http::timeout(5)->acceptJson();
+
+            if (! (bool) config('supabase.http_verify_ssl', true)) {
+                $request = $request->withoutVerifying();
+            }
+
+            $response = $request->get($supabaseUrl.'/auth/v1/.well-known/jwks.json');
 
             if (! $response->successful()) {
                 throw new AuthenticationException('Could not fetch Supabase signing keys.');
