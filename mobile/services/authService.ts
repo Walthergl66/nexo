@@ -75,7 +75,7 @@ export async function signUpWithEmail(email: string, password: string, profile: 
   });
 
   if (error) {
-    throw error;
+    throw toPublicAuthError(error);
   }
 
   return data.session;

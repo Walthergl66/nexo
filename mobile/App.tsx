@@ -4,6 +4,7 @@ import {
   Animated,
   Easing,
   LayoutChangeEvent,
+  Linking,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -32,7 +33,7 @@ import {
   updateCartItemQuantity,
   type ProfileResource,
 } from './services/marketplaceApi';
-import { getCurrentSession, onAuthStateChange } from './services/authService';
+import { getCurrentSession, onAuthStateChange, openPasswordRecoverySession } from './services/authService';
 import { colors } from './theme/colors';
 import type { CartItem, Product, TabKey } from './types/marketplace';
 
@@ -51,6 +52,7 @@ export default function App() {
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
+  const [passwordResetKey, setPasswordResetKey] = useState(0);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [lastCatalogSync, setLastCatalogSync] = useState<Date | null>(null);
@@ -243,6 +245,43 @@ export default function App() {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const handlePasswordRecoveryUrl = async (url: string | null) => {
+      if (!url) {
+        return;
+      }
+
+      try {
+        const isPasswordRecovery = await openPasswordRecoverySession(url);
+
+        if (isMounted && isPasswordRecovery) {
+          setActiveTab('Cuenta');
+          setIsCartOpen(false);
+          setSelectedProductId(null);
+          setPasswordResetKey((current) => current + 1);
+        }
+      } catch {
+        if (isMounted) {
+          setActiveTab('Cuenta');
+          setIsCartOpen(false);
+          setSelectedProductId(null);
+        }
+      }
+    };
+
+    Linking.getInitialURL().then(handlePasswordRecoveryUrl);
+    const subscription = Linking.addEventListener('url', (event) => {
+      handlePasswordRecoveryUrl(event.url);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
     };
   }, []);
 
@@ -701,6 +740,7 @@ export default function App() {
             profileError={profileError}
             isProfileLoading={isProfileLoading}
             onExplore={() => setActiveTab('Inicio')}
+            passwordResetKey={passwordResetKey}
             onProfileChange={setProfile}
             onRetryProfile={() => setProfileRefreshKey((current) => current + 1)}
             onSell={() => setActiveTab('Vender')}
