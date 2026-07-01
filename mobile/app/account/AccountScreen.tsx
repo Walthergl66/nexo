@@ -166,7 +166,7 @@ export function AccountScreen({
     setMessage(null);
 
     if (resetPassword.length === 0) {
-      setMessage('Ingresa una nueva contrasena.');
+      setMessage('Ingresa una nueva contraseña.');
       return;
     }
 
@@ -176,7 +176,7 @@ export function AccountScreen({
     }
 
     if (resetPassword !== resetPasswordConfirmation) {
-      setMessage('Las contrasenas no coinciden.');
+      setMessage('Las contraseñas no coinciden.');
       return;
     }
 
@@ -184,12 +184,14 @@ export function AccountScreen({
 
     try {
       await updatePassword(resetPassword);
+      await signOut();
       setResetPassword('');
       setResetPasswordConfirmation('');
+      onProfileChange(null);
       setMode('login');
-      setMessage('Tu contrasena fue actualizada. Ya puedes iniciar sesion.');
+      setMessage('Tu contraseña fue actualizada. Ya puedes iniciar sesion.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu contrasena.');
+      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu contraseña  .');
     } finally {
       setIsLoading(false);
     }
@@ -280,6 +282,28 @@ export function AccountScreen({
     );
   }
 
+  if (mode === 'reset') {
+    return (
+      <>
+        <SectionTitle title="Cuenta" subtitle="Actualiza tu contraseña para volver a entrar." />
+        <ResetPasswordForm
+          confirmPassword={resetPasswordConfirmation}
+          isConfirmPasswordVisible={isResetConfirmPasswordVisible}
+          isLoading={isLoading}
+          isPasswordVisible={isResetPasswordVisible}
+          password={resetPassword}
+          passwordError={resetPasswordError}
+          onChangeConfirmPassword={setResetPasswordConfirmation}
+          onChangePassword={setResetPassword}
+          onSubmit={handleResetPassword}
+          onToggleConfirmPasswordVisibility={() => setIsResetConfirmPasswordVisible((current) => !current)}
+          onTogglePasswordVisibility={() => setIsResetPasswordVisible((current) => !current)}
+        />
+        {message && <Text style={styles.message}>{message}</Text>}
+      </>
+    );
+  }
+
   if (!isGuest && profile) {
     return (
       <>
@@ -310,7 +334,7 @@ export function AccountScreen({
   return (
     <>
       <SectionTitle title="Cuenta" subtitle="Ingresa o crea una cuenta para comprar y vender." />
-      {mode !== 'recovery' && mode !== 'reset' && <AccountModeSwitch mode={mode} onChangeMode={handleChangeMode} />}
+      {mode !== 'recovery' && <AccountModeSwitch mode={mode} onChangeMode={handleChangeMode} />}
       {mode === 'login' && (
         <LoginForm
           email={loginEmail}
@@ -347,21 +371,6 @@ export function AccountScreen({
           isLoading={isLoading}
           onChangeEmail={setRecoveryEmail}
           onSubmit={handlePasswordRecovery}
-        />
-      )}
-      {mode === 'reset' && (
-        <ResetPasswordForm
-          confirmPassword={resetPasswordConfirmation}
-          isConfirmPasswordVisible={isResetConfirmPasswordVisible}
-          isLoading={isLoading}
-          isPasswordVisible={isResetPasswordVisible}
-          password={resetPassword}
-          passwordError={resetPasswordError}
-          onChangeConfirmPassword={setResetPasswordConfirmation}
-          onChangePassword={setResetPassword}
-          onSubmit={handleResetPassword}
-          onToggleConfirmPasswordVisibility={() => setIsResetConfirmPasswordVisible((current) => !current)}
-          onTogglePasswordVisibility={() => setIsResetPasswordVisible((current) => !current)}
         />
       )}
       {message && <Text style={styles.message}>{message}</Text>}

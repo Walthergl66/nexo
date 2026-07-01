@@ -263,6 +263,7 @@ export default function App() {
           setActiveTab('Cuenta');
           setIsCartOpen(false);
           setSelectedProductId(null);
+          setProfileError(null);
           setPasswordResetKey((current) => current + 1);
         }
       } catch {
@@ -270,6 +271,7 @@ export default function App() {
           setActiveTab('Cuenta');
           setIsCartOpen(false);
           setSelectedProductId(null);
+          setProfileError(null);
         }
       }
     };
