@@ -19,6 +19,7 @@ import {
 } from '../../services/marketplaceApi';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { sendPasswordResetEmail, signInWithEmail, signOut, signUpWithEmail, updatePassword } from '../../services/authService';
+import { deleteProfileAvatar, pickProfileAvatar, uploadProfileAvatar } from '../../services/profileAvatarService';
 import { initialRegisterForm, type AccountMode, type RegisterForm as RegisterFormState } from '../../types/account';
 import type { Product } from '../../types/marketplace';
 import { validatePassword, validateRegisterForm } from '../../utils/accountValidation';
@@ -305,8 +306,44 @@ export function AccountScreen({
     }
   };
 
-  const handleUpdateProfile = async ({ address, phone }: { address: string; phone: string }) => {
+  const persistProfile = async (payload: { address: string; phone: string; avatar_url?: string | null }) => {
     if (!accessToken || !profile) {
+      return null;
+    }
+
+    const nextProfile = await completeProfile(accessToken, {
+      national_id: profile.national_id ?? '',
+      first_name: profile.first_name ?? '',
+      last_name: profile.last_name ?? '',
+      age: profile.age,
+      gender: profile.gender,
+      address: payload.address,
+      phone: payload.phone,
+      avatar_url: payload.avatar_url === undefined ? profile.avatar_url : payload.avatar_url,
+    });
+
+    onProfileChange(nextProfile);
+
+    return nextProfile;
+  };
+
+  const handleUpdateProfile = async ({ address, phone }: { address: string; phone: string }) => {
+    setIsSavingProfile(true);
+    setMessage(null);
+
+    try {
+      await persistProfile({ address, phone });
+      setMessage('Perfil actualizado.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu perfil.');
+      throw error;
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleChangeAvatar = async () => {
+    if (!profile) {
       return;
     }
 
@@ -314,21 +351,51 @@ export function AccountScreen({
     setMessage(null);
 
     try {
-      const nextProfile = await completeProfile(accessToken, {
-        national_id: profile.national_id ?? '',
-        first_name: profile.first_name ?? '',
-        last_name: profile.last_name ?? '',
-        age: profile.age,
-        gender: profile.gender,
-        address,
-        phone,
+      const asset = await pickProfileAvatar();
+
+      if (!asset) {
+        return;
+      }
+
+      const previousAvatarUrl = profile.avatar_url;
+      const avatarUrl = await uploadProfileAvatar(profile.id, asset);
+      const nextProfile = await persistProfile({
+        address: profile.address ?? '',
+        phone: profile.phone ?? '',
+        avatar_url: avatarUrl,
       });
 
-      onProfileChange(nextProfile);
-      setMessage('Perfil actualizado.');
+      if (nextProfile && previousAvatarUrl && previousAvatarUrl !== avatarUrl) {
+        await deleteProfileAvatar(previousAvatarUrl);
+      }
+
+      setMessage('Foto de perfil actualizada.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu perfil.');
-      throw error;
+      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu foto.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    if (!profile?.avatar_url) {
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setMessage(null);
+
+    try {
+      const previousAvatarUrl = profile.avatar_url;
+      await persistProfile({
+        address: profile.address ?? '',
+        phone: profile.phone ?? '',
+        avatar_url: null,
+      });
+      await deleteProfileAvatar(previousAvatarUrl);
+      setMessage('Foto de perfil eliminada.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos eliminar tu foto.');
     } finally {
       setIsSavingProfile(false);
     }
@@ -374,6 +441,8 @@ export function AccountScreen({
             message={message}
             profile={profile}
             onBack={() => setAccountView('profile')}
+            onChangeAvatar={handleChangeAvatar}
+            onDeleteAvatar={handleDeleteAvatar}
             onLogout={handleLogout}
             onUpdateProfile={handleUpdateProfile}
           />

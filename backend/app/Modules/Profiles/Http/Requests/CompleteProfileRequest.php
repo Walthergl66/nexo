@@ -40,6 +40,7 @@ class CompleteProfileRequest extends FormRequest
             'gender' => ['nullable', 'string', 'max:30'],
             'address' => ['required', 'string', 'min:5', 'max:255'],
             'phone' => ['required', 'string', 'regex:/^09\d{8}$/'],
+            'avatar_url' => ['nullable', 'url', 'max:2048'],
         ];
     }
 

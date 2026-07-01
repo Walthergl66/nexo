@@ -109,6 +109,7 @@ export type ProfileResource = {
   id: string;
   email: string | null;
   display_name: string | null;
+  avatar_url: string | null;
   national_id: string | null;
   first_name: string | null;
   last_name: string | null;
@@ -344,6 +345,7 @@ export async function completeProfile(
     gender?: string | null;
     address: string;
     phone: string;
+    avatar_url?: string | null;
   },
 ): Promise<ProfileResource> {
   const response = await request<ApiDocument<ProfileResource>>('/me/profile', {

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
 import { Tag } from '../common/Tag';
 import type { ProfileResource } from '../../services/marketplaceApi';
 import type { Product } from '../../types/marketplace';
@@ -35,7 +35,11 @@ export function AuthenticatedAccountPanel({
         <View style={styles.socialHeader}>
           <View style={styles.socialAvatarWrap}>
             <View style={styles.socialAvatar}>
-              <Text style={styles.profileAvatarText}>{initials}</Text>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.profileAvatarText}>{initials}</Text>
+              )}
             </View>
             {profile.verification_status === 'approved' && (
               <View style={styles.socialAvatarBadge}>
@@ -140,6 +144,8 @@ type AccountSettingsPanelProps = {
   message: string | null;
   profile: ProfileResource;
   onBack: () => void;
+  onChangeAvatar: () => Promise<void>;
+  onDeleteAvatar: () => Promise<void>;
   onLogout: () => void;
   onUpdateProfile: (payload: { address: string; phone: string }) => Promise<void>;
 };
@@ -149,6 +155,8 @@ export function AccountSettingsPanel({
   message,
   profile,
   onBack,
+  onChangeAvatar,
+  onDeleteAvatar,
   onLogout,
   onUpdateProfile,
 }: AccountSettingsPanelProps) {
@@ -204,6 +212,42 @@ export function AccountSettingsPanel({
           <View style={styles.settingsTitleWrap}>
             <Text style={styles.settingsTitle}>Configuracion</Text>
             <Text style={styles.accountEmail}>{profile.email ?? 'Correo no registrado'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.profileSection}>
+          <View style={styles.avatarSettingsRow}>
+            <View style={styles.settingsAvatar}>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.profileAvatarText}>{getInitials(profile)}</Text>
+              )}
+            </View>
+            <View style={styles.avatarSettingsContent}>
+              <Text style={styles.profileSectionTitle}>Foto de perfil</Text>
+              <Text style={styles.profileSectionHint}>Esta imagen se mostrara en tu perfil y publicaciones.</Text>
+              <View style={styles.avatarButtonRow}>
+                <Pressable
+                  disabled={isSavingProfile}
+                  style={({ pressed }) => [styles.avatarActionButton, pressed && styles.buttonPressed, isSavingProfile && styles.buttonDisabled]}
+                  onPress={onChangeAvatar}
+                >
+                  <Ionicons name="camera-outline" size={16} color={colors.brandBlue} />
+                  <Text style={styles.avatarActionText}>{profile.avatar_url ? 'Cambiar' : 'Subir'}</Text>
+                </Pressable>
+                {profile.avatar_url && (
+                  <Pressable
+                    disabled={isSavingProfile}
+                    style={({ pressed }) => [styles.avatarActionButtonDanger, pressed && styles.buttonPressed, isSavingProfile && styles.buttonDisabled]}
+                    onPress={onDeleteAvatar}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#9f1239" />
+                    <Text style={styles.avatarActionTextDanger}>Eliminar</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
           </View>
         </View>
 
