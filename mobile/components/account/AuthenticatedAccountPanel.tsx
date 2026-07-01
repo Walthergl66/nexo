@@ -1,49 +1,324 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { Tag } from '../common/Tag';
 import type { ProfileResource } from '../../services/marketplaceApi';
+import type { Product } from '../../types/marketplace';
+import { formatPrice } from '../../utils/format';
 import { colors } from '../../theme/colors';
 import { accountStyles as styles } from './accountStyles';
 
 type AuthenticatedAccountPanelProps = {
   message: string | null;
+  products: Product[];
   profile: ProfileResource;
-  onLogout: () => void;
+  onOpenSettings: () => void;
   onSell: () => void;
 };
 
 export function AuthenticatedAccountPanel({
   message,
+  products,
   profile,
-  onLogout,
+  onOpenSettings,
   onSell,
 }: AuthenticatedAccountPanelProps) {
   const canRequestSellerVerification = profile.role === 'buyer' && profile.verification_status !== 'suspended';
+  const initials = useMemo(() => getInitials(profile), [profile]);
+  const roleLabel = getRoleLabel(profile.role);
+  const statusLabel = getVerificationLabel(profile.verification_status);
+  const publishedProducts = products.filter((product) => product.available);
 
   return (
     <>
-      <View style={styles.accountCard}>
-        <Text style={styles.accountName}>{profile.display_name ?? profile.email ?? 'Usuario NEXO'}</Text>
-        <Text style={styles.accountEmail}>{profile.email}</Text>
-        <View style={styles.accountTags}>
-          <Tag text={profile.role} tone="default" />
-          <Tag text={profile.verification_status} tone={profile.verification_status === 'approved' ? 'success' : 'warning'} />
+      <View style={styles.profilePage}>
+        <View style={styles.socialHeader}>
+          <View style={styles.socialAvatarWrap}>
+            <View style={styles.socialAvatar}>
+              <Text style={styles.profileAvatarText}>{initials}</Text>
+            </View>
+            {profile.verification_status === 'approved' && (
+              <View style={styles.socialAvatarBadge}>
+                <Ionicons name="checkmark" size={14} color={colors.surface} />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.socialStats}>
+            <ProfileStat label="posts" value={String(products.length)} />
+            <ProfileStat label="activos" value={String(publishedProducts.length)} />
+            <ProfileStat label="rol" value={roleLabel} compact />
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.profilePencilButton, pressed && styles.buttonPressed]}
+            onPress={onOpenSettings}
+          >
+            <Ionicons name="create-outline" size={20} color={colors.ink} />
+          </Pressable>
         </View>
-        {profile.national_id && (
-          <View style={styles.dataGrid}>
-            <Text style={styles.dataText}>Cedula: {profile.national_id}</Text>
-            <Text style={styles.dataText}>Telefono: {profile.phone ?? 'No registrado'}</Text>
-            <Text style={styles.dataText}>Direccion: {profile.address ?? 'No registrada'}</Text>
-            <Text style={styles.dataText}>Edad: {profile.age ?? 'No registrada'}</Text>
-            <Text style={styles.dataText}>Genero: {profile.gender ?? 'No registrado'}</Text>
+
+        <View style={styles.socialBio}>
+          <Text style={styles.accountName}>{profile.display_name ?? profile.email ?? 'Usuario nexo'}</Text>
+          <Text style={styles.socialBioText}>
+            {profile.role === 'seller'
+              ? 'Emprendedor verificado en nexo.'
+              : 'Comprador en nexo. Puede activar su perfil vendedor cuando este listo.'}
+          </Text>
+          <View style={styles.accountTags}>
+            <Tag text={roleLabel} tone="default" />
+            <Tag text={statusLabel} tone={profile.verification_status === 'approved' ? 'success' : 'warning'} />
+          </View>
+        </View>
+
+        <View style={styles.profileImportantStrip}>
+          <ImportantInfo icon="mail-outline" label={profile.email ?? 'Correo no registrado'} />
+          <ImportantInfo icon="call-outline" label={profile.phone ?? 'Telefono no registrado'} />
+          <ImportantInfo icon="location-outline" label={profile.address ?? 'Direccion no registrada'} />
+        </View>
+
+        <View style={styles.profileActionRow}>
+          <Pressable style={({ pressed }) => [styles.profileActionButton, pressed && styles.buttonPressed]} onPress={onOpenSettings}>
+            <Text style={styles.profileActionText}>Editar perfil</Text>
+          </Pressable>
+          {canRequestSellerVerification ? (
+            <Pressable style={({ pressed }) => [styles.profileActionButton, pressed && styles.buttonPressed]} onPress={onSell}>
+              <Text style={styles.profileActionText}>Vender</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={({ pressed }) => [styles.profileActionButton, pressed && styles.buttonPressed]} onPress={onSell}>
+              <Text style={styles.profileActionText}>Centro de ventas</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={styles.profileHighlights}>
+          <Highlight icon="receipt-outline" label="Pedidos" />
+          <Highlight icon="heart-outline" label="Favoritos" />
+          <Highlight icon="shield-checkmark-outline" label="Confianza" />
+        </View>
+
+        <View style={styles.profileTabs}>
+          <View style={styles.profileTabActive}>
+            <Ionicons name="grid" size={22} color={colors.ink} />
+          </View>
+          <View style={styles.profileTab}>
+            <Ionicons name="person-circle-outline" size={24} color={colors.inkSoft} />
+          </View>
+        </View>
+
+        {products.length > 0 ? (
+          <View style={styles.postGrid}>
+            {products.map((product) => (
+              <View key={product.id} style={styles.postTile}>
+                <View style={styles.postTileIcon}>
+                  <Ionicons name={product.available ? 'cube-outline' : 'document-text-outline'} size={24} color={colors.surface} />
+                </View>
+                <Text numberOfLines={2} style={styles.postTileTitle}>{product.title}</Text>
+                <Text style={styles.postTileMeta}>{formatPrice(product.price)}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyPosts}>
+            <Ionicons name="grid-outline" size={28} color={colors.brandBlue} />
+            <Text style={styles.emptyPostsTitle}>Sin publicaciones</Text>
+            <Text style={styles.emptyPostsText}>
+              Los productos publicados apareceran aqui como el catalogo visible del perfil.
+            </Text>
           </View>
         )}
-        {canRequestSellerVerification && (
-          <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={onSell}>
-            <Ionicons name="shield-checkmark" size={17} color={colors.surface} />
-            <Text style={styles.primaryButtonText}>Solicitar validacion para vender</Text>
+      </View>
+      {message && <Text style={styles.message}>{message}</Text>}
+    </>
+  );
+}
+
+type AccountSettingsPanelProps = {
+  isSavingProfile: boolean;
+  message: string | null;
+  profile: ProfileResource;
+  onBack: () => void;
+  onLogout: () => void;
+  onUpdateProfile: (payload: { address: string; phone: string }) => Promise<void>;
+};
+
+export function AccountSettingsPanel({
+  isSavingProfile,
+  message,
+  profile,
+  onBack,
+  onLogout,
+  onUpdateProfile,
+}: AccountSettingsPanelProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [address, setAddress] = useState(profile.address ?? '');
+  const [phone, setPhone] = useState(profile.phone ?? '');
+  const [formError, setFormError] = useState<string | null>(null);
+  const roleLabel = getRoleLabel(profile.role);
+  const statusLabel = getVerificationLabel(profile.verification_status);
+
+  useEffect(() => {
+    setAddress(profile.address ?? '');
+    setPhone(profile.phone ?? '');
+  }, [profile.address, profile.phone]);
+
+  const handleCancel = () => {
+    setAddress(profile.address ?? '');
+    setPhone(profile.phone ?? '');
+    setFormError(null);
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    const nextPhone = phone.replace(/\D+/g, '').slice(0, 10);
+    const nextAddress = address.trim();
+
+    if (nextAddress.length < 5) {
+      setFormError('Ingresa una direccion mas completa.');
+      return;
+    }
+
+    if (!/^09\d{8}$/.test(nextPhone)) {
+      setFormError('Ingresa un telefono celular valido.');
+      return;
+    }
+
+    setFormError(null);
+    await onUpdateProfile({ address: nextAddress, phone: nextPhone });
+    setIsEditing(false);
+  };
+
+  return (
+    <>
+      <View style={styles.profileShell}>
+        <View style={styles.settingsTopbar}>
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.profilePencilButton, pressed && styles.buttonPressed]}
+            onPress={onBack}
+          >
+            <Ionicons name="arrow-back" size={21} color={colors.ink} />
           </Pressable>
-        )}
+          <View style={styles.settingsTitleWrap}>
+            <Text style={styles.settingsTitle}>Configuracion</Text>
+            <Text style={styles.accountEmail}>{profile.email ?? 'Correo no registrado'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.profileSection}>
+          <View style={styles.profileSectionTitleRow}>
+            <View>
+              <Text style={styles.profileSectionTitle}>Datos personales</Text>
+              <Text style={styles.profileSectionHint}>Informacion usada para validar tu cuenta.</Text>
+            </View>
+            <Ionicons name="lock-closed" size={16} color={colors.inkSoft} />
+          </View>
+          <View style={styles.profileFieldGrid}>
+            <ProfileInfo label="Cedula" value={profile.national_id} />
+            <ProfileInfo label="Nombres" value={profile.first_name} />
+            <ProfileInfo label="Apellidos" value={profile.last_name} />
+            <ProfileInfo label="Edad" value={profile.age === null ? null : String(profile.age)} />
+            <ProfileInfo label="Genero" value={profile.gender} />
+          </View>
+        </View>
+
+        <View style={styles.profileSection}>
+          <View style={styles.profileSectionTitleRow}>
+            <View>
+              <Text style={styles.profileSectionTitle}>Contacto y entregas</Text>
+              <Text style={styles.profileSectionHint}>Puedes actualizar estos datos cuando cambien.</Text>
+            </View>
+            {!isEditing && (
+              <Pressable
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.iconActionButton, pressed && styles.buttonPressed]}
+                onPress={() => setIsEditing(true)}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.brandBlue} />
+              </Pressable>
+            )}
+          </View>
+
+          {isEditing ? (
+            <View style={styles.editProfileForm}>
+              <View style={styles.fieldWrapFull}>
+                <Text style={styles.inputLabel}>Direccion</Text>
+                <TextInput
+                  multiline
+                  placeholder="Calle, numero, referencia"
+                  placeholderTextColor={colors.inkSoft}
+                  style={[styles.input, styles.multilineInput]}
+                  value={address}
+                  onChangeText={setAddress}
+                />
+              </View>
+              <View style={styles.fieldWrapFull}>
+                <Text style={styles.inputLabel}>Telefono</Text>
+                <TextInput
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  placeholder="09XXXXXXXX"
+                  placeholderTextColor={colors.inkSoft}
+                  style={styles.input}
+                  value={phone}
+                  onChangeText={(value) => setPhone(value.replace(/\D+/g, '').slice(0, 10))}
+                />
+              </View>
+              {formError && <Text style={styles.errorText}>{formError}</Text>}
+              <View style={styles.profileActionRow}>
+                <Pressable
+                  disabled={isSavingProfile}
+                  style={({ pressed }) => [styles.secondaryButtonCompact, pressed && styles.buttonPressed, isSavingProfile && styles.buttonDisabled]}
+                  onPress={handleCancel}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  disabled={isSavingProfile}
+                  style={({ pressed }) => [styles.primaryButtonCompact, pressed && styles.buttonPressed, isSavingProfile && styles.buttonDisabled]}
+                  onPress={handleSave}
+                >
+                  {isSavingProfile ? (
+                    <ActivityIndicator color={colors.surface} />
+                  ) : (
+                    <>
+                      <Ionicons name="save-outline" size={17} color={colors.surface} />
+                      <Text style={styles.primaryButtonText}>Guardar</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.profileFieldGrid}>
+              <ProfileInfo label="Direccion" value={profile.address} />
+              <ProfileInfo label="Telefono" value={profile.phone} />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.profileSection}>
+          <Text style={styles.profileSectionTitle}>Estado de cuenta</Text>
+          <View style={styles.profileMetricRow}>
+            <View style={styles.profileMetric}>
+              <Ionicons name="person-outline" size={18} color={colors.brandBlue} />
+              <View>
+                <Text style={styles.metricLabel}>Rol</Text>
+                <Text style={styles.metricValue}>{roleLabel}</Text>
+              </View>
+            </View>
+            <View style={styles.profileMetric}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={colors.brandBlue} />
+              <View>
+                <Text style={styles.metricLabel}>Verificacion</Text>
+                <Text style={styles.metricValue}>{statusLabel}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
         <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]} onPress={onLogout}>
           <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
         </Pressable>
@@ -51,4 +326,83 @@ export function AuthenticatedAccountPanel({
       {message && <Text style={styles.message}>{message}</Text>}
     </>
   );
+}
+
+function ProfileStat({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {
+  return (
+    <View style={styles.profileStat}>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.profileStatValue, compact && styles.profileStatValueCompact]}>
+        {value}
+      </Text>
+      <Text style={styles.profileStatLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function ImportantInfo({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  return (
+    <View style={styles.importantInfoRow}>
+      <Ionicons name={icon} size={16} color={colors.brandBlue} />
+      <Text numberOfLines={1} style={styles.importantInfoText}>{label}</Text>
+    </View>
+  );
+}
+
+function Highlight({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  return (
+    <View style={styles.highlightItem}>
+      <View style={styles.highlightCircle}>
+        <Ionicons name={icon} size={24} color={colors.brandBlue} />
+      </View>
+      <Text numberOfLines={1} style={styles.highlightLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function ProfileInfo({ label, value }: { label: string; value: string | null }) {
+  return (
+    <View style={styles.profileInfoItem}>
+      <Text style={styles.profileInfoLabel}>{label}</Text>
+      <Text style={styles.profileInfoValue}>{value && value.trim().length > 0 ? value : 'No registrado'}</Text>
+    </View>
+  );
+}
+
+function getInitials(profile: ProfileResource) {
+  const source = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.display_name || profile.email || 'N';
+
+  return source
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+}
+
+function getRoleLabel(role: string) {
+  if (role === 'seller') {
+    return 'Vendedor';
+  }
+
+  if (role === 'admin') {
+    return 'Administrador';
+  }
+
+  return 'Comprador';
+}
+
+function getVerificationLabel(status: string) {
+  if (status === 'approved') {
+    return 'Verificado';
+  }
+
+  if (status === 'suspended') {
+    return 'Suspendido';
+  }
+
+  if (status === 'rejected') {
+    return 'Rechazado';
+  }
+
+  return 'Pendiente';
 }

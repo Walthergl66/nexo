@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import { AccountModeSwitch } from '../../components/account/AccountModeSwitch';
 import { accountStyles as styles } from '../../components/account/accountStyles';
 import { AccountUnavailablePanel, ProfileLoadingPanel, ProfileSyncErrorPanel } from '../../components/account/AccountStatusPanels';
-import { AuthenticatedAccountPanel } from '../../components/account/AuthenticatedAccountPanel';
+import { AccountSettingsPanel, AuthenticatedAccountPanel } from '../../components/account/AuthenticatedAccountPanel';
 import { LoginForm } from '../../components/account/LoginForm';
 import { PasswordRecoveryForm } from '../../components/account/PasswordRecoveryForm';
 import { RegisterForm } from '../../components/account/RegisterForm';
@@ -12,6 +12,7 @@ import { SectionTitle } from '../../components/common/SectionTitle';
 import {
   checkProfileAvailability,
   completeProfile,
+  fetchMyProducts,
   lookupIdentity,
   type IdentityLookup,
   type ProfileResource,
@@ -19,6 +20,7 @@ import {
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { sendPasswordResetEmail, signInWithEmail, signOut, signUpWithEmail, updatePassword } from '../../services/authService';
 import { initialRegisterForm, type AccountMode, type RegisterForm as RegisterFormState } from '../../types/account';
+import type { Product } from '../../types/marketplace';
 import { validatePassword, validateRegisterForm } from '../../utils/accountValidation';
 
 type AccountScreenProps = {
@@ -59,6 +61,9 @@ export function AccountScreen({
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [isResetPasswordVisible, setIsResetPasswordVisible] = useState(false);
   const [isResetConfirmPasswordVisible, setIsResetConfirmPasswordVisible] = useState(false);
+  const [accountView, setAccountView] = useState<'profile' | 'settings'>('profile');
+  const [profileProducts, setProfileProducts] = useState<Product[]>([]);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const isGuest = accessToken === null;
@@ -71,6 +76,33 @@ export function AccountScreen({
       setMode('reset');
     }
   }, [passwordResetKey]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!accessToken || !profile || profile.role !== 'seller') {
+      setProfileProducts([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    fetchMyProducts(accessToken)
+      .then((products) => {
+        if (isMounted) {
+          setProfileProducts(products);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setProfileProducts([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, profile]);
 
   const updateRegisterField = (key: keyof RegisterFormState, value: string) => {
     setRegisterForm((current) => ({ ...current, [key]: value }));
@@ -273,6 +305,35 @@ export function AccountScreen({
     }
   };
 
+  const handleUpdateProfile = async ({ address, phone }: { address: string; phone: string }) => {
+    if (!accessToken || !profile) {
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setMessage(null);
+
+    try {
+      const nextProfile = await completeProfile(accessToken, {
+        national_id: profile.national_id ?? '',
+        first_name: profile.first_name ?? '',
+        last_name: profile.last_name ?? '',
+        age: profile.age,
+        gender: profile.gender,
+        address,
+        phone,
+      });
+
+      onProfileChange(nextProfile);
+      setMessage('Perfil actualizado.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu perfil.');
+      throw error;
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   if (!isSupabaseConfigured) {
     return (
       <>
@@ -305,10 +366,30 @@ export function AccountScreen({
   }
 
   if (!isGuest && profile) {
+    if (accountView === 'settings') {
+      return (
+        <>
+          <AccountSettingsPanel
+            isSavingProfile={isSavingProfile}
+            message={message}
+            profile={profile}
+            onBack={() => setAccountView('profile')}
+            onLogout={handleLogout}
+            onUpdateProfile={handleUpdateProfile}
+          />
+        </>
+      );
+    }
+
     return (
       <>
-        <SectionTitle title="Cuenta" subtitle="Tus datos y permisos de nexo." />
-        <AuthenticatedAccountPanel message={message} profile={profile} onLogout={handleLogout} onSell={onSell} />
+        <AuthenticatedAccountPanel
+          message={message}
+          products={profileProducts}
+          profile={profile}
+          onOpenSettings={() => setAccountView('settings')}
+          onSell={onSell}
+        />
       </>
     );
   }
