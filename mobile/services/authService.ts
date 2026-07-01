@@ -19,7 +19,7 @@ export async function getCurrentSession(): Promise<Session | null> {
   const { data, error } = await supabase.auth.getSession();
 
   if (error) {
-    throw error;
+    throw toPublicAuthError(error);
   }
 
   return data.session;
@@ -37,7 +37,7 @@ export function onAuthStateChange(callback: (session: Session | null) => void) {
 
 export async function signInWithEmail(email: string, password: string): Promise<Session | null> {
   if (!isSupabaseConfigured) {
-    throw new Error('Supabase no esta configurado.');
+    throw new Error('El servicio de cuenta no esta disponible.');
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -46,7 +46,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
   });
 
   if (error) {
-    throw error;
+    throw toPublicAuthError(error);
   }
 
   return data.session;
@@ -54,7 +54,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
 export async function signUpWithEmail(email: string, password: string, profile: AuthProfileInput): Promise<Session | null> {
   if (!isSupabaseConfigured) {
-    throw new Error('Supabase no esta configurado.');
+    throw new Error('El servicio de cuenta no esta disponible.');
   }
 
   const { data, error } = await supabase.auth.signUp({
@@ -81,6 +81,48 @@ export async function signUpWithEmail(email: string, password: string, profile: 
   return data.session;
 }
 
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  if (!isSupabaseConfigured) {
+    throw new Error('El servicio de cuenta no esta disponible.');
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: getPasswordResetRedirectUrl(),
+  });
+
+  if (error) {
+    throw toPublicAuthError(error);
+  }
+}
+
+export async function openPasswordRecoverySession(url: string): Promise<boolean> {
+  const tokens = getPasswordRecoveryTokens(url);
+
+  if (!tokens) {
+    return false;
+  }
+
+  const { error } = await supabase.auth.setSession(tokens);
+
+  if (error) {
+    throw toPublicAuthError(error);
+  }
+
+  return true;
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  if (!isSupabaseConfigured) {
+    throw new Error('El servicio de cuenta no esta disponible.');
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    throw toPublicAuthError(error);
+  }
+}
+
 export async function signOut(): Promise<void> {
   if (!isSupabaseConfigured) {
     return;
@@ -89,6 +131,67 @@ export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    throw error;
+    throw toPublicAuthError(error);
   }
+}
+
+function toPublicAuthError(error: Error): Error {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('invalid login credentials')) {
+    return new Error('Correo o contrasena incorrectos.');
+  }
+
+  if (message.includes('email not confirmed')) {
+    return new Error('Confirma tu correo antes de iniciar sesion.');
+  }
+
+  if (message.includes('already registered') || message.includes('user already registered')) {
+    return new Error('Ese correo ya esta registrado.');
+  }
+
+  return new Error('No pudimos completar la accion. Intenta nuevamente.');
+}
+
+function getPasswordResetRedirectUrl(): string {
+  const origin = getWebOrigin();
+
+  if (origin) {
+    return `${origin}/reset-password`;
+  }
+
+  return 'nexo://reset-password';
+}
+
+function getWebOrigin(): string | null {
+  const location = (globalThis as { location?: { origin?: string } }).location;
+
+  return location?.origin ?? null;
+}
+
+function getPasswordRecoveryTokens(url: string): { access_token: string; refresh_token: string } | null {
+  const params = parseUrlParams(url);
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const type = params.get('type');
+
+  if (!accessToken || !refreshToken) {
+    return null;
+  }
+
+  if (type && type !== 'recovery') {
+    return null;
+  }
+
+  return {
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  };
+}
+
+function parseUrlParams(url: string): URLSearchParams {
+  const [, hash = ''] = url.split('#');
+  const query = url.includes('?') ? url.slice(url.indexOf('?') + 1).split('#')[0] : '';
+
+  return new URLSearchParams(hash || query);
 }

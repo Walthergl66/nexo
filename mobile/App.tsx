@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -6,16 +5,16 @@ import {
   Easing,
   LayoutChangeEvent,
   Platform,
-  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { AmbientBackground } from './components/common/AmbientBackground';
-import { BrandLogo } from './components/common/BrandLogo';
+import { AppHeader } from './components/navigation/AppHeader';
+import { BottomNav } from './components/navigation/BottomNav';
+import { bottomNavDotSize, bottomNavHorizontalPadding } from './components/navigation/navigationStyles';
 import { tabs } from './constants/navigation';
 import { AccountScreen } from './app/account/AccountScreen';
 import { CartScreen } from './app/cart/CartScreen';
@@ -34,20 +33,8 @@ import {
   type ProfileResource,
 } from './services/marketplaceApi';
 import { getCurrentSession, onAuthStateChange } from './services/authService';
-import { colors, radii } from './theme/colors';
+import { colors } from './theme/colors';
 import type { CartItem, Product, TabKey } from './types/marketplace';
-
-type NavIconName = keyof typeof Ionicons.glyphMap;
-
-const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> = {
-  Inicio: { active: 'home', inactive: 'home-outline' },
-  Vender: { active: 'flame', inactive: 'flame-outline' },
-  Pedidos: { active: 'bag-handle', inactive: 'bag-handle-outline' },
-  Cuenta: { active: 'person', inactive: 'person-outline' },
-};
-
-const bottomNavHorizontalPadding = 16;
-const bottomNavDotSize = 11;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -286,11 +273,7 @@ export default function App() {
         if (isMounted) {
           setProfile(null);
           setCartItems([]);
-          setProfileError(
-            error instanceof Error
-              ? error.message
-              : 'No se pudo sincronizar el perfil interno con Laravel.',
-          );
+          setProfileError('No pudimos cargar tus datos de cuenta. Intenta nuevamente.');
         }
       })
       .finally(() => {
@@ -732,39 +715,14 @@ export default function App() {
       <View style={[styles.appShell, isProductPresentation && styles.appShellProduct]}>
         <AmbientBackground />
         {shouldShowHeader && (
-          <Animated.View
-            pointerEvents="box-none"
-            style={[
-              styles.header,
-              {
-                opacity: headerVisibility,
-                transform: [{ translateY: headerTranslateY }],
-              },
-            ]}
-          >
-            <View style={styles.headerBrand}>
-              <BrandLogo />
-              <View>
-                <Text style={styles.headerTitle}>NEXO</Text>
-              </View>
-            </View>
-            {hasBusinessProfile && (
-              <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
-                <Pressable
-                  accessibilityLabel="Abrir carrito"
-                  style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
-                  onPress={handleOpenCart}
-                >
-                  <Ionicons name="bag-handle-outline" size={19} color={colors.surface} />
-                  {cartCount > 0 && (
-                    <View style={styles.cartCountBubble}>
-                      <Text style={styles.cartCountText}>{cartCount}</Text>
-                    </View>
-                  )}
-                </Pressable>
-              </Animated.View>
-            )}
-          </Animated.View>
+          <AppHeader
+            cartCount={cartCount}
+            cartPulse={cartPulse}
+            headerOpacity={headerVisibility}
+            headerTranslateY={headerTranslateY}
+            showCart={hasBusinessProfile}
+            onOpenCart={handleOpenCart}
+          />
         )}
 
         <Animated.ScrollView
@@ -791,95 +749,25 @@ export default function App() {
           </Animated.View>
         </Animated.ScrollView>
 
-        <View style={styles.bottomNav}>
-          <View style={styles.bottomNavTrack} onLayout={handleNavLayout}>
-            {navItemWidth > 0 && (
-              <>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.bottomNavIndent,
-                    {
-                      transform: [
-                        { translateX: activeIndentX },
-                        { translateY: activeIndentY },
-                        { scaleX: activeIndentScaleX },
-                        { scaleY: activeIndentScaleY },
-                      ],
-                      opacity: activeIndentOpacity,
-                    },
-                  ]}
-                >
-                  <Animated.View
-                    style={[
-                      styles.bottomNavIndentArm,
-                      styles.bottomNavIndentArmLeft,
-                      { transform: [{ rotate: activeIndentLeftRotation }] },
-                    ]}
-                  />
-                  <Animated.View
-                    style={[
-                      styles.bottomNavIndentArm,
-                      styles.bottomNavIndentArmRight,
-                      { transform: [{ rotate: activeIndentRightRotation }] },
-                    ]}
-                  />
-                  <Animated.View
-                    style={[
-                      styles.bottomNavIndentTip,
-                      { transform: [{ scale: activeIndentTipScale }] },
-                    ]}
-                  />
-                </Animated.View>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.bottomNavMovingDot,
-                    {
-                      transform: [
-                        { translateX: activeDotX },
-                        { translateY: activeDotY },
-                        { scale: activeDotScale },
-                      ],
-                    },
-                  ]}
-                />
-              </>
-            )}
-            {visibleTabs.map((tab) => {
-              const isActive = tab === activeTab;
-
-              return (
-                <Pressable
-                  key={tab}
-                  accessibilityLabel={tab}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isActive }}
-                  style={({ pressed }) => [
-                    styles.bottomNavItem,
-                    pressed && styles.bottomNavItemPressed,
-                  ]}
-                  onPress={() => handleSelectTab(tab)}
-                >
-                  {isActive ? (
-                    <Animated.View
-                      key={tab}
-                      style={[
-                        styles.bottomNavActiveIcon,
-                        { transform: [{ scale: activeIconScale }] },
-                      ]}
-                    >
-                      <Ionicons name={navIcons[tab].active} size={24} color={colors.brandBlue} />
-                      <View pointerEvents="none" style={styles.bottomNavSelectionShadow} />
-                    </Animated.View>
-                  ) : (
-                    <Ionicons name={navIcons[tab].inactive} size={24} color={colors.inkSoft} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+        <BottomNav
+          activeDotScale={activeDotScale}
+          activeDotX={activeDotX}
+          activeDotY={activeDotY}
+          activeIconScale={activeIconScale}
+          activeIndentLeftRotation={activeIndentLeftRotation}
+          activeIndentOpacity={activeIndentOpacity}
+          activeIndentRightRotation={activeIndentRightRotation}
+          activeIndentScaleX={activeIndentScaleX}
+          activeIndentScaleY={activeIndentScaleY}
+          activeIndentTipScale={activeIndentTipScale}
+          activeIndentX={activeIndentX}
+          activeIndentY={activeIndentY}
+          activeTab={activeTab}
+          navItemWidth={navItemWidth}
+          tabs={visibleTabs}
+          onLayout={handleNavLayout}
+          onSelectTab={handleSelectTab}
+        />
       </View>
     </SafeAreaView>
   );
@@ -902,98 +790,6 @@ const styles = StyleSheet.create({
   appShellProduct: {
     backgroundColor: colors.background,
   },
-  header: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    zIndex: 10,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    flexWrap: 'wrap',
-    borderBottomWidth: 0,
-    shadowColor: colors.primarySoft,
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.035,
-    shadowRadius: 14,
-    elevation: 2,
-  },
-  statusBar: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  statusText: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  headerBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    maxWidth: Platform.OS === 'web' ? 320 : 260,
-  },
-  headerTitle: {
-    color: colors.brandBlue,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 1.8,
-  },
-  headerSubtitle: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 2,
-    maxWidth: 210,
-  },
-  cartBadge: {
-    backgroundColor: colors.brandBlue,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  cartBadgePressed: {
-    transform: [{ scale: 0.96 }],
-  },
-  cartCountBubble: {
-    position: 'absolute',
-    right: -3,
-    top: -5,
-    minWidth: 20,
-    height: 20,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.brandAccent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  cartCountText: {
-    color: colors.brandBlue,
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  cartBadgeValue: {
-    color: colors.surface,
-    fontSize: 18,
-    fontWeight: '800',
-  },
   content: {
     paddingHorizontal: 18,
     paddingTop: 2,
@@ -1010,118 +806,5 @@ const styles = StyleSheet.create({
   },
   screenTransition: {
     gap: 14,
-  },
-  bottomNav: {
-    position: 'absolute',
-    left: 28,
-    right: 28,
-    bottom: 4,
-    height: 86,
-    justifyContent: 'flex-end',
-    zIndex: 20,
-  },
-  bottomNavTrack: {
-    height: 78,
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'visible',
-    backgroundColor: colors.surface,
-    borderRadius: 27,
-    borderWidth: 1,
-    borderColor: colors.brandBlueSoft,
-    paddingHorizontal: bottomNavHorizontalPadding,
-    shadowColor: colors.primarySoft,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 22,
-    elevation: 12,
-  },
-  bottomNavActiveIcon: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 4,
-  },
-  bottomNavMovingDot: {
-    position: 'absolute',
-    left: 0,
-    top: -1,
-    width: bottomNavDotSize,
-    height: bottomNavDotSize,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlue,
-    shadowColor: colors.brandAccent,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.22,
-    shadowRadius: 4,
-    elevation: 2,
-    zIndex: 5,
-  },
-  bottomNavIndent: {
-    position: 'absolute',
-    left: -(38 - bottomNavDotSize) / 2,
-    top: -10,
-    width: 38,
-    height: 26,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.035,
-    shadowRadius: 4,
-    elevation: 1,
-    zIndex: 4,
-  },
-  bottomNavIndentArm: {
-    position: 'absolute',
-    top: 0,
-    width: 25,
-    height: 14,
-    borderRadius: radii.pill,
-    backgroundColor: colors.background,
-  },
-  bottomNavIndentArmLeft: {
-    left: 0,
-    transform: [{ rotate: '31deg' }],
-  },
-  bottomNavIndentArmRight: {
-    right: 0,
-    transform: [{ rotate: '-31deg' }],
-  },
-  bottomNavIndentTip: {
-    position: 'absolute',
-    left: 13,
-    top: 10,
-    width: 13,
-    height: 13,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-  },
-  bottomNavSelectionShadow: {
-    position: 'absolute',
-    bottom: 5,
-    width: 25,
-    height: 5,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandAccent,
-    opacity: 0.09,
-    shadowColor: colors.brandAccent,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.14,
-    shadowRadius: 8,
-    elevation: 1,
-    zIndex: -1,
-  },
-  bottomNavItem: {
-    flex: 1,
-    height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.pill,
-    transform: [{ scale: 1 }],
-    zIndex: 4,
-  },
-  bottomNavItemPressed: {
-    transform: [{ scale: 0.95 }],
   },
 });

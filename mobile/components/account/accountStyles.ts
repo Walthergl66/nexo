@@ -1,0 +1,260 @@
+import { StyleSheet } from 'react-native';
+  import { colors, radii } from '../../theme/colors';
+
+export const accountStyles = StyleSheet.create({
+  accountCard: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.medium,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: 10,
+  },
+  registerCard: {
+    gap: 14,
+  },
+  accountName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  accountEmail: {
+    fontSize: 13,
+    color: colors.inkMuted,
+  },
+  accountTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  dataGrid: {
+    gap: 5,
+    marginTop: 8,
+  },
+  dataText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 4,
+    marginBottom: 12,
+  },
+  switchButton: {
+    flex: 1,
+    height: 38,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchButtonActive: {
+    backgroundColor: colors.brandBlue,
+  },
+  switchText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  switchTextActive: {
+    color: colors.surface,
+  },
+  input: {
+    minHeight: 44,
+    borderRadius: radii.small,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    color: colors.ink,
+    paddingHorizontal: 12,
+    fontSize: 13,
+  },
+  passwordInputWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  passwordInput: {
+    paddingRight: 46,
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 2,
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputLabel: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  inputDisabled: {
+    backgroundColor: colors.silverSoft,
+    color: colors.inkMuted,
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'flex-end',
+  },
+  fieldWrap: {
+    flex: 1,
+    minWidth: 132,
+    gap: 6,
+  },
+  genderFieldOpen: {
+    minHeight: 238,
+  },
+  formSection: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 12,
+    gap: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sectionKicker: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  sectionHint: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  selectTrigger: {
+    minHeight: 44,
+    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  selectTriggerPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  selectValue: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  selectPlaceholder: {
+    color: colors.inkSoft,
+    fontWeight: '700',
+  },
+  selectOptions: {
+    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  selectOption: {
+    minHeight: 42,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  selectOptionActive: {
+    backgroundColor: colors.brandBlueSoft,
+  },
+  selectOptionPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  selectOptionText: {
+    flex: 1,
+    color: colors.inkMuted,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  selectOptionTextActive: {
+    color: colors.brandBlue,
+  },
+  lookupButton: {
+    width: 88,
+    height: 44,
+    borderRadius: radii.small,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandBlue,
+  },
+  lookupButtonText: {
+    color: colors.surface,
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  primaryButton: {
+    height: 44,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: colors.brandBlue,
+    marginTop: 4,
+  },
+  secondaryButton: {
+    height: 42,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    marginTop: 4,
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.98 }],
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  primaryButtonText: {
+    color: colors.surface,
+    fontWeight: '900',
+  },
+  secondaryButtonText: {
+    color: colors.brandBlue,
+    fontWeight: '900',
+  },
+  message: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 10,
+  },
+  errorText: {
+    color: '#9f1239',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 16,
+  },
+  validationText: {
+    color: '#9f1239',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+});

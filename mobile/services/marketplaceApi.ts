@@ -47,7 +47,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   });
 
   if (!response.ok) {
-    throw new Error(`NEXO API ${response.status}: ${await response.text()}`);
+    throw new Error(await getApiErrorMessage(response));
   }
 
   if (response.status === 204) {
@@ -55,6 +55,40 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   return response.json() as Promise<T>;
+}
+
+async function getApiErrorMessage(response: Response): Promise<string> {
+  try {
+    const payload = await response.json() as { message?: unknown; errors?: unknown };
+
+    if (typeof payload.message === 'string' && payload.message.trim().length > 0) {
+      return toPublicErrorMessage(payload.message);
+    }
+  } catch {
+    return 'No pudimos completar la solicitud. Intenta nuevamente.';
+  }
+
+  return 'No pudimos completar la solicitud. Intenta nuevamente.';
+}
+
+function toPublicErrorMessage(message: string): string {
+  const lowerMessage = message.toLowerCase();
+  const technicalWords = [
+    'api',
+    'backend',
+    'configur',
+    'expo_public',
+    'jwt',
+    'laravel',
+    'supabase',
+    'token',
+  ];
+
+  if (technicalWords.some((word) => lowerMessage.includes(word))) {
+    return 'No pudimos completar la solicitud. Intenta nuevamente.';
+  }
+
+  return message;
 }
 
 export async function fetchProducts(): Promise<Product[]> {
