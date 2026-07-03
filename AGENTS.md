@@ -154,6 +154,7 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * `mobile/` usa Supabase Auth con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`; el JWT de la sesion activa se envia a Laravel para rutas protegidas.
 * `mobile/` consume el catálogo público desde `GET /api/products` y usa JWT para carrito, órdenes, perfil y tienda propia.
 * `mobile/` registra usuarios desde la pantalla Cuenta: valida cedula por backend, crea usuario en Supabase Auth y completa el perfil interno en Laravel.
+* Las fotos de perfil se guardan como archivos en Supabase Storage; Laravel conserva la URL oficial en `profiles.avatar_url` y sigue siendo la fuente de verdad del perfil.
 * Laravel expone `GET /api/identity/lookup`, `GET /api/profiles/availability` y `PATCH /api/me/profile` para onboarding de perfiles.
 * La documentación OpenAPI/Swagger del backend vive en `/api/docs` y `/api/docs/openapi.json`.
 * El contrato OpenAPI se mantiene en `docs/openapi.json` y se sirve sin paquete externo de Swagger.

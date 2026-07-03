@@ -30,12 +30,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   tagDefault: {
     backgroundColor: colors.surfaceSoft,
   },
   tagSuccess: {
     backgroundColor: colors.success,
+    borderColor: colors.brandAccent,
   },
   tagWarning: {
     backgroundColor: colors.warning,
@@ -48,7 +51,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   tagTextSuccess: {
-    color: colors.brandBlue,
+    color: colors.ink,
   },
   tagTextWarning: {
     color: colors.inkMuted,

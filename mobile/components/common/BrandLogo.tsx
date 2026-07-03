@@ -1,5 +1,5 @@
 import { Platform, StyleSheet, View } from 'react-native';
-import { colors } from '../../theme/colors';
+import { colors, shadows } from '../../theme/colors';
 
 export function BrandLogo() {
   if (Platform.OS !== 'web') {
@@ -19,21 +19,17 @@ export function BrandLogo() {
 
 const styles = StyleSheet.create({
   container: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    padding: 7,
+    padding: 8,
     borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    borderColor: colors.line,
+    ...shadows.card,
   },
   image: {
     width: '100%',

@@ -20,13 +20,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.ink,
+    letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.inkMuted,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });

@@ -113,7 +113,7 @@ export function SellScreen({
 
     loadSellerState().catch(() => {
       if (isMounted) {
-        setMessage('No se pudo sincronizar el centro de ventas.');
+        setMessage('No pudimos cargar tu centro de ventas.');
       }
     });
 
@@ -128,7 +128,7 @@ export function SellScreen({
     }
 
     if (!profile || isProfileLoading) {
-      return 'Sincronizando cuenta';
+      return 'Cargando cuenta';
     }
 
     if (profile.role === 'buyer' && profile.verification_status === 'pending' && !hasPendingVerificationRequest) {
@@ -292,10 +292,10 @@ export function SellScreen({
   if (isProfileLoading || !profile) {
     return (
       <>
-        <SectionTitle title="Centro de ventas" subtitle="Sincronizando permisos." />
+        <SectionTitle title="Centro de ventas" subtitle="Cargando tus opciones de venta." />
         <View style={styles.statusPanel}>
           <ActivityIndicator color={colors.brandBlue} />
-          <Text style={styles.statusSubtitle}>Cargando perfil interno antes de habilitar acciones de venta.</Text>
+          <Text style={styles.statusSubtitle}>Estamos preparando tus herramientas de venta.</Text>
         </View>
       </>
     );

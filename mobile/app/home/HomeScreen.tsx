@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
-import { colors, radii } from '../../theme/colors';
+import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
+import { formatPrice } from '../../utils/format';
 
 type HomeScreenProps = {
   activeFilter: string;
@@ -35,38 +36,42 @@ type HomeScreenProps = {
   onSelectProduct: (product: Product) => void;
 };
 
-type AnimatedProductCellProps = {
+function AnimatedProductCell({
+  index,
+  product,
+  isAuthenticated,
+  onAddToCart,
+  onSelectProduct,
+}: {
   index: number;
   product: Product;
   isAuthenticated: boolean;
   onAddToCart: () => void;
   onSelectProduct: () => void;
-};
-
-function AnimatedProductCell({ index, product, isAuthenticated, onAddToCart, onSelectProduct }: AnimatedProductCellProps) {
+}) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(12)).current;
+  const translateY = useRef(new Animated.Value(10)).current;
 
   useEffect(() => {
     opacity.setValue(0);
-    translateY.setValue(12);
+    translateY.setValue(10);
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 220,
-        delay: index * 35,
+        duration: 190,
+        delay: index * 32,
         easing: Easing.bezier(0.23, 1, 0.32, 1),
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
         toValue: 0,
-        duration: 220,
-        delay: index * 35,
+        duration: 190,
+        delay: index * 32,
         easing: Easing.bezier(0.23, 1, 0.32, 1),
         useNativeDriver: true,
       }),
     ]).start();
-  }, [index, opacity, translateY, product.id]);
+  }, [index, opacity, product.id, translateY]);
 
   return (
     <Animated.View style={[styles.productCell, { opacity, transform: [{ translateY }] }]}>
@@ -88,10 +93,6 @@ function ProductSkeletonGrid() {
           <View style={styles.skeletonVisual} />
           <View style={styles.skeletonLineLarge} />
           <View style={styles.skeletonLineSmall} />
-          <View style={styles.skeletonBottomRow}>
-            <View style={styles.skeletonPrice} />
-            <View style={styles.skeletonButton} />
-          </View>
         </View>
       ))}
     </View>
@@ -128,101 +129,119 @@ export function HomeScreen({
   }
 
   const availableProducts = filteredProducts.filter((product) => product.available).length;
+  const featuredProduct = filteredProducts[0] ?? null;
+  const catalogProducts = featuredProduct ? filteredProducts.slice(1) : filteredProducts;
   const syncLabel = lastSyncAt
-    ? `Sync ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    ? `Actualizado ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Conectando';
 
   return (
     <>
-      <View style={styles.marketHero}>
-        <View style={styles.heroHeader}>
-          <View style={styles.heroBrandMark}>
-            <Ionicons name="storefront" size={18} color={colors.brandBlue} />
-          </View>
-          <View style={styles.heroCopy}>
-            <Text style={styles.heroEyebrow}>Marketplace NEXO</Text>
-            <Text style={styles.heroTitle}>Catalogo conectado</Text>
-          </View>
-          <View style={styles.heroMetric}>
-            {isRefreshing ? (
-              <ActivityIndicator size="small" color={colors.brandBlue} />
-            ) : (
-              <Ionicons name="cloud-done" size={14} color={colors.brandBlue} />
-            )}
-            <Text style={styles.heroMetricText}>{syncLabel}</Text>
+      <View style={styles.introRow}>
+        <View style={styles.introOrbLarge} />
+        <View style={styles.introOrbSmall} />
+        <View style={styles.introCopy}>
+          <Text style={styles.introEyebrow}>NEXO MARKET</Text>
+          <Text style={styles.introTitle}>Encuentra algo único.</Text>
+          <View style={styles.trustPill}>
+            <View style={styles.trustDot} />
+            <Text style={styles.trustText}>Marketplace verificado</Text>
           </View>
         </View>
-
-        <View style={styles.trustRow}>
-          <View style={styles.trustPill}>
-            <Text style={styles.trustValue}>{productsCount || '...'}</Text>
-            <Text style={styles.trustText}>productos</Text>
-          </View>
-          <View style={styles.trustPill}>
-            <Text style={styles.trustValue}>{availableProducts}</Text>
-            <Text style={styles.trustText}>disponibles</Text>
-          </View>
-        </View>
+        <Pressable
+          accessibilityLabel="Actualizar catálogo"
+          style={({ pressed }) => [styles.refreshButton, pressed && styles.pressFeedback]}
+          onPress={onRefreshCatalog}
+        >
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color={colors.ink} />
+          ) : (
+            <Ionicons name="refresh-outline" size={18} color={colors.ink} />
+          )}
+        </Pressable>
       </View>
 
       <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color={colors.brandBlue} />
+        <Ionicons name="search-outline" size={18} color={colors.inkMuted} />
         <TextInput
-          placeholder="Buscar producto, vendedor o categoria"
+          placeholder="Buscar productos o tiendas"
           placeholderTextColor={colors.inkSoft}
           style={styles.searchInput}
           value={search}
           onChangeText={onChangeSearch}
         />
-        <Pressable
-          accessibilityLabel="Actualizar catalogo"
-          style={({ pressed }) => [styles.syncButton, pressed && styles.syncButtonPressed]}
-          onPress={onRefreshCatalog}
-        >
-          {isRefreshing ? (
-            <ActivityIndicator size="small" color={colors.brandBlue} />
-          ) : (
-            <Ionicons name="sync" size={17} color={colors.brandBlue} />
-          )}
-        </Pressable>
+        <Ionicons name="options-outline" size={18} color={colors.inkMuted} />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {filters.map((filter) => {
           const isActive = filter === activeFilter;
           return (
             <Pressable
               key={filter}
-              style={({ pressed }) => [
-                styles.filterChip,
-                isActive && styles.filterChipActive,
-                pressed && styles.filterChipPressed,
-              ]}
+              style={({ pressed }) => [styles.filterChip, pressed && styles.pressFeedback]}
               onPress={() => onChangeFilter(filter)}
             >
-              <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>{filter}</Text>
+              <View style={[styles.filterIcon, isActive && styles.filterIconActive]}>
+                <Ionicons
+                  name={filter === 'Todo' ? 'grid-outline' : 'pricetag-outline'}
+                  size={18}
+                  color={isActive ? colors.surface : colors.inkMuted}
+                />
+              </View>
+              <Text numberOfLines={1} style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                {filter}
+              </Text>
             </Pressable>
           );
         })}
       </ScrollView>
 
+      {featuredProduct && !isLoading && (
+        <Pressable
+          accessibilityLabel={`Ver detalle de ${featuredProduct.title}`}
+          style={({ pressed }) => [styles.featuredCard, pressed && styles.featuredCardPressed]}
+          onPress={() => onSelectProduct(featuredProduct)}
+        >
+          <View style={styles.featuredOrbitLarge} />
+          <View style={styles.featuredOrbitSmall} />
+          <View style={styles.featuredSpark} />
+          <View style={styles.featuredCopy}>
+            <Text style={styles.featuredCategory}>{featuredProduct.category}</Text>
+            <Text numberOfLines={3} style={styles.featuredTitle}>{featuredProduct.title}</Text>
+            <Text style={styles.featuredPrice}>{formatPrice(featuredProduct.price)}</Text>
+            <Pressable
+              style={({ pressed }) => [styles.featuredButton, pressed && styles.pressFeedback]}
+              onPress={(event) => {
+                event.stopPropagation();
+                onAddToCart(featuredProduct);
+              }}
+            >
+              <Text style={styles.featuredButtonText}>Comprar ahora</Text>
+            </Pressable>
+          </View>
+          <View style={styles.featuredVisual}>
+            <View style={styles.featuredHalo} />
+            <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
+          </View>
+        </Pressable>
+      )}
+
       <View style={styles.resultsHeader}>
         <View>
-          <Text style={styles.resultsTitle}>{activeFilter === 'Todo' ? 'Productos destacados' : activeFilter}</Text>
+          <Text style={styles.resultsTitle}>{activeFilter === 'Todo' ? 'Recomendados para ti' : activeFilter}</Text>
           <Text style={styles.resultsSubtitle}>
-            {isLoading
-              ? 'Consultando catalogo remoto'
-              : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'resultado' : 'resultados'} disponibles`}
+            {isLoading ? 'Cargando catálogo' : `${productsCount || 0} productos · ${availableProducts} disponibles`}
           </Text>
         </View>
-        
+        <Text style={styles.syncLabel}>{syncLabel}</Text>
       </View>
 
       {isLoading ? (
         <ProductSkeletonGrid />
       ) : (
         <View style={styles.productGrid}>
-          {filteredProducts.map((product, index) => (
+          {catalogProducts.map((product, index) => (
             <AnimatedProductCell
               key={product.id}
               index={index}
@@ -237,8 +256,9 @@ export function HomeScreen({
 
       {!isLoading && filteredProducts.length === 0 && (
         <View style={styles.emptyState}>
+          <Ionicons name="search-outline" size={24} color={colors.inkMuted} />
           <Text style={styles.emptyTitle}>No encontramos productos</Text>
-          <Text style={styles.emptyText}>Prueba con otra categoria o una busqueda mas corta.</Text>
+          <Text style={styles.emptyText}>Prueba otra categoría o una búsqueda más corta.</Text>
         </View>
       )}
     </>
@@ -246,178 +266,262 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  marketHero: {
-    borderRadius: radii.medium,
-    backgroundColor: colors.surface,
-    padding: 14,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 3,
-  },
-  heroHeader: {
+  introRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    minHeight: 132,
+    borderRadius: 24,
+    padding: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    overflow: 'hidden',
+    ...shadows.card,
   },
-  heroBrandMark: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlueSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroCopy: {
+  introCopy: {
     flex: 1,
-    gap: 2,
+    zIndex: 2,
   },
-  heroEyebrow: {
-    color: colors.inkMuted,
+  introOrbLarge: {
+    position: 'absolute',
+    width: 152,
+    height: 152,
+    borderRadius: 76,
+    right: -74,
+    top: -70,
+    backgroundColor: colors.brandBlueSoft,
+  },
+  introOrbSmall: {
+    position: 'absolute',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    right: -18,
+    bottom: -42,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+  },
+  introEyebrow: {
+    color: colors.brandAccent,
     fontSize: 10,
-    fontWeight: '900',
-    textTransform: 'uppercase',
+    fontWeight: '800',
+    letterSpacing: 1.2,
   },
-  heroTitle: {
+  introTitle: {
     color: colors.ink,
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 22,
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -1.1,
+    marginTop: 4,
   },
-  heroMetric: {
+  trustPill: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: radii.pill,
     backgroundColor: colors.brandBlueSoft,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
   },
-  heroMetricText: {
+  trustDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.brandAccent,
+  },
+  trustText: {
     color: colors.brandBlue,
-    fontSize: 10,
-    fontWeight: '900',
+    fontSize: 9,
+    fontWeight: '700',
   },
-  trustRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  trustPill: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceMuted,
+  refreshButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
+    ...shadows.card,
+    zIndex: 2,
   },
-  trustValue: {
-    color: colors.brandBlue,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  trustText: {
-    color: colors.inkMuted,
-    fontSize: 10,
-    fontWeight: '800',
+  pressFeedback: {
+    transform: [{ scale: 0.96 }],
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     backgroundColor: colors.surface,
-    borderRadius: radii.pill,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: 16,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 3,
+    ...shadows.card,
   },
   searchInput: {
     flex: 1,
-    height: 50,
+    height: 48,
     color: colors.ink,
-    fontWeight: '700',
+    fontWeight: '500',
   },
-  syncButton: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlueSoft,
+  filterRow: {
+    gap: 16,
+    paddingVertical: 2,
+  },
+  filterChip: {
+    width: 64,
+    alignItems: 'center',
+    gap: 7,
+  },
+  filterIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  syncButtonPressed: {
-    transform: [{ scale: 0.94 }],
-  },
-  filterRow: {
-    flexGrow: 0,
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.silverSoft,
-    borderWidth: 1,
-    borderColor: colors.line,
-    marginRight: 10,
-  },
-  filterChipActive: {
+  filterIconActive: {
     backgroundColor: colors.brandBlue,
     borderColor: colors.brandBlue,
   },
-  filterChipPressed: {
-    transform: [{ scale: 0.97 }],
-  },
   filterChipText: {
+    width: 64,
+    textAlign: 'center',
     color: colors.inkMuted,
-    fontWeight: '700',
+    fontWeight: '600',
+    fontSize: 10,
   },
   filterChipTextActive: {
+    color: colors.ink,
+    fontWeight: '800',
+  },
+  featuredCard: {
+    minHeight: 214,
+    borderRadius: 24,
+    backgroundColor: colors.primarySoft,
+    padding: 20,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    ...shadows.floating,
+  },
+  featuredOrbitLarge: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    right: -92,
+    top: -80,
+    borderWidth: 1,
+    borderColor: colors.brandBlueMuted,
+    opacity: 0.42,
+  },
+  featuredOrbitSmall: {
+    position: 'absolute',
+    width: 148,
+    height: 148,
+    borderRadius: 74,
+    right: -32,
+    bottom: -70,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    opacity: 0.32,
+  },
+  featuredSpark: {
+    position: 'absolute',
+    width: 46,
+    height: 5,
+    borderRadius: 3,
+    right: 32,
+    top: 28,
+    backgroundColor: colors.brandAccent,
+    opacity: 0.65,
+    transform: [{ rotate: '-42deg' }],
+  },
+  featuredCardPressed: {
+    transform: [{ scale: 0.985 }],
+  },
+  featuredCopy: {
+    flex: 1,
+    zIndex: 2,
+    justifyContent: 'center',
+  },
+  featuredCategory: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  featuredTitle: {
     color: colors.surface,
+    fontSize: 24,
+    lineHeight: 27,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    marginTop: 8,
+    maxWidth: 190,
+  },
+  featuredPrice: {
+    color: colors.surface,
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+  featuredButton: {
+    alignSelf: 'flex-start',
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 18,
+  },
+  featuredButtonText: {
+    color: colors.brandBlue,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  featuredVisual: {
+    width: 122,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featuredHalo: {
+    position: 'absolute',
+    width: 116,
+    height: 116,
+    borderRadius: 58,
+    backgroundColor: colors.brandBlue,
   },
   resultsHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: 12,
   },
   resultsTitle: {
     color: colors.ink,
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   resultsSubtitle: {
     color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: '700',
-    marginTop: 2,
+    fontWeight: '500',
+    marginTop: 3,
   },
-  resultsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlueSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  resultsBadgeText: {
-    color: colors.brandBlue,
-    fontSize: 11,
-    fontWeight: '900',
+  syncLabel: {
+    color: colors.inkSoft,
+    fontSize: 9,
+    fontWeight: '600',
   },
   productGrid: {
     flexDirection: 'row',
@@ -428,62 +532,47 @@ const styles = StyleSheet.create({
     width: '48%',
   },
   skeletonCard: {
-    borderRadius: radii.medium,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.surface,
-    padding: 11,
-    gap: 9,
+    padding: 10,
+    gap: 10,
   },
   skeletonVisual: {
-    height: 104,
-    borderRadius: radii.small,
+    height: 126,
+    borderRadius: 14,
     backgroundColor: colors.surfaceSoft,
   },
   skeletonLineLarge: {
     width: '86%',
-    height: 13,
+    height: 12,
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceSoft,
   },
   skeletonLineSmall: {
     width: '62%',
-    height: 10,
+    height: 9,
     borderRadius: radii.pill,
     backgroundColor: colors.silverSoft,
   },
-  skeletonBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  skeletonPrice: {
-    width: 58,
-    height: 16,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfaceSoft,
-  },
-  skeletonButton: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlueSoft,
-  },
   emptyState: {
-    borderRadius: radii.medium,
-    padding: 18,
-    backgroundColor: colors.surfaceMuted,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    gap: 6,
+    gap: 7,
   },
   emptyTitle: {
     color: colors.ink,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   emptyText: {
     color: colors.inkMuted,
     lineHeight: 20,
+    textAlign: 'center',
   },
 });

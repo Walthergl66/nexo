@@ -1,10 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radii } from '../../theme/colors';
+import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
-import { InfoRow } from '../common/InfoRow';
-import { Tag } from '../common/Tag';
 
 type ProductDetailCardProps = {
   product: Product;
@@ -22,52 +20,89 @@ export function ProductDetailCard({
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <Pressable accessibilityLabel="Volver al catalogo" style={styles.backButton} onPress={onBack}>
-          <Ionicons name="chevron-back" size={20} color={colors.brandBlue} />
+        <Pressable
+          accessibilityLabel="Volver al catálogo"
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+          onPress={onBack}
+        >
+          <Ionicons name="chevron-back" size={18} color={colors.ink} />
+          <Text style={styles.backText}>Volver</Text>
         </Pressable>
-        <Tag text={product.available ? 'Disponible' : 'Agotado'} tone={product.available ? 'success' : 'warning'} />
+        <Text style={styles.changeText}>{product.available ? 'Disponible' : 'Agotado'}</Text>
       </View>
+
+      <Text style={styles.pageTitle}>Producto</Text>
 
       <View style={styles.heroVisual}>
-        <Ionicons name="bag-handle" size={72} color={colors.brandBlue} />
+        <View style={styles.heroHalo} />
+        <View style={styles.heroOrbit} />
+        <Ionicons name="bag-handle-outline" size={112} color={colors.ink} />
+        <View style={styles.heroBadge}>
+          <Ionicons name="shield-checkmark-outline" size={15} color={colors.ink} />
+        </View>
       </View>
 
-      <Text style={styles.title}>{product.title}</Text>
-      <Text style={styles.description}>{product.description}</Text>
+      <View style={styles.thumbnailRow}>
+        {[0, 1, 2, 3].map((item) => (
+          <View key={item} style={[styles.thumbnail, item === 1 && styles.thumbnailActive]}>
+            <Ionicons name="bag-handle-outline" size={28} color={item === 1 ? colors.surface : colors.inkMuted} />
+          </View>
+        ))}
+      </View>
 
-      <View style={styles.priceRow}>
+      <View style={styles.productHeading}>
+        <View style={styles.headingCopy}>
+          <Text style={styles.category}>{product.category}</Text>
+          <Text style={styles.title}>{product.title}</Text>
+          <Text style={styles.seller}>por {product.seller}</Text>
+        </View>
         <Text style={styles.price}>{formatPrice(product.price)}</Text>
       </View>
 
-      <View style={styles.infoPanel}>
-        <InfoRow label="Categoria" value={product.category} />
-        <InfoRow label="Vendedor" value={product.seller} />
-        <InfoRow label="Inventario" value={`${product.stock} unidades`} />
+      <View style={styles.optionRow}>
+        <View>
+          <Text style={styles.optionLabel}>Condición</Text>
+          <View style={styles.sizeRow}>
+            <View style={styles.sizeActive}><Text style={styles.sizeActiveText}>{product.condition}</Text></View>
+            <View style={styles.sizeChip}><Text style={styles.sizeText}>{product.stock} uds.</Text></View>
+          </View>
+        </View>
+        <View style={styles.colorBlock}>
+          <Text style={styles.optionLabel}>Estilo</Text>
+          <View style={styles.colorRow}>
+            <View style={[styles.colorDot, { backgroundColor: colors.silver }]} />
+            <View style={[styles.colorDot, styles.colorDotActive, { backgroundColor: colors.brandAccent }]} />
+            <View style={[styles.colorDot, { backgroundColor: colors.primarySoft }]} />
+          </View>
+        </View>
       </View>
 
-      <View style={styles.promiseRow}>
-        <View style={styles.promisePill}>
-          <Ionicons name="shield-checkmark" size={14} color={colors.brandBlue} />
-          <Text style={styles.promiseText}>Compra protegida</Text>
-        </View>
-        <View style={styles.promisePill}>
-          <Ionicons name="cube" size={14} color={colors.brandBlue} />
-          <Text style={styles.promiseText}>Stock confirmado</Text>
-        </View>
+      <View style={styles.tabs}>
+        <Text style={[styles.tabText, styles.tabActive]}>Acerca de</Text>
+        <Text style={styles.tabText}>Detalles</Text>
+        <Text style={styles.tabText}>Reseñas</Text>
       </View>
 
-      <Pressable
-        disabled={!product.available}
-        style={({ pressed }) => [
-          styles.addCartButton,
-          !product.available && styles.addCartButtonDisabled,
-          pressed && styles.addCartButtonPressed,
-        ]}
-        onPress={onAddToCart}
-      >
-        <Ionicons name={isAuthenticated ? 'cart' : 'log-in-outline'} size={18} color={colors.surface} />
-        <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar a carrito' : 'Iniciar sesion para comprar'}</Text>
-      </Pressable>
+      <Text style={styles.description}>{product.description}</Text>
+
+      <View style={styles.bottomActions}>
+        <View style={styles.protection}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
+          <Text style={styles.protectionText}>Compra protegida</Text>
+        </View>
+        <Pressable
+          disabled={!product.available}
+          style={({ pressed }) => [
+            styles.addCartButton,
+            !product.available && styles.addCartButtonDisabled,
+            pressed && styles.pressed,
+          ]}
+          onPress={onAddToCart}
+        >
+          <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
+          <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesión'}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -75,11 +110,12 @@ export function ProductDetailCard({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: radii.medium,
+    borderRadius: 26,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.line,
     gap: 14,
+    ...shadows.card,
   },
   topRow: {
     flexDirection: 'row',
@@ -87,87 +123,239 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.pill,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brandBlueSoft,
+    gap: 3,
+  },
+  backText: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  changeText: {
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  pageTitle: {
+    color: colors.ink,
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.8,
   },
   heroVisual: {
-    height: 150,
-    borderRadius: radii.medium,
+    height: 248,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brandBlueSoft,
+    overflow: 'hidden',
+  },
+  heroHalo: {
+    position: 'absolute',
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: colors.surfaceSoft,
+  },
+  heroOrbit: {
+    position: 'absolute',
+    bottom: 30,
+    width: 220,
+    height: 48,
+    borderRadius: 110,
+    borderWidth: 2,
+    borderColor: colors.lineStrong,
+    transform: [{ scaleY: 0.35 }],
+  },
+  heroBadge: {
+    position: 'absolute',
+    right: 14,
+    bottom: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.card,
+  },
+  thumbnailRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  thumbnail: {
+    flex: 1,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.brandBlueLine,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbnailActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  productHeading: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  headingCopy: {
+    flex: 1,
+  },
+  category: {
+    color: colors.brandAccent,
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '900',
     color: colors.ink,
+    fontSize: 23,
+    lineHeight: 27,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+    marginTop: 4,
+  },
+  seller: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    marginTop: 4,
+  },
+  price: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  optionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  optionLabel: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  sizeRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  sizeChip: {
+    minHeight: 30,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sizeActive: {
+    minHeight: 30,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sizeText: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  sizeActiveText: {
+    color: colors.surface,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  colorBlock: {
+    alignItems: 'flex-end',
+  },
+  colorRow: {
+    flexDirection: 'row',
+    gap: 7,
+  },
+  colorDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  colorDotActive: {
+    borderColor: colors.ink,
+  },
+  tabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  tabText: {
+    flex: 1,
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 10,
+  },
+  tabActive: {
+    color: colors.ink,
+    fontWeight: '800',
+    borderBottomWidth: 2,
+    borderBottomColor: colors.ink,
   },
   description: {
     color: colors.inkMuted,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 20,
   },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  price: {
-    color: colors.brandBlue,
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  infoPanel: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.medium,
-    padding: 14,
-    gap: 10,
-  },
-  promiseRow: {
+  bottomActions: {
     flexDirection: 'row',
     gap: 10,
   },
-  promisePill: {
-    flex: 1,
-    minHeight: 38,
+  protection: {
+    flex: 0.8,
+    minHeight: 48,
     borderRadius: radii.pill,
-    backgroundColor: colors.silverSoft,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
   },
-  promiseText: {
+  protectionText: {
     color: colors.ink,
-    fontSize: 11,
-    fontWeight: '900',
+    fontSize: 10,
+    fontWeight: '700',
   },
   addCartButton: {
-    height: 48,
+    flex: 1.2,
+    minHeight: 48,
     borderRadius: radii.pill,
-    backgroundColor: colors.brandBlue,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
+    paddingHorizontal: 14,
   },
   addCartButtonDisabled: {
     backgroundColor: colors.inkSoft,
   },
-  addCartButtonPressed: {
+  pressed: {
     transform: [{ scale: 0.97 }],
   },
   addCartText: {
     color: colors.surface,
-    fontWeight: '900',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

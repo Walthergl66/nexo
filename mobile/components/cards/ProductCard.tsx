@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radii } from '../../theme/colors';
+import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
 
@@ -22,36 +22,36 @@ type BottlePalette = {
 
 const palettes: Record<Product['visualTone'], BottlePalette> = {
   dark: {
-    bottle: colors.brandBlue,
-    cap: '#08285d',
+    bottle: '#B9CAD7',
+    cap: colors.brandBlue,
     label: colors.surface,
-    labelText: colors.brandBlue,
-    leaf: colors.silver,
-    leafAlt: colors.brandBlueMuted,
+    labelText: colors.ink,
+    leaf: '#B7DDF0',
+    leafAlt: '#D8EAF3',
   },
   cool: {
-    bottle: colors.primarySoft,
+    bottle: '#D3E5F0',
     cap: colors.brandBlue,
-    label: colors.silverSoft,
-    labelText: colors.brandBlue,
-    leaf: colors.silver,
-    leafAlt: colors.brandBlueMuted,
+    label: colors.surface,
+    labelText: colors.ink,
+    leaf: '#A8D9F0',
+    leafAlt: '#E1F2FA',
   },
   light: {
-    bottle: colors.silverSoft,
+    bottle: '#E9F2F7',
     cap: colors.brandBlue,
     label: colors.surface,
-    labelText: colors.brandBlue,
-    leaf: colors.silver,
-    leafAlt: colors.brandBlueLine,
+    labelText: colors.ink,
+    leaf: '#C4E5F4',
+    leafAlt: '#E1EDF3',
   },
   warm: {
-    bottle: colors.silver,
-    cap: colors.brandBlue,
+    bottle: '#C4D4DF',
+    cap: colors.primarySoft,
     label: colors.surface,
-    labelText: colors.brandBlue,
-    leaf: colors.brandBlueMuted,
-    leafAlt: colors.silverSoft,
+    labelText: colors.ink,
+    leaf: '#B5CEDD',
+    leafAlt: '#E5EEF3',
   },
 };
 
@@ -66,6 +66,9 @@ export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectPro
       onPress={onSelectProduct}
     >
       <View style={styles.visual}>
+        <View style={styles.favoriteButton}>
+          <Ionicons name="heart-outline" size={14} color={colors.ink} />
+        </View>
         <View style={[styles.leaf, styles.leafLeft, { backgroundColor: palette.leaf }]} />
         <View style={[styles.leaf, styles.leafRight, { backgroundColor: palette.leafAlt }]} />
         <View style={styles.productShape}>
@@ -85,15 +88,12 @@ export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectPro
         {product.title}
       </Text>
       <Text numberOfLines={1} style={styles.seller}>
-        {product.condition} / {product.seller}
+        {product.seller}
       </Text>
-      <View style={styles.metaRow}>
-        <Text style={styles.metaText}>{product.stock} disp.</Text>
-      </View>
       <View style={styles.bottomRow}>
         <View>
           <Text style={styles.price}>{formatPrice(product.price)}</Text>
-          <Text style={styles.priceHint}>Proteccion incluida</Text>
+          <Text style={styles.priceHint}>{product.stock} disponibles</Text>
         </View>
         <Pressable
           accessibilityLabel={addLabel}
@@ -108,7 +108,7 @@ export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectPro
             onAddToCart();
           }}
         >
-          <Ionicons name={isAuthenticated ? 'add' : 'log-in-outline'} size={16} color={colors.surface} />
+          <Text style={styles.addButtonText}>{isAuthenticated ? 'Comprar' : 'Entrar'}</Text>
         </Pressable>
       </View>
     </Pressable>
@@ -118,28 +118,26 @@ export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectPro
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: radii.medium,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: 11,
+    padding: 10,
     overflow: 'hidden',
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 22,
-    elevation: 6,
+    ...shadows.card,
   },
   containerPressed: {
-    transform: [{ scale: 0.99 }],
+    transform: [{ scale: 0.97 }],
   },
   visual: {
-    height: 104,
-    borderRadius: radii.small,
+    height: 138,
+    borderRadius: 14,
     backgroundColor: colors.silverSoft,
-    marginBottom: 8,
+    marginBottom: 10,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     position: 'relative',
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   leaf: {
     position: 'absolute',
@@ -147,7 +145,21 @@ const styles = StyleSheet.create({
     height: 28,
     borderTopLeftRadius: 26,
     borderBottomRightRadius: 26,
-    opacity: 0.72,
+    opacity: 0.58,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 4,
   },
   leafLeft: {
     left: 18,
@@ -162,7 +174,7 @@ const styles = StyleSheet.create({
   productShape: {
     alignSelf: 'center',
     width: 64,
-    height: 94,
+    height: 112,
     alignItems: 'center',
     position: 'relative',
     zIndex: 2,
@@ -173,6 +185,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     position: 'absolute',
     top: 0,
+    borderWidth: 1,
+    borderColor: colors.ink,
   },
   productNozzle: {
     width: 32,
@@ -193,7 +207,7 @@ const styles = StyleSheet.create({
   },
   productBody: {
     width: 42,
-    height: 74,
+    height: 88,
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
     borderBottomLeftRadius: 12,
@@ -202,6 +216,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.ink,
   },
   productLabel: {
     width: 30,
@@ -210,6 +226,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0.94,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
   },
   labelTitle: {
     fontSize: 6,
@@ -221,65 +239,54 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   title: {
-    fontSize: 12,
-    fontWeight: '900',
+    fontSize: 14,
+    fontWeight: '800',
     color: colors.ink,
     minHeight: 31,
-    lineHeight: 15,
+    lineHeight: 17,
   },
   seller: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.inkMuted,
     marginTop: 2,
-    fontWeight: '700',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
-  },
-  metaText: {
-    color: colors.brandBlue,
-    fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   bottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 10,
   },
   price: {
-    fontSize: 13,
-    fontWeight: '900',
+    fontSize: 14,
+    fontWeight: '800',
     color: colors.ink,
   },
   priceHint: {
     color: colors.inkSoft,
     fontSize: 8,
-    fontWeight: '800',
-    marginTop: 1,
+    fontWeight: '600',
+    marginTop: 2,
   },
   addButton: {
-    width: 30,
+    minWidth: 64,
     height: 30,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brandBlue,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 4,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 10,
   },
   addButtonDisabled: {
     backgroundColor: colors.inkSoft,
     shadowOpacity: 0,
   },
   addButtonPressed: {
-    transform: [{ scale: 0.92 }],
-    opacity: 0.82,
+    transform: [{ scale: 0.96 }],
+  },
+  addButtonText: {
+    color: colors.surface,
+    fontSize: 9,
+    fontWeight: '800',
   },
 });
