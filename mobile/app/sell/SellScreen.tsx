@@ -15,7 +15,7 @@ import {
   type ProfileResource,
   type StoreResource,
 } from '../../services/marketplaceApi';
-import { colors, radii } from '../../theme/colors';
+import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
 
@@ -85,6 +85,8 @@ export function SellScreen({
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
+  const activeProducts = products.filter((product) => product.available).length;
+  const draftProducts = Math.max(0, products.length - activeProducts);
 
   const loadSellerState = useCallback(async () => {
     if (!accessToken || !profile) {
@@ -307,20 +309,52 @@ export function SellScreen({
 
       <View style={styles.statusPanel}>
         <View style={styles.statusHeader}>
-          <View>
-            <Text style={styles.statusTitle}>{sellerStep}</Text>
-            <Text style={styles.statusSubtitle}>{profile?.display_name ?? profile?.email ?? 'Cuenta NEXO'}</Text>
+          <View style={styles.statusIdentity}>
+            <View style={styles.statusIcon}>
+              <Ionicons name="storefront-outline" size={23} color={colors.brandBlue} />
+            </View>
+            <View style={styles.statusCopy}>
+              <Text style={styles.statusTitle}>{sellerStep}</Text>
+              <Text style={styles.statusSubtitle}>{profile?.display_name ?? profile?.email ?? 'Cuenta NEXO'}</Text>
+            </View>
           </View>
           <Tag text={profile?.verification_status ?? 'sync'} tone={isApprovedSeller ? 'success' : 'warning'} />
         </View>
-        <InfoRow label="Rol" value={profile?.role ?? 'buyer'} />
-        <InfoRow label="Tienda" value={store?.name ?? 'Sin tienda'} />
-        <InfoRow label="Estado tienda" value={store?.status ?? 'No disponible'} />
+
+        <View style={styles.sellerProgress}>
+          <StepPill label="Cuenta" active done />
+          <StepPill label="Validacion" active={isApprovedSeller || profile.verification_status === 'pending'} done={isApprovedSeller} />
+          <StepPill label="Tienda" active={Boolean(store)} done={store?.status === 'active'} />
+          <StepPill label="Catalogo" active={products.length > 0} done={activeProducts > 0} />
+        </View>
+
+        <View style={styles.metricsGrid}>
+          <MiniMetric label="Productos" value={String(products.length)} />
+          <MiniMetric label="Activos" value={String(activeProducts)} />
+          <MiniMetric label="Borradores" value={String(draftProducts)} />
+        </View>
+
+        <View style={styles.infoGroup}>
+          <InfoRow label="Rol" value={profile?.role ?? 'buyer'} />
+          <InfoRow label="Tienda" value={store?.name ?? 'Sin tienda'} />
+          <InfoRow label="Estado tienda" value={store?.status ?? 'No disponible'} />
+        </View>
       </View>
+
+      {message && (
+        <View style={styles.messagePanel}>
+          <Ionicons name="information-circle-outline" size={17} color={colors.brandBlue} />
+          <Text style={styles.message}>{message}</Text>
+        </View>
+      )}
 
       {profile.role === 'buyer' && profile.verification_status === 'pending' && !hasPendingVerificationRequest ? (
         <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Solicitud de vendedor</Text>
+          <FormHeader
+            icon="shield-checkmark-outline"
+            title="Solicitud de vendedor"
+            subtitle="Datos basicos para que el equipo valide tu emprendimiento."
+          />
           <TextInput
             placeholder="Nombre comercial"
             placeholderTextColor={colors.inkSoft}
@@ -378,7 +412,11 @@ export function SellScreen({
             description="Puedes corregir tus datos de negocio y volver a enviar una solicitud de vendedor."
           />
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Nueva solicitud</Text>
+            <FormHeader
+              icon="refresh-circle-outline"
+              title="Nueva solicitud"
+              subtitle="Actualiza la informacion para una nueva revision."
+            />
             <TextInput
               placeholder="Nombre comercial"
               placeholderTextColor={colors.inkSoft}
@@ -432,7 +470,11 @@ export function SellScreen({
 
       {isApprovedSeller && !store && (
         <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Crear tienda</Text>
+          <FormHeader
+            icon="business-outline"
+            title="Crear tienda"
+            subtitle="Tu tienda quedara activa al crearla porque ya estas aprobado."
+          />
           <TextInput
             placeholder="Nombre de tienda"
             placeholderTextColor={colors.inkSoft}
@@ -454,7 +496,11 @@ export function SellScreen({
 
       {canCreateProducts && (
         <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Nuevo producto</Text>
+          <FormHeader
+            icon="pricetag-outline"
+            title="Nuevo producto"
+            subtitle="Publica de inmediato o guarda como borrador para terminarlo despues."
+          />
           <TextInput
             placeholder="Nombre"
             placeholderTextColor={colors.inkSoft}
@@ -511,7 +557,10 @@ export function SellScreen({
 
       {products.length > 0 && (
         <View style={styles.productList}>
-          <Text style={styles.formTitle}>Tus productos</Text>
+          <View style={styles.productListHeader}>
+            <Text style={styles.formTitle}>Tus productos</Text>
+            <Tag text={`${products.length} items`} tone="default" />
+          </View>
           {products.map((product) => (
             <View key={product.id} style={styles.productRow}>
               <View style={styles.productIcon}>
@@ -527,7 +576,6 @@ export function SellScreen({
         </View>
       )}
 
-      {message && <Text style={styles.message}>{message}</Text>}
     </>
   );
 }
@@ -539,6 +587,59 @@ type PrimaryButtonProps = {
   loading: boolean;
   onPress: () => void;
 };
+
+type StepPillProps = {
+  label: string;
+  active: boolean;
+  done: boolean;
+};
+
+function StepPill({ label, active, done }: StepPillProps) {
+  return (
+    <View style={[styles.stepPill, active && styles.stepPillActive]}>
+      <View style={[styles.stepDot, done && styles.stepDotDone]}>
+        {done && <Ionicons name="checkmark" size={11} color={colors.surface} />}
+      </View>
+      <Text numberOfLines={1} style={[styles.stepLabel, active && styles.stepLabelActive]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+type MiniMetricProps = {
+  label: string;
+  value: string;
+};
+
+function MiniMetric({ label, value }: MiniMetricProps) {
+  return (
+    <View style={styles.miniMetric}>
+      <Text style={styles.miniMetricValue}>{value}</Text>
+      <Text style={styles.miniMetricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+type FormHeaderProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+};
+
+function FormHeader({ icon, title, subtitle }: FormHeaderProps) {
+  return (
+    <View style={styles.formHeader}>
+      <View style={styles.formIcon}>
+        <Ionicons name={icon} size={18} color={colors.brandBlue} />
+      </View>
+      <View style={styles.formHeaderCopy}>
+        <Text style={styles.formTitle}>{title}</Text>
+        <Text style={styles.formSubtitle}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+}
 
 function PrimaryButton({ disabled, icon, label, loading, onPress }: PrimaryButtonProps) {
   return (
@@ -561,18 +662,40 @@ function PrimaryButton({ disabled, icon, label, loading, onPress }: PrimaryButto
 
 const styles = StyleSheet.create({
   statusPanel: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surface,
     borderRadius: radii.medium,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.line,
     gap: 14,
+    ...shadows.card,
   },
   statusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: 12,
+  },
+  statusIdentity: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: colors.brandBlueSoft,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   statusTitle: {
     color: colors.ink,
@@ -585,18 +708,123 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 3,
   },
+  sellerProgress: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  stepPill: {
+    minHeight: 34,
+    flexGrow: 1,
+    flexBasis: '47%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 10,
+  },
+  stepPillActive: {
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
+  },
+  stepDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotDone: {
+    backgroundColor: colors.brandBlue,
+    borderColor: colors.brandBlue,
+  },
+  stepLabel: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  stepLabelActive: {
+    color: colors.ink,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  miniMetric: {
+    flex: 1,
+    minHeight: 66,
+    borderRadius: radii.small,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+  },
+  miniMetricValue: {
+    color: colors.ink,
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  miniMetricLabel: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  infoGroup: {
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 12,
+  },
   formCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.medium,
-    padding: 14,
+    padding: 15,
     borderWidth: 1,
     borderColor: colors.line,
-    gap: 10,
+    gap: 11,
+    ...shadows.card,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    marginBottom: 2,
+  },
+  formIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    backgroundColor: colors.brandBlueSoft,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   formTitle: {
     color: colors.ink,
     fontSize: 16,
     fontWeight: '900',
+  },
+  formSubtitle: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    marginTop: 3,
   },
   input: {
     minHeight: 44,
@@ -670,6 +898,12 @@ const styles = StyleSheet.create({
   productList: {
     gap: 10,
   },
+  productListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
   productRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -679,6 +913,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
     padding: 12,
+    ...shadows.card,
   },
   productIcon: {
     width: 36,
@@ -706,10 +941,22 @@ const styles = StyleSheet.create({
   logicList: {
     gap: 12,
   },
+  messagePanel: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
+    padding: 12,
+  },
   message: {
     color: colors.inkMuted,
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 18,
+    flex: 1,
+    minWidth: 0,
   },
 });
