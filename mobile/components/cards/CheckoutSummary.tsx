@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   title: {
     color: colors.surface,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   divider: {
     height: 1,

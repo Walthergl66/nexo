@@ -55,54 +55,6 @@ export function BottomNav({
   return (
     <View style={styles.bottomNav}>
       <View style={styles.bottomNavTrack} onLayout={onLayout}>
-        {navItemWidth > 0 && (
-          <>
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.bottomNavIndent,
-                {
-                  transform: [
-                    { translateX: activeIndentX },
-                    { translateY: activeIndentY },
-                    { scaleX: activeIndentScaleX },
-                    { scaleY: activeIndentScaleY },
-                  ],
-                  opacity: activeIndentOpacity,
-                },
-              ]}
-            >
-              <Animated.View
-                style={[
-                  styles.bottomNavIndentArm,
-                  styles.bottomNavIndentArmLeft,
-                  { transform: [{ rotate: activeIndentLeftRotation }] },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.bottomNavIndentArm,
-                  styles.bottomNavIndentArmRight,
-                  { transform: [{ rotate: activeIndentRightRotation }] },
-                ]}
-              />
-              <Animated.View style={[styles.bottomNavIndentTip, { transform: [{ scale: activeIndentTipScale }] }]} />
-            </Animated.View>
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.bottomNavMovingDot,
-                {
-                  transform: [
-                    { translateX: activeDotX },
-                    { translateY: activeDotY },
-                    { scale: activeDotScale },
-                  ],
-                },
-              ]}
-            />
-          </>
-        )}
         {tabs.map((tab) => {
           const isActive = tab === activeTab;
 
@@ -117,11 +69,11 @@ export function BottomNav({
             >
               {isActive ? (
                 <Animated.View key={tab} style={[styles.bottomNavActiveIcon, { transform: [{ scale: activeIconScale }] }]}>
-                  <Ionicons name={navIcons[tab].active} size={24} color={colors.brandBlue} />
+                  <Ionicons name={navIcons[tab].active} size={24} color={colors.brandBlue} style={styles.bottomNavIconGlyph} />
                   <View pointerEvents="none" style={styles.bottomNavSelectionShadow} />
                 </Animated.View>
               ) : (
-                <Ionicons name={navIcons[tab].inactive} size={24} color={colors.inkSoft} />
+                <Ionicons name={navIcons[tab].inactive} size={24} color={colors.inkSoft} style={styles.bottomNavIconGlyph} />
               )}
             </Pressable>
           );

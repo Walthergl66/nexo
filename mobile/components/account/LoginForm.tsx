@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { colors } from '../../theme/colors';
+import { AuthBrandHeader } from './AuthBrandHeader';
 import { accountStyles as styles } from './accountStyles';
 
 type LoginFormProps = {
   email: string;
   isLoading: boolean;
   isPasswordVisible: boolean;
+  message: string | null;
   password: string;
   onChangeEmail: (value: string) => void;
   onChangePassword: (value: string) => void;
@@ -20,6 +22,7 @@ export function LoginForm({
   email,
   isLoading,
   isPasswordVisible,
+  message,
   password,
   onChangeEmail,
   onChangePassword,
@@ -30,6 +33,10 @@ export function LoginForm({
 }: LoginFormProps) {
   return (
     <View style={styles.accountCard}>
+      <AuthBrandHeader
+        title="Acceso seguro"
+        subtitle="Ingresa a tu cuenta para comprar, vender y gestionar tus pedidos."
+      />
       <TextInput
         autoCapitalize="none"
         keyboardType="email-address"
@@ -59,8 +66,9 @@ export function LoginForm({
       <Pressable disabled={isLoading} style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={onSubmit}>
         {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
       </Pressable>
-      <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]} onPress={onRecoverPassword}>
-        <Text style={styles.secondaryButtonText}>Recuperar contraseña</Text>
+      {message && <Text style={styles.formMessage}>{message}</Text>}
+      <Pressable style={({ pressed }) => [styles.recoveryLink, pressed && styles.recoveryLinkPressed]} onPress={onRecoverPassword}>
+        <Text style={styles.recoveryLinkText}>Recuperar contraseña</Text>
       </Pressable>
     </View>
   );

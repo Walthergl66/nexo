@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     color: colors.ink,
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.8,
   },
   heroVisual: {
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   category: {
     color: colors.brandAccent,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 23,
     lineHeight: 27,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.7,
     marginTop: 4,
   },
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   price: {
     color: colors.ink,
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   optionRow: {
     flexDirection: 'row',
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     color: colors.ink,
-    fontWeight: '800',
+    fontWeight: '600',
     borderBottomWidth: 2,
     borderBottomColor: colors.ink,
   },
@@ -356,6 +356,6 @@ const styles = StyleSheet.create({
   addCartText: {
     color: colors.surface,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
 });

@@ -117,7 +117,7 @@ export function AuthenticatedAccountPanel({
             {products.map((product) => (
               <View key={product.id} style={styles.postTile}>
                 <View style={styles.postTileIcon}>
-                  <Ionicons name={product.available ? 'cube-outline' : 'document-text-outline'} size={24} color={colors.surface} />
+                  <Ionicons name={product.available ? 'cube-outline' : 'document-text-outline'} size={21} color={colors.brandBlue} />
                 </View>
                 <Text numberOfLines={2} style={styles.postTileTitle}>{product.title}</Text>
                 <Text style={styles.postTileMeta}>{formatPrice(product.price)}</Text>
@@ -396,7 +396,7 @@ function Highlight({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; labe
   return (
     <View style={styles.highlightItem}>
       <View style={styles.highlightCircle}>
-        <Ionicons name={icon} size={24} color={colors.brandBlue} />
+        <Ionicons name={icon} size={20} color={colors.brandBlue} />
       </View>
       <Text numberOfLines={1} style={styles.highlightLabel}>{label}</Text>
     </View>

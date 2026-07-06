@@ -305,13 +305,13 @@ const styles = StyleSheet.create({
   introEyebrow: {
     color: colors.brandAccent,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 1.2,
   },
   introTitle: {
     color: colors.ink,
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -1.1,
     marginTop: 4,
   },
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: colors.ink,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   featuredCard: {
     minHeight: 214,
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 24,
     lineHeight: 27,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.8,
     marginTop: 8,
     maxWidth: 190,
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   featuredPrice: {
     color: colors.surface,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
     marginTop: 8,
   },
   featuredButton: {
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   featuredButtonText: {
     color: colors.brandBlue,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   featuredVisual: {
     width: 122,
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   resultsTitle: {
     color: colors.ink,
     fontSize: 19,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.5,
   },
   resultsSubtitle: {
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.ink,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   emptyText: {
     color: colors.inkMuted,

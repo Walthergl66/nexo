@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   summaryTitle: {
     color: colors.ink,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   summarySubtitle: {
     color: colors.inkMuted,
@@ -171,12 +171,12 @@ const styles = StyleSheet.create({
   metricValue: {
     color: colors.ink,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   metricLabel: {
     color: colors.inkMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     marginTop: 3,
   },
   orderList: {

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { genderOptions, type RegisterForm as RegisterFormState } from '../../types/account';
+import { AuthBrandHeader } from './AuthBrandHeader';
 import { accountStyles as styles } from './accountStyles';
 
 type RegisterFormProps = {
@@ -10,6 +11,7 @@ type RegisterFormProps = {
   isGenderOpen: boolean;
   isLoading: boolean;
   isPasswordVisible: boolean;
+  message: string | null;
   passwordError: string | null;
   onChangeField: (key: keyof RegisterFormState, value: string) => void;
   onLookupIdentity: () => void;
@@ -25,6 +27,7 @@ export function RegisterForm({
   isGenderOpen,
   isLoading,
   isPasswordVisible,
+  message,
   passwordError,
   onChangeField,
   onLookupIdentity,
@@ -35,6 +38,10 @@ export function RegisterForm({
 }: RegisterFormProps) {
   return (
     <View style={[styles.accountCard, styles.registerCard]}>
+      <AuthBrandHeader
+        title="Crear cuenta"
+        subtitle="Completa tus datos para activar compras seguras y acceso a ventas."
+      />
       <View style={styles.formSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionKicker}>Identidad</Text>
@@ -180,6 +187,7 @@ export function RegisterForm({
       >
         {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Crear cuenta</Text>}
       </Pressable>
+      {message && <Text style={styles.formMessage}>{message}</Text>}
     </View>
   );
 }

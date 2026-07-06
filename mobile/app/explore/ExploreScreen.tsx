@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: colors.ink,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   avatar: {
     width: 32,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   resultTitle: {
     color: colors.ink,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     marginBottom: 10,
   },

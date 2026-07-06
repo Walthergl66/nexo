@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors, radii } from '../../theme/colors';
+import { colors, radii, shadows } from '../../theme/colors';
 
 export const accountStyles = StyleSheet.create({
   accountCard: {
@@ -8,26 +8,90 @@ export const accountStyles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: colors.line,
+    gap: 12,
+  },
+  authBrandHeader: {
+    flexDirection: 'column',
+    alignItems: 'center',
     gap: 10,
+    paddingBottom: 6,
+  },
+  authBrandHeaderRecovery: {
+    gap: 12,
+    paddingBottom: 12,
+  },
+  authLogoWrap: {
+    width: 74,
+    height: 74,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  authLogoWrapRecovery: {
+    width: 90,
+    height: 90,
+    borderRadius: 28,
+    backgroundColor: colors.brandBlueSoft,
+    borderColor: colors.brandBlueLine,
+    ...shadows.card,
+  },
+  authLogo: {
+    width: 54,
+    height: 54,
+    resizeMode: 'contain',
+  },
+  authLogoRecovery: {
+    width: 66,
+    height: 66,
+  },
+  authBrandCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+    alignItems: 'center',
+  },
+  authBrandCopyRecovery: {
+    gap: 3,
+  },
+  authBrandTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  authBrandSubtitle: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
   profilePage: {
-    gap: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 14,
+    gap: 16,
   },
   socialHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
   },
   socialAvatarWrap: {
     position: 'relative',
   },
   socialAvatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    borderWidth: 3,
-    borderColor: colors.surface,
-    backgroundColor: colors.brandBlueSoft,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -40,9 +104,9 @@ export const accountStyles = StyleSheet.create({
     position: 'absolute',
     right: 2,
     bottom: 4,
-    width: 25,
-    height: 25,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: colors.brandBlue,
     borderWidth: 2,
     borderColor: colors.surface,
@@ -59,12 +123,12 @@ export const accountStyles = StyleSheet.create({
   profileStat: {
     minWidth: 54,
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   profileStatValue: {
     color: colors.ink,
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '700',
   },
   profileStatValueCompact: {
     fontSize: 12,
@@ -72,7 +136,7 @@ export const accountStyles = StyleSheet.create({
   profileStatLabel: {
     color: colors.inkMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   profilePencilButton: {
     width: 38,
@@ -85,21 +149,21 @@ export const accountStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   socialBio: {
-    gap: 6,
+    gap: 7,
   },
   socialBioText: {
     color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 18,
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 19,
   },
   profileImportantStrip: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radii.medium,
+    borderRadius: radii.small,
     padding: 12,
-    gap: 8,
+    gap: 9,
   },
   importantInfoRow: {
     flexDirection: 'row',
@@ -110,7 +174,7 @@ export const accountStyles = StyleSheet.create({
     flex: 1,
     color: colors.ink,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   profileActionRow: {
     flexDirection: 'row',
@@ -119,7 +183,7 @@ export const accountStyles = StyleSheet.create({
   profileActionButton: {
     flex: 1,
     height: 38,
-    borderRadius: radii.small,
+    borderRadius: radii.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
@@ -129,31 +193,35 @@ export const accountStyles = StyleSheet.create({
   profileActionText: {
     color: colors.ink,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   profileHighlights: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   highlightItem: {
-    width: 74,
+    flex: 1,
     alignItems: 'center',
-    gap: 6,
-  },
-  highlightCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: colors.surface,
+    gap: 7,
+    borderRadius: radii.small,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.line,
+    paddingVertical: 11,
+    paddingHorizontal: 8,
+  },
+  highlightCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   highlightLabel: {
     color: colors.inkMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   profileTabs: {
     height: 42,
@@ -176,33 +244,36 @@ export const accountStyles = StyleSheet.create({
   postGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: 8,
   },
   postTile: {
-    width: '32.6%',
-    aspectRatio: 1,
-    backgroundColor: colors.brandBlue,
-    padding: 8,
+    width: '48.7%',
+    minHeight: 116,
+    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
+    padding: 10,
     justifyContent: 'space-between',
   },
   postTileIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.brandBlueSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   postTileTitle: {
-    color: colors.surface,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 14,
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
   },
   postTileMeta: {
-    color: colors.surface,
-    fontSize: 10,
-    fontWeight: '800',
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '500',
   },
   emptyPosts: {
     minHeight: 150,
@@ -214,12 +285,12 @@ export const accountStyles = StyleSheet.create({
   emptyPostsTitle: {
     color: colors.ink,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptyPostsText: {
     color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -287,12 +358,12 @@ export const accountStyles = StyleSheet.create({
   avatarActionText: {
     color: colors.brandBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   avatarActionTextDanger: {
     color: '#9f1239',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   settingsTitleWrap: {
     flex: 1,
@@ -301,7 +372,7 @@ export const accountStyles = StyleSheet.create({
   settingsTitle: {
     color: colors.ink,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   profileHeader: {
     flexDirection: 'row',
@@ -318,8 +389,8 @@ export const accountStyles = StyleSheet.create({
   },
   profileAvatarText: {
     color: colors.brandBlue,
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 23,
+    fontWeight: '700',
   },
   profileHeaderContent: {
     flex: 1,
@@ -343,7 +414,7 @@ export const accountStyles = StyleSheet.create({
   profileSectionTitle: {
     color: colors.ink,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   profileSectionHint: {
     color: colors.inkMuted,
@@ -370,13 +441,13 @@ export const accountStyles = StyleSheet.create({
   profileInfoLabel: {
     color: colors.inkSoft,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   profileInfoValue: {
     color: colors.ink,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   iconActionButton: {
     width: 36,
@@ -437,13 +508,13 @@ export const accountStyles = StyleSheet.create({
   metricLabel: {
     color: colors.inkMuted,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   metricValue: {
     color: colors.ink,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 2,
   },
   registerCard: {
@@ -451,7 +522,7 @@ export const accountStyles = StyleSheet.create({
   },
   accountName: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.ink,
   },
   accountEmail: {
@@ -495,7 +566,7 @@ export const accountStyles = StyleSheet.create({
   switchText: {
     color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   switchTextActive: {
     color: colors.surface,
@@ -528,7 +599,7 @@ export const accountStyles = StyleSheet.create({
   inputLabel: {
     color: colors.ink,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   inputDisabled: {
     backgroundColor: colors.silverSoft,
@@ -565,7 +636,7 @@ export const accountStyles = StyleSheet.create({
   sectionKicker: {
     color: colors.ink,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   sectionHint: {
     color: colors.inkMuted,
@@ -593,7 +664,7 @@ export const accountStyles = StyleSheet.create({
     flex: 1,
     color: colors.ink,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   selectPlaceholder: {
     color: colors.inkSoft,
@@ -624,7 +695,7 @@ export const accountStyles = StyleSheet.create({
     flex: 1,
     color: colors.inkMuted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   selectOptionTextActive: {
     color: colors.brandBlue,
@@ -639,7 +710,7 @@ export const accountStyles = StyleSheet.create({
   },
   lookupButtonText: {
     color: colors.surface,
-    fontWeight: '900',
+    fontWeight: '700',
     fontSize: 12,
   },
   primaryButton: {
@@ -670,11 +741,37 @@ export const accountStyles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.surface,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   secondaryButtonText: {
     color: colors.brandBlue,
-    fontWeight: '900',
+    fontWeight: '700',
+  },
+  recoveryLink: {
+    alignSelf: 'center',
+    minHeight: 34,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recoveryLinkPressed: {
+    opacity: 0.7,
+  },
+  recoveryLinkText: {
+    color: colors.brandBlue,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  formMessage: {
+    color: colors.ink,
+    fontSize: 12,
+    lineHeight: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.small,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
   message: {
     color: colors.inkMuted,
@@ -685,7 +782,7 @@ export const accountStyles = StyleSheet.create({
   errorText: {
     color: '#9f1239',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   validationText: {

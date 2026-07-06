@@ -490,6 +490,7 @@ export function AccountScreen({
           email={loginEmail}
           isLoading={isLoading}
           isPasswordVisible={isLoginPasswordVisible}
+          message={message}
           password={loginPassword}
           onChangeEmail={setLoginEmail}
           onChangePassword={setLoginPassword}
@@ -506,6 +507,7 @@ export function AccountScreen({
           isGenderOpen={isGenderOpen}
           isLoading={isLoading}
           isPasswordVisible={isRegisterPasswordVisible}
+          message={message}
           passwordError={passwordError}
           onChangeField={updateRegisterField}
           onLookupIdentity={handleLookupIdentity}
@@ -519,11 +521,12 @@ export function AccountScreen({
         <PasswordRecoveryForm
           email={recoveryEmail}
           isLoading={isLoading}
+          message={message}
           onChangeEmail={setRecoveryEmail}
+          onBackToLogin={() => handleChangeMode('login')}
           onSubmit={handlePasswordRecovery}
         />
       )}
-      {message && <Text style={styles.message}>{message}</Text>}
     </>
   );
 }

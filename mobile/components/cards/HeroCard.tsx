@@ -39,13 +39,13 @@ const styles = StyleSheet.create({
   brand: {
     color: colors.surfaceSoft,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     marginBottom: 8,
   },
   title: {
     color: colors.surface,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     maxWidth: 170,
   },
   price: {
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: colors.brandBlue,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   figure: {
     width: 128,

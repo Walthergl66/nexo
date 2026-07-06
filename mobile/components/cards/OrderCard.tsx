@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     color: colors.ink,
     lineHeight: 20,
   },

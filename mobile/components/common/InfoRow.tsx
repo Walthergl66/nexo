@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   },
   valueStrong: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   valueStrongInverted: {
     color: colors.surface,

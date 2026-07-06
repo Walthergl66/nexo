@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   labelTitle: {
     fontSize: 6,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   labelLine: {
     fontSize: 4,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     color: colors.ink,
     minHeight: 31,
     lineHeight: 17,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     color: colors.ink,
   },
   priceHint: {
@@ -287,6 +287,6 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: colors.surface,
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
   },
 });

@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   statusTitle: {
     color: colors.ink,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   statusSubtitle: {
     color: colors.inkMuted,
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     color: colors.inkMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   stepLabelActive: {
     color: colors.ink,
@@ -771,12 +771,12 @@ const styles = StyleSheet.create({
   miniMetricValue: {
     color: colors.ink,
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   miniMetricLabel: {
     color: colors.inkMuted,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     marginTop: 3,
   },
   infoGroup: {
@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
   formTitle: {
     color: colors.ink,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   formSubtitle: {
     color: colors.inkMuted,
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
   toggleText: {
     color: colors.ink,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   primaryButton: {
     minHeight: 48,
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.surface,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   buttonDisabled: {
     opacity: 0.72,
@@ -930,7 +930,7 @@ const styles = StyleSheet.create({
   productName: {
     color: colors.ink,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   productMeta: {
     color: colors.inkMuted,
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
   message: {
     color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
     flex: 1,
     minWidth: 0,

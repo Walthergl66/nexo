@@ -21,7 +21,7 @@ export const cartStyles = StyleSheet.create({
   title: {
     color: colors.ink,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   subtitle: {
     color: colors.inkMuted,
@@ -61,7 +61,7 @@ export const cartStyles = StyleSheet.create({
   itemTitle: {
     color: colors.ink,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   itemMeta: {
     color: colors.inkMuted,
@@ -71,7 +71,7 @@ export const cartStyles = StyleSheet.create({
   itemPrice: {
     color: colors.brandBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 6,
   },
   itemActions: {
@@ -93,7 +93,7 @@ export const cartStyles = StyleSheet.create({
   quantity: {
     color: colors.ink,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   removeButton: {
     width: 26,
@@ -117,7 +117,7 @@ export const cartStyles = StyleSheet.create({
   summaryTitle: {
     color: colors.ink,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   divider: {
     height: 1,
@@ -142,7 +142,7 @@ export const cartStyles = StyleSheet.create({
   },
   checkoutText: {
     color: colors.surface,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -164,7 +164,7 @@ export const cartStyles = StyleSheet.create({
   emptyTitle: {
     color: colors.ink,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptyText: {
     color: colors.inkMuted,
@@ -181,6 +181,6 @@ export const cartStyles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.surface,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 });
