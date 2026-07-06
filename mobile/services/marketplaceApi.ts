@@ -167,6 +167,23 @@ export type SellerVerificationResource = {
   status: string;
 };
 
+export type SellerCenterState =
+  | 'verification_required'
+  | 'verification_pending'
+  | 'verification_rejected'
+  | 'seller_suspended'
+  | 'store_required'
+  | 'store_suspended'
+  | 'catalog_required'
+  | 'catalog_ready';
+
+export type SellerCenterResource = {
+  state: SellerCenterState;
+  profile: ProfileResource;
+  products: Product[];
+  store: StoreResource | null;
+};
+
 export async function fetchCart(token?: string): Promise<CartItem[]> {
   if (!token) {
     return [];
@@ -267,6 +284,26 @@ export async function fetchMyStore(token?: string): Promise<{
   }>>('/my-store', { token });
 
   return response.data;
+}
+
+export async function fetchSellerCenter(token?: string): Promise<SellerCenterResource | null> {
+  if (!token) {
+    return null;
+  }
+
+  const response = await request<ApiDocument<{
+    state: SellerCenterState;
+    profile: ProfileResource;
+    products: unknown[];
+    store: StoreResource | null;
+  }>>('/seller-center', { token, timeoutMs: 12000 });
+
+  return {
+    state: response.data.state,
+    profile: response.data.profile,
+    products: response.data.products.map(mapApiProductToProduct),
+    store: response.data.store,
+  };
 }
 
 export async function submitSellerVerification(

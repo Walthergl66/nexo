@@ -22,6 +22,7 @@ use App\Modules\Profiles\Http\Controllers\LookupIdentityController;
 use App\Modules\Profiles\Http\Controllers\MeController;
 use App\Modules\Sellers\Http\Controllers\ListSellerVerificationRequestsController;
 use App\Modules\Sellers\Http\Controllers\ReviewSellerVerificationRequestController;
+use App\Modules\Sellers\Http\Controllers\SellerCenterController;
 use App\Modules\Sellers\Http\Controllers\SubmitSellerVerificationRequestController;
 use App\Modules\Stores\Http\Controllers\CreateStoreController;
 use App\Modules\Stores\Http\Controllers\ListStoresController;
@@ -43,6 +44,7 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::patch('/me/profile', CompleteProfileController::class);
 
     Route::post('/seller-verification/request', SubmitSellerVerificationRequestController::class);
+    Route::get('/seller-center', SellerCenterController::class);
 
     Route::get('/my-store', MyStoreController::class);
     Route::post('/stores', CreateStoreController::class);

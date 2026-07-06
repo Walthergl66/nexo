@@ -80,6 +80,7 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * Cada vendedor aprobado puede tener una sola tienda en `stores`.
 * Como la verificación del vendedor ya es el control principal, una tienda nueva creada por un seller aprobado inicia con `store_status=active`.
 * Los listados públicos de tiendas solo muestran tiendas `active`.
+* `GET /api/seller-center` entrega el estado unificado del centro de ventas por usuario, derivado de `profiles`, `stores` y productos, para evitar inconsistencias entre pantallas.
 * Las categorías se administran por admin y solo las categorías `active` aparecen en listados públicos.
 * Los productos pertenecen a una tienda y pueden tener una categoría opcional.
 * Los precios de productos se guardan como enteros en centavos (`price_cents`) y moneda ISO de 3 letras (`currency`).

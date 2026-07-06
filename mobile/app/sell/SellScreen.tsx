@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
@@ -8,11 +9,11 @@ import { Tag } from '../../components/common/Tag';
 import {
   createProduct,
   createStore,
-  fetchMyProducts,
-  fetchMyStore,
   fetchProfile,
+  fetchSellerCenter,
   submitSellerVerification,
   type ProfileResource,
+  type SellerCenterState,
   type StoreResource,
 } from '../../services/marketplaceApi';
 import { colors, radii, shadows } from '../../theme/colors';
@@ -67,6 +68,8 @@ const initialProductForm: ProductForm = {
   publishNow: false,
 };
 
+const SELLER_STATE_CACHE_KEY_PREFIX = 'nexo.seller-state.v1.';
+
 export function SellScreen({
   accessToken,
   profile,
@@ -76,6 +79,7 @@ export function SellScreen({
 }: SellScreenProps) {
   const [store, setStore] = useState<StoreResource | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [sellerState, setSellerState] = useState<SellerCenterState | null>(null);
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
   const [productForm, setProductForm] = useState(initialProductForm);
@@ -87,28 +91,45 @@ export function SellScreen({
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
   const activeProducts = products.filter((product) => product.available).length;
   const draftProducts = Math.max(0, products.length - activeProducts);
+  const sellerCacheKey = profile ? `${SELLER_STATE_CACHE_KEY_PREFIX}${profile.id}` : null;
 
   const loadSellerState = useCallback(async () => {
     if (!accessToken || !profile) {
       setStore(null);
       setProducts([]);
+      setSellerState(null);
       return;
     }
 
-    if (!isApprovedSeller) {
-      setStore(null);
-      setProducts([]);
+    if (sellerCacheKey) {
+      const cachedState = await getCachedSellerState(sellerCacheKey);
+
+      if (cachedState) {
+        setStore(cachedState.store);
+        setProducts(cachedState.products);
+        setSellerState(cachedState.sellerState);
+      }
+    }
+
+    const nextCenter = await fetchSellerCenter(accessToken);
+
+    if (!nextCenter) {
       return;
     }
 
-    const [nextStore, nextProducts] = await Promise.all([
-      fetchMyStore(accessToken).catch(() => null),
-      fetchMyProducts(accessToken).catch(() => []),
-    ]);
+    setStore(nextCenter.store);
+    setProducts(nextCenter.products);
+    setSellerState(nextCenter.state);
+    onProfileChange(nextCenter.profile);
 
-    setStore(nextStore);
-    setProducts(nextProducts);
-  }, [accessToken, isApprovedSeller, profile]);
+    if (sellerCacheKey) {
+      cacheSellerState(sellerCacheKey, {
+        sellerState: nextCenter.state,
+        store: nextCenter.store,
+        products: nextCenter.products,
+      });
+    }
+  }, [accessToken, onProfileChange, profile, sellerCacheKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -133,28 +154,24 @@ export function SellScreen({
       return 'Cargando cuenta';
     }
 
-    if (profile.role === 'buyer' && profile.verification_status === 'pending' && !hasPendingVerificationRequest) {
-      return 'Solicitar validacion';
+    switch (sellerState) {
+      case 'verification_pending':
+        return 'Revision pendiente';
+      case 'verification_rejected':
+        return 'Verificacion rechazada';
+      case 'seller_suspended':
+        return 'Vendedor suspendido';
+      case 'store_required':
+        return 'Crear tienda';
+      case 'store_suspended':
+        return 'Tienda suspendida';
+      case 'catalog_required':
+      case 'catalog_ready':
+        return 'Publicar productos';
+      default:
+        return hasPendingVerificationRequest ? 'Revision pendiente' : 'Solicitar validacion';
     }
-
-    if (profile.verification_status === 'pending') {
-      return 'Revision pendiente';
-    }
-
-    if (profile.verification_status === 'rejected') {
-      return 'Verificacion rechazada';
-    }
-
-    if (profile.verification_status === 'suspended') {
-      return 'Vendedor suspendido';
-    }
-
-    if (!store) {
-      return 'Crear tienda';
-    }
-
-    return 'Publicar productos';
-  }, [hasPendingVerificationRequest, isAuthenticated, isProfileLoading, profile, store]);
+  }, [hasPendingVerificationRequest, isAuthenticated, isProfileLoading, profile, sellerState]);
 
   const handleRequestVerification = async () => {
     if (!accessToken) {
@@ -181,6 +198,7 @@ export function SellScreen({
       const nextProfile = await fetchProfile(accessToken).catch(() => profile);
       onProfileChange(nextProfile);
       setHasPendingVerificationRequest(true);
+      setSellerState('verification_pending');
       setVerificationForm(initialVerificationForm);
       await loadSellerState();
       setMessage('Solicitud enviada. Un administrador debe revisarla.');
@@ -212,6 +230,10 @@ export function SellScreen({
         description: storeForm.description.trim() || null,
       });
       setStore(nextStore);
+      setSellerState('catalog_required');
+      if (sellerCacheKey) {
+        cacheSellerState(sellerCacheKey, { sellerState: 'catalog_required', store: nextStore, products });
+      }
       setStoreForm(initialStoreForm);
       setMessage('Tienda creada y activa.');
     } catch (error) {
@@ -256,7 +278,17 @@ export function SellScreen({
         stock,
         status: productForm.publishNow ? 'active' : 'draft',
       });
-      setProducts((current) => [nextProduct, ...current]);
+      setProducts((current) => {
+        const nextProducts = [nextProduct, ...current];
+        const nextState = nextProducts.length > 0 ? 'catalog_ready' : 'catalog_required';
+
+        setSellerState(nextState);
+        if (sellerCacheKey) {
+          cacheSellerState(sellerCacheKey, { sellerState: nextState, store, products: nextProducts });
+        }
+
+        return nextProducts;
+      });
       setProductForm(initialProductForm);
       setMessage(productForm.publishNow ? 'Producto publicado.' : 'Producto guardado como borrador.');
     } catch (error) {
@@ -348,7 +380,7 @@ export function SellScreen({
         </View>
       )}
 
-      {profile.role === 'buyer' && profile.verification_status === 'pending' && !hasPendingVerificationRequest ? (
+      {(sellerState === 'verification_required' || (!sellerState && profile.role === 'buyer' && profile.verification_status === 'pending')) && !hasPendingVerificationRequest ? (
         <View style={styles.formCard}>
           <FormHeader
             icon="shield-checkmark-outline"
@@ -398,14 +430,14 @@ export function SellScreen({
         </View>
       ) : null}
 
-      {hasPendingVerificationRequest && (
+      {(hasPendingVerificationRequest || sellerState === 'verification_pending') && (
         <LogicCard
           title="Solicitud en revision"
           description="Tu cuenta sigue como buyer hasta que un administrador apruebe la validacion de vendedor."
         />
       )}
 
-      {profile?.verification_status === 'rejected' && (
+      {sellerState === 'verification_rejected' && (
         <>
           <LogicCard
             title="Solicitud rechazada"
@@ -461,14 +493,21 @@ export function SellScreen({
         </>
       )}
 
-      {profile?.verification_status === 'suspended' && (
+      {sellerState === 'seller_suspended' && (
         <LogicCard
           title="Venta pausada"
           description="Tu tienda queda fuera del catalogo publico hasta que un administrador revise la suspension."
         />
       )}
 
-      {isApprovedSeller && !store && (
+      {sellerState === 'store_suspended' && (
+        <LogicCard
+          title="Tienda pausada"
+          description="Tu tienda queda fuera del catalogo publico y no puede vender hasta que un administrador la reactive."
+        />
+      )}
+
+      {sellerState === 'store_required' && (
         <View style={styles.formCard}>
           <FormHeader
             icon="business-outline"
@@ -494,7 +533,7 @@ export function SellScreen({
         </View>
       )}
 
-      {canCreateProducts && (
+      {(sellerState === 'catalog_required' || sellerState === 'catalog_ready') && canCreateProducts && (
         <View style={styles.formCard}>
           <FormHeader
             icon="pricetag-outline"
@@ -578,6 +617,53 @@ export function SellScreen({
 
     </>
   );
+}
+
+type CachedSellerState = {
+  products: Product[];
+  sellerState: SellerCenterState | null;
+  store: StoreResource | null;
+};
+
+async function getCachedSellerState(key: string): Promise<CachedSellerState | null> {
+  try {
+    const rawValue = await AsyncStorage.getItem(key);
+
+    if (!rawValue) {
+      return null;
+    }
+
+    const cached = JSON.parse(rawValue) as Partial<CachedSellerState>;
+
+    return {
+      products: Array.isArray(cached.products) ? cached.products : [],
+      sellerState: isSellerCenterState(cached.sellerState) ? cached.sellerState : null,
+      store: cached.store ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isSellerCenterState(value: unknown): value is SellerCenterState {
+  return (
+    value === 'verification_required'
+    || value === 'verification_pending'
+    || value === 'verification_rejected'
+    || value === 'seller_suspended'
+    || value === 'store_required'
+    || value === 'store_suspended'
+    || value === 'catalog_required'
+    || value === 'catalog_ready'
+  );
+}
+
+async function cacheSellerState(key: string, state: CachedSellerState): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(state));
+  } catch {
+    return;
+  }
 }
 
 type PrimaryButtonProps = {
