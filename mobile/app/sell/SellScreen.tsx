@@ -461,7 +461,7 @@ export function SellScreen({
     );
   }
 
-  if (isProfileLoading || !profile) {
+  if (!profile) {
     return (
       <>
         <SectionTitle title="Centro de ventas" subtitle="Cargando tus opciones de venta." />
