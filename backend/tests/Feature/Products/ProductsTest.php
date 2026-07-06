@@ -136,6 +136,19 @@ class ProductsTest extends TestCase
             ->assertJsonPath('data.0.slug', 'producto-activo');
     }
 
+    public function test_seller_without_store_gets_empty_my_products_list(): void
+    {
+        $seller = $this->profile([
+            'role' => Profile::ROLE_SELLER,
+            'verification_status' => Profile::VERIFICATION_APPROVED,
+        ]);
+
+        $this->withToken($this->tokenFor($seller))
+            ->getJson('/api/my-products')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
     public function test_non_owner_cannot_update_product(): void
     {
         [, $store] = $this->sellerWithStore();
