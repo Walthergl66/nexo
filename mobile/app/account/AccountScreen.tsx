@@ -453,9 +453,11 @@ export function AccountScreen({
     return (
       <>
         <AuthenticatedAccountPanel
+          isLoggingOut={isLoading}
           message={message}
           products={profileProducts}
           profile={profile}
+          onLogout={handleLogout}
           onOpenSettings={() => setAccountView('settings')}
           onSell={onSell}
         />

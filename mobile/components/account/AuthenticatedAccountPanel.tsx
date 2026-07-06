@@ -9,25 +9,40 @@ import { colors } from '../../theme/colors';
 import { accountStyles as styles } from './accountStyles';
 
 type AuthenticatedAccountPanelProps = {
+  isLoggingOut: boolean;
   message: string | null;
   products: Product[];
   profile: ProfileResource;
+  onLogout: () => void;
   onOpenSettings: () => void;
   onSell: () => void;
 };
 
 export function AuthenticatedAccountPanel({
+  isLoggingOut,
   message,
   products,
   profile,
+  onLogout,
   onOpenSettings,
   onSell,
 }: AuthenticatedAccountPanelProps) {
   const canRequestSellerVerification = profile.role === 'buyer' && profile.verification_status !== 'suspended';
   const initials = useMemo(() => getInitials(profile), [profile]);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const roleLabel = getRoleLabel(profile.role);
   const statusLabel = getVerificationLabel(profile.verification_status);
   const publishedProducts = products.filter((product) => product.available);
+
+  const handleOpenSettings = () => {
+    setIsProfileMenuOpen(false);
+    onOpenSettings();
+  };
+
+  const handleLogout = () => {
+    setIsProfileMenuOpen(false);
+    onLogout();
+  };
 
   return (
     <>
@@ -54,13 +69,44 @@ export function AuthenticatedAccountPanel({
             <ProfileStat label="rol" value={roleLabel} compact />
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.profilePencilButton, pressed && styles.buttonPressed]}
-            onPress={onOpenSettings}
-          >
-            <Ionicons name="create-outline" size={20} color={colors.ink} />
-          </Pressable>
+          <View style={styles.profileHeaderActions}>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.profilePencilButton, pressed && styles.buttonPressed]}
+              onPress={() => setIsProfileMenuOpen((current) => !current)}
+            >
+              <Ionicons name="settings-outline" size={20} color={colors.ink} />
+            </Pressable>
+            {isProfileMenuOpen && (
+              <View style={styles.profileOptionsMenu}>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.profileOptionItem, pressed && styles.profileOptionItemPressed]}
+                  onPress={handleOpenSettings}
+                >
+                  <Ionicons name="create-outline" size={17} color={colors.ink} />
+                  <Text style={styles.profileOptionText}>Editar perfil</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isLoggingOut}
+                  style={({ pressed }) => [
+                    styles.profileOptionItem,
+                    pressed && styles.profileOptionItemPressed,
+                    isLoggingOut && styles.buttonDisabled,
+                  ]}
+                  onPress={handleLogout}
+                >
+                  {isLoggingOut ? (
+                    <ActivityIndicator size="small" color="#9f1239" />
+                  ) : (
+                    <Ionicons name="log-out-outline" size={17} color="#9f1239" />
+                  )}
+                  <Text style={styles.profileOptionTextDanger}>Cerrar sesion</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.socialBio}>

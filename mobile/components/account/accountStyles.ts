@@ -81,6 +81,7 @@ export const accountStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    zIndex: 30,
   },
   socialAvatarWrap: {
     position: 'relative',
@@ -147,6 +148,45 @@ export const accountStyles = StyleSheet.create({
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  profileHeaderActions: {
+    position: 'relative',
+    zIndex: 40,
+  },
+  profileOptionsMenu: {
+    position: 'absolute',
+    top: 46,
+    right: 0,
+    zIndex: 50,
+    width: 176,
+    borderRadius: radii.small,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 6,
+    gap: 2,
+    ...shadows.card,
+  },
+  profileOptionItem: {
+    minHeight: 38,
+    borderRadius: radii.small,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  profileOptionItemPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  profileOptionText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  profileOptionTextDanger: {
+    color: '#9f1239',
+    fontSize: 12,
+    fontWeight: '700',
   },
   socialBio: {
     gap: 7,
