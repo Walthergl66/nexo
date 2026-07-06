@@ -6,6 +6,7 @@ import {
   Boxes,
   CheckCircle2,
   ClipboardCheck,
+  Trash2,
   FolderTree,
   LayoutDashboard,
   LogOut,
@@ -21,6 +22,7 @@ import type { ComponentType } from 'react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createCategory,
+  deleteStore,
   fetchCategories,
   fetchAdminStores,
   fetchMe,
@@ -670,6 +672,28 @@ function StoresPanel({
     }
   }
 
+  async function removeStore(store: Store) {
+    const confirmed = window.confirm(
+      `Eliminar la tienda "${store.name}" tambien eliminara sus productos activos y borradores. Las ordenes conservaran el historial como snapshot. ¿Continuar?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setBusySlug(store.slug);
+    onError(null);
+
+    try {
+      await deleteStore(token, store.slug);
+      await onChanged();
+    } catch (caughtError) {
+      onError(toErrorMessage(caughtError));
+    } finally {
+      setBusySlug(null);
+    }
+  }
+
   return (
     <section className="panel">
       <div className="panel-header">
@@ -700,9 +724,15 @@ function StoresPanel({
                   <StatusBadge status={store.status} />
                 </td>
                 <td>
-                  <button className="button" type="button" disabled={busySlug === store.slug} onClick={() => toggleStore(store)}>
-                    {store.status === 'active' ? 'Suspender' : 'Reactivar'}
-                  </button>
+                  <div className="toolbar">
+                    <button className="button" type="button" disabled={busySlug === store.slug} onClick={() => toggleStore(store)}>
+                      {store.status === 'active' ? 'Suspender' : 'Reactivar'}
+                    </button>
+                    <button className="button danger" type="button" disabled={busySlug === store.slug} onClick={() => removeStore(store)}>
+                      <Trash2 size={16} />
+                      Eliminar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -158,3 +158,10 @@ export async function updateStoreStatus(token: string, slug: string, status: 'ac
 
   return response.data;
 }
+
+export async function deleteStore(token: string, slug: string): Promise<void> {
+  await request<void>(`/admin/stores/${slug}`, {
+    method: 'DELETE',
+    token,
+  });
+}

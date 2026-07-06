@@ -25,6 +25,7 @@ use App\Modules\Sellers\Http\Controllers\ReviewSellerVerificationRequestControll
 use App\Modules\Sellers\Http\Controllers\SellerCenterController;
 use App\Modules\Sellers\Http\Controllers\SubmitSellerVerificationRequestController;
 use App\Modules\Stores\Http\Controllers\CreateStoreController;
+use App\Modules\Stores\Http\Controllers\Admin\DeleteStoreController;
 use App\Modules\Stores\Http\Controllers\Admin\ListStoresController as AdminListStoresController;
 use App\Modules\Stores\Http\Controllers\Admin\UpdateStoreStatusController;
 use App\Modules\Stores\Http\Controllers\ListStoresController;
@@ -72,4 +73,5 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::patch('/admin/categories/{category}', UpdateCategoryController::class);
     Route::get('/admin/stores', AdminListStoresController::class);
     Route::patch('/admin/stores/{store}', UpdateStoreStatusController::class);
+    Route::delete('/admin/stores/{store}', DeleteStoreController::class);
 });

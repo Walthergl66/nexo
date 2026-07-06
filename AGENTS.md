@@ -163,7 +163,8 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * El contrato OpenAPI se mantiene en `docs/openapi.json` y se sirve sin paquete externo de Swagger.
 * `admin/` autentica con Supabase Auth, valida el rol `admin` contra `GET /api/me` y consume endpoints administrativos de Laravel con el JWT de Supabase.
 * `admin/` gestiona solicitudes de vendedor, categorías y estado de tiendas con endpoints administrativos; los módulos de moderación de publicaciones, bloqueo de usuarios y advertencias quedan preparados hasta que existan endpoints administrativos dedicados en Laravel.
-* `PATCH /api/admin/stores/{store}` permite al rol admin suspender o reactivar tiendas cambiando `store_status` entre `active` y `suspended`; no se borran físicamente tiendas para conservar histórico operativo.
+* `PATCH /api/admin/stores/{store}` permite al rol admin suspender o reactivar tiendas cambiando `store_status` entre `active` y `suspended`.
+* `DELETE /api/admin/stores/{store}` permite al rol admin eliminar una tienda; sus productos se eliminan por cascada y las órdenes conservan snapshots de nombres/precios con referencias nulas.
 
 ## Módulos principales
 
