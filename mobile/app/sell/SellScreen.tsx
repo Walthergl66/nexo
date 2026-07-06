@@ -270,6 +270,7 @@ export function SellScreen({
       setStoreForm(initialStoreForm);
       setMessage('Tienda creada y activa.');
     } catch (error) {
+      await loadSellerState().catch(() => undefined);
       setMessage(error instanceof Error ? error.message : 'No se pudo crear la tienda.');
     } finally {
       setIsLoading(false);

@@ -17,13 +17,13 @@ class StoreService
     {
         if (! $profile->isVerifiedSeller()) {
             throw ValidationException::withMessages([
-                'profile' => 'Only approved sellers can create stores.',
+                'profile' => 'Solo vendedores aprobados pueden crear tiendas.',
             ]);
         }
 
         if ($profile->store()->exists()) {
             throw ValidationException::withMessages([
-                'profile' => 'This seller already has a store.',
+                'profile' => 'Este vendedor ya tiene una tienda activa o registrada.',
             ]);
         }
 

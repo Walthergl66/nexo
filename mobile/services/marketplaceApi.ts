@@ -80,7 +80,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 async function getApiErrorMessage(response: Response): Promise<string> {
   try {
-    const payload = await response.json() as { message?: unknown; errors?: unknown };
+    const payload = await response.json() as { message?: unknown; errors?: Record<string, unknown> };
+
+    if (payload.errors && Object.keys(payload.errors).length > 0) {
+      const errorMessages = Object.values(payload.errors)
+        .flatMap((value) => (Array.isArray(value) ? value : [value]))
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      if (errorMessages.length > 0) {
+        return errorMessages.map(toPublicErrorMessage).join(' ');
+      }
+    }
 
     if (typeof payload.message === 'string' && payload.message.trim().length > 0) {
       return toPublicErrorMessage(payload.message);
