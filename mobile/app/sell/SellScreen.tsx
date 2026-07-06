@@ -98,17 +98,31 @@ export function SellScreen({
       return;
     }
 
+    let usedCachedState = false;
+
     if (sellerCacheKey) {
       const cachedState = await getCachedSellerState(sellerCacheKey);
 
       if (cachedState) {
+        usedCachedState = true;
         setStore(cachedState.store);
         setProducts(cachedState.products);
         setSellerState(cachedState.sellerState);
+        setMessage(null);
       }
     }
 
-    const nextCenter = await fetchSellerCenter(accessToken);
+    let nextCenter;
+
+    try {
+      nextCenter = await fetchSellerCenter(accessToken);
+    } catch (error) {
+      if (usedCachedState) {
+        return;
+      }
+
+      throw error;
+    }
 
     if (!nextCenter) {
       return;
@@ -117,6 +131,7 @@ export function SellScreen({
     setStore(nextCenter.store);
     setProducts(nextCenter.products);
     setSellerState(nextCenter.state);
+    setMessage(null);
     onProfileChange(nextCenter.profile);
 
     if (sellerCacheKey) {
