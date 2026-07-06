@@ -11,7 +11,6 @@ type RegisterFormProps = {
   isGenderOpen: boolean;
   isLoading: boolean;
   isPasswordVisible: boolean;
-  message: string | null;
   passwordError: string | null;
   onChangeField: (key: keyof RegisterFormState, value: string) => void;
   onLookupIdentity: () => void;
@@ -27,7 +26,6 @@ export function RegisterForm({
   isGenderOpen,
   isLoading,
   isPasswordVisible,
-  message,
   passwordError,
   onChangeField,
   onLookupIdentity,
@@ -187,7 +185,6 @@ export function RegisterForm({
       >
         {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Crear cuenta</Text>}
       </Pressable>
-      {message && <Text style={styles.formMessage}>{message}</Text>}
     </View>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { AmbientBackground } from './components/common/AmbientBackground';
+import { StatusToast } from './components/common/StatusToast';
 import { AppHeader } from './components/navigation/AppHeader';
 import { BottomNav } from './components/navigation/BottomNav';
 import { bottomNavDotSize, bottomNavHorizontalPadding } from './components/navigation/navigationStyles';
@@ -36,6 +37,7 @@ import {
 import { getCurrentSession, onAuthStateChange, openPasswordRecoverySession } from './services/authService';
 import { colors } from './theme/colors';
 import type { CartItem, Product, TabKey } from './types/marketplace';
+import type { StatusMessage, StatusTone } from './types/status';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -51,6 +53,7 @@ export default function App() {
   const [profile, setProfile] = useState<ProfileResource | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [statusToast, setStatusToast] = useState<StatusMessage | null>(null);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const [passwordResetKey, setPasswordResetKey] = useState(0);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
@@ -78,6 +81,26 @@ export default function App() {
   const isProductPresentation = activeTab === 'Inicio';
   const isAuthenticated = accessToken !== null;
   const hasBusinessProfile = isAuthenticated && profile !== null;
+
+  useEffect(() => {
+    if (statusToast === null) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setStatusToast(null);
+    }, 4200);
+
+    return () => clearTimeout(timeoutId);
+  }, [statusToast]);
+
+  const handleStatusMessage = useCallback((text: string, tone: StatusTone) => {
+    setStatusToast({ text, tone });
+  }, []);
+
+  const handleClearStatusMessage = useCallback(() => {
+    setStatusToast(null);
+  }, []);
   const visibleTabs = useMemo<TabKey[]>(
     () => (hasBusinessProfile ? tabs : ['Inicio', 'Cuenta']),
     [hasBusinessProfile],
@@ -741,6 +764,8 @@ export default function App() {
             profile={profile}
             profileError={profileError}
             isProfileLoading={isProfileLoading}
+            onClearStatusMessage={handleClearStatusMessage}
+            onStatusMessage={handleStatusMessage}
             onExplore={() => setActiveTab('Inicio')}
             passwordResetKey={passwordResetKey}
             onProfileChange={setProfile}
@@ -790,6 +815,8 @@ export default function App() {
             {renderActiveScreen()}
           </Animated.View>
         </Animated.ScrollView>
+
+        <StatusToast status={statusToast} />
 
         <BottomNav
           activeDotScale={activeDotScale}

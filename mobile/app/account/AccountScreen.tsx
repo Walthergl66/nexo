@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Text } from 'react-native';
 import { AccountModeSwitch } from '../../components/account/AccountModeSwitch';
 import { accountStyles as styles } from '../../components/account/accountStyles';
 import { AccountUnavailablePanel, ProfileLoadingPanel, ProfileSyncErrorPanel } from '../../components/account/AccountStatusPanels';
@@ -22,6 +21,7 @@ import { sendPasswordResetEmail, signInWithEmail, signOut, signUpWithEmail, upda
 import { deleteProfileAvatar, pickProfileAvatar, uploadProfileAvatar } from '../../services/profileAvatarService';
 import { initialRegisterForm, type AccountMode, type RegisterForm as RegisterFormState } from '../../types/account';
 import type { Product } from '../../types/marketplace';
+import type { StatusTone } from '../../types/status';
 import { validatePassword, validateRegisterForm } from '../../utils/accountValidation';
 
 type AccountScreenProps = {
@@ -29,6 +29,8 @@ type AccountScreenProps = {
   profile: ProfileResource | null;
   profileError: string | null;
   isProfileLoading: boolean;
+  onClearStatusMessage?: () => void;
+  onStatusMessage?: (message: string, tone: StatusTone) => void;
   onExplore: () => void;
   onProfileChange: (profile: ProfileResource | null) => void;
   passwordResetKey: number;
@@ -41,6 +43,8 @@ export function AccountScreen({
   profile,
   profileError,
   isProfileLoading,
+  onClearStatusMessage,
+  onStatusMessage,
   onExplore,
   onProfileChange,
   passwordResetKey,
@@ -65,15 +69,22 @@ export function AccountScreen({
   const [accountView, setAccountView] = useState<'profile' | 'settings'>('profile');
   const [profileProducts, setProfileProducts] = useState<Product[]>([]);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   const isGuest = accessToken === null;
   const passwordError = useMemo(() => validatePassword(registerForm.password), [registerForm.password]);
   const resetPasswordError = useMemo(() => validatePassword(resetPassword), [resetPassword]);
 
+  const showMessage = (text: string, tone: StatusTone) => {
+    onStatusMessage?.(text, tone);
+  };
+
+  const clearMessage = () => {
+    onClearStatusMessage?.();
+  };
+
   useEffect(() => {
     if (passwordResetKey > 0) {
-      setMessage(null);
+      clearMessage();
       setMode('reset');
     }
   }, [passwordResetKey]);
@@ -115,22 +126,22 @@ export function AccountScreen({
 
   const handleChangeMode = (nextMode: AccountMode) => {
     setIsGenderOpen(false);
-    setMessage(null);
+    clearMessage();
     setMode(nextMode);
   };
 
   const handleOpenPasswordRecovery = () => {
     setRecoveryEmail((current) => current || loginEmail);
-    setMessage(null);
+    clearMessage();
     setMode('recovery');
   };
 
   const handleLookupIdentity = async () => {
-    setMessage(null);
+    clearMessage();
 
     if (!/^\d{10}$/.test(registerForm.nationalId)) {
       setIdentity(null);
-      setMessage('La cedula debe tener exactamente 10 digitos.');
+      showMessage('La cedula debe tener exactamente 10 digitos.', 'error');
       return;
     }
 
@@ -146,39 +157,40 @@ export function AccountScreen({
         lastName: data.last_name ?? '',
         age: data.age === null ? '' : String(data.age),
       }));
-      setMessage('Cedula validada.');
+      showMessage('Cedula validada.', 'success');
     } catch (error) {
       setIdentity(null);
-      setMessage(error instanceof Error ? error.message : 'No se pudo validar la cedula.');
+      showMessage(error instanceof Error ? error.message : 'No se pudo validar la cedula.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleLogin = async () => {
-    setMessage(null);
+    clearMessage();
     setIsLoading(true);
 
     try {
       const session = await signInWithEmail(loginEmail, loginPassword);
       setLoginPassword('');
-      setMessage(
+      showMessage(
         session?.access_token
           ? 'Sesion iniciada. Cargando tu cuenta...'
           : 'Credenciales aceptadas. Revisa tu correo si necesitas confirmar tu cuenta.',
+        'success',
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No se pudo iniciar sesion.');
+      showMessage(error instanceof Error ? error.message : 'No se pudo iniciar sesion.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handlePasswordRecovery = async () => {
-    setMessage(null);
+    clearMessage();
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
-      setMessage('Ingresa un correo valido.');
+      showMessage('Ingresa un correo valido.', 'error');
       return;
     }
 
@@ -186,30 +198,30 @@ export function AccountScreen({
 
     try {
       await sendPasswordResetEmail(recoveryEmail);
-      setMessage('Te enviamos un enlace para recuperar tu contraseña.');
+      showMessage('Te enviamos un enlace para recuperar tu contraseña.', 'success');
       setMode('login');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No se pudo enviar el enlace de recuperacion.');
+      showMessage(error instanceof Error ? error.message : 'No se pudo enviar el enlace de recuperacion.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleResetPassword = async () => {
-    setMessage(null);
+    clearMessage();
 
     if (resetPassword.length === 0) {
-      setMessage('Ingresa una nueva contraseña.');
+      showMessage('Ingresa una nueva contraseña.', 'error');
       return;
     }
 
     if (resetPasswordError !== null) {
-      setMessage(resetPasswordError);
+      showMessage(resetPasswordError, 'error');
       return;
     }
 
     if (resetPassword !== resetPasswordConfirmation) {
-      setMessage('Las contraseñas no coinciden.');
+      showMessage('Las contraseñas no coinciden.', 'error');
       return;
     }
 
@@ -222,20 +234,20 @@ export function AccountScreen({
       setResetPasswordConfirmation('');
       onProfileChange(null);
       setMode('login');
-      setMessage('Tu contraseña fue actualizada. Ya puedes iniciar sesion.');
+      showMessage('Tu contraseña fue actualizada. Ya puedes iniciar sesion.', 'success');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu contraseña  .');
+      showMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu contraseña.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleRegister = async () => {
-    setMessage(null);
+    clearMessage();
     const validationMessage = validateRegisterForm({ form: registerForm, passwordError, identity });
 
     if (validationMessage !== null) {
-      setMessage(validationMessage);
+      showMessage(validationMessage, 'error');
       return;
     }
 
@@ -245,12 +257,12 @@ export function AccountScreen({
       const availability = await checkProfileAvailability(registerForm.email, registerForm.nationalId);
 
       if (!availability.email_available) {
-        setMessage('Ese correo ya esta registrado en nexo.');
+        showMessage('Ese correo ya esta registrado en nexo.', 'error');
         return;
       }
 
       if (!availability.national_id_available) {
-        setMessage('Esa cedula ya esta registrada en nexo.');
+        showMessage('Esa cedula ya esta registrada en nexo.', 'error');
         return;
       }
 
@@ -275,9 +287,9 @@ export function AccountScreen({
           phone: registerForm.phone,
         });
         onProfileChange(nextProfile);
-        setMessage('Cuenta creada y perfil completado.');
+        showMessage('Cuenta creada y perfil completado.', 'success');
       } else {
-        setMessage('Cuenta creada. Revisa tu correo para confirmar la cuenta antes de iniciar sesion.');
+        showMessage('Cuenta creada. Revisa tu correo para confirmar la cuenta antes de iniciar sesion.', 'success');
       }
 
       setRegisterForm(initialRegisterForm);
@@ -285,7 +297,7 @@ export function AccountScreen({
       setIsGenderOpen(false);
       setMode('login');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No se pudo crear la cuenta.');
+      showMessage(error instanceof Error ? error.message : 'No se pudo crear la cuenta.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -293,14 +305,14 @@ export function AccountScreen({
 
   const handleLogout = async () => {
     setIsLoading(true);
-    setMessage(null);
+    clearMessage();
 
     try {
       await signOut();
       onProfileChange(null);
-      setMessage('Sesion cerrada.');
+      showMessage('Sesion cerrada.', 'success');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No se pudo cerrar sesion.');
+      showMessage(error instanceof Error ? error.message : 'No se pudo cerrar sesion.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -329,13 +341,13 @@ export function AccountScreen({
 
   const handleUpdateProfile = async ({ address, phone }: { address: string; phone: string }) => {
     setIsSavingProfile(true);
-    setMessage(null);
+    clearMessage();
 
     try {
       await persistProfile({ address, phone });
-      setMessage('Perfil actualizado.');
+      showMessage('Perfil actualizado.', 'success');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu perfil.');
+      showMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu perfil.', 'error');
       throw error;
     } finally {
       setIsSavingProfile(false);
@@ -348,7 +360,7 @@ export function AccountScreen({
     }
 
     setIsSavingProfile(true);
-    setMessage(null);
+    clearMessage();
 
     try {
       const asset = await pickProfileAvatar();
@@ -369,9 +381,9 @@ export function AccountScreen({
         await deleteProfileAvatar(previousAvatarUrl);
       }
 
-      setMessage('Foto de perfil actualizada.');
+      showMessage('Foto de perfil actualizada.', 'success');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu foto.');
+      showMessage(error instanceof Error ? error.message : 'No pudimos actualizar tu foto.', 'error');
     } finally {
       setIsSavingProfile(false);
     }
@@ -383,7 +395,7 @@ export function AccountScreen({
     }
 
     setIsSavingProfile(true);
-    setMessage(null);
+    clearMessage();
 
     try {
       const previousAvatarUrl = profile.avatar_url;
@@ -393,9 +405,9 @@ export function AccountScreen({
         avatar_url: null,
       });
       await deleteProfileAvatar(previousAvatarUrl);
-      setMessage('Foto de perfil eliminada.');
+      showMessage('Foto de perfil eliminada.', 'success');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos eliminar tu foto.');
+      showMessage(error instanceof Error ? error.message : 'No pudimos eliminar tu foto.', 'error');
     } finally {
       setIsSavingProfile(false);
     }
@@ -427,7 +439,6 @@ export function AccountScreen({
           onToggleConfirmPasswordVisibility={() => setIsResetConfirmPasswordVisible((current) => !current)}
           onTogglePasswordVisibility={() => setIsResetPasswordVisible((current) => !current)}
         />
-        {message && <Text style={styles.message}>{message}</Text>}
       </>
     );
   }
@@ -438,7 +449,6 @@ export function AccountScreen({
         <>
           <AccountSettingsPanel
             isSavingProfile={isSavingProfile}
-            message={message}
             profile={profile}
             onBack={() => setAccountView('profile')}
             onChangeAvatar={handleChangeAvatar}
@@ -453,7 +463,6 @@ export function AccountScreen({
     return (
       <>
         <AuthenticatedAccountPanel
-          message={message}
           products={profileProducts}
           profile={profile}
           onOpenSettings={() => setAccountView('settings')}
@@ -490,7 +499,6 @@ export function AccountScreen({
           email={loginEmail}
           isLoading={isLoading}
           isPasswordVisible={isLoginPasswordVisible}
-          message={message}
           password={loginPassword}
           onChangeEmail={setLoginEmail}
           onChangePassword={setLoginPassword}
@@ -507,7 +515,6 @@ export function AccountScreen({
           isGenderOpen={isGenderOpen}
           isLoading={isLoading}
           isPasswordVisible={isRegisterPasswordVisible}
-          message={message}
           passwordError={passwordError}
           onChangeField={updateRegisterField}
           onLookupIdentity={handleLookupIdentity}
@@ -521,7 +528,6 @@ export function AccountScreen({
         <PasswordRecoveryForm
           email={recoveryEmail}
           isLoading={isLoading}
-          message={message}
           onChangeEmail={setRecoveryEmail}
           onBackToLogin={() => handleChangeMode('login')}
           onSubmit={handlePasswordRecovery}
