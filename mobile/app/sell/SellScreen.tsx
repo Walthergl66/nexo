@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
-import { InfoRow } from '../../components/common/InfoRow';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { Tag } from '../../components/common/Tag';
 import {
@@ -89,8 +88,6 @@ export function SellScreen({
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
-  const activeProducts = products.filter((product) => product.available).length;
-  const draftProducts = Math.max(0, products.length - activeProducts);
   const sellerCacheKey = profile ? `${SELLER_STATE_CACHE_KEY_PREFIX}${profile.id}` : null;
 
   const loadSellerState = useCallback(async () => {
@@ -172,6 +169,27 @@ export function SellScreen({
         return hasPendingVerificationRequest ? 'Revision pendiente' : 'Solicitar validacion';
     }
   }, [hasPendingVerificationRequest, isAuthenticated, isProfileLoading, profile, sellerState]);
+
+  const sellerStateDescription = useMemo(() => {
+    switch (sellerState) {
+      case 'verification_pending':
+        return 'Tu solicitud esta en revision.';
+      case 'verification_rejected':
+        return 'Puedes enviar una nueva solicitud con datos actualizados.';
+      case 'seller_suspended':
+        return 'La venta esta pausada mientras se revisa tu cuenta.';
+      case 'store_required':
+        return 'Crea tu tienda para empezar a preparar tu catalogo.';
+      case 'store_suspended':
+        return 'Tu tienda esta pausada temporalmente.';
+      case 'catalog_required':
+        return 'Tu tienda esta activa. Agrega tu primer producto.';
+      case 'catalog_ready':
+        return 'Tu tienda esta activa y lista para seguir vendiendo.';
+      default:
+        return 'Completa la validacion para activar tus herramientas de venta.';
+    }
+  }, [sellerState]);
 
   const handleRequestVerification = async () => {
     if (!accessToken) {
@@ -347,29 +365,9 @@ export function SellScreen({
             </View>
             <View style={styles.statusCopy}>
               <Text style={styles.statusTitle}>{sellerStep}</Text>
-              <Text style={styles.statusSubtitle}>{profile?.display_name ?? profile?.email ?? 'Cuenta NEXO'}</Text>
+              <Text style={styles.statusSubtitle}>{sellerStateDescription}</Text>
             </View>
           </View>
-          <Tag text={profile?.verification_status ?? 'sync'} tone={isApprovedSeller ? 'success' : 'warning'} />
-        </View>
-
-        <View style={styles.sellerProgress}>
-          <StepPill label="Cuenta" active done />
-          <StepPill label="Validacion" active={isApprovedSeller || profile.verification_status === 'pending'} done={isApprovedSeller} />
-          <StepPill label="Tienda" active={Boolean(store)} done={store?.status === 'active'} />
-          <StepPill label="Catalogo" active={products.length > 0} done={activeProducts > 0} />
-        </View>
-
-        <View style={styles.metricsGrid}>
-          <MiniMetric label="Productos" value={String(products.length)} />
-          <MiniMetric label="Activos" value={String(activeProducts)} />
-          <MiniMetric label="Borradores" value={String(draftProducts)} />
-        </View>
-
-        <View style={styles.infoGroup}>
-          <InfoRow label="Rol" value={profile?.role ?? 'buyer'} />
-          <InfoRow label="Tienda" value={store?.name ?? 'Sin tienda'} />
-          <InfoRow label="Estado tienda" value={store?.status ?? 'No disponible'} />
         </View>
       </View>
 
@@ -674,39 +672,6 @@ type PrimaryButtonProps = {
   onPress: () => void;
 };
 
-type StepPillProps = {
-  label: string;
-  active: boolean;
-  done: boolean;
-};
-
-function StepPill({ label, active, done }: StepPillProps) {
-  return (
-    <View style={[styles.stepPill, active && styles.stepPillActive]}>
-      <View style={[styles.stepDot, done && styles.stepDotDone]}>
-        {done && <Ionicons name="checkmark" size={11} color={colors.surface} />}
-      </View>
-      <Text numberOfLines={1} style={[styles.stepLabel, active && styles.stepLabelActive]}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-type MiniMetricProps = {
-  label: string;
-  value: string;
-};
-
-function MiniMetric({ label, value }: MiniMetricProps) {
-  return (
-    <View style={styles.miniMetric}>
-      <Text style={styles.miniMetricValue}>{value}</Text>
-      <Text style={styles.miniMetricLabel}>{label}</Text>
-    </View>
-  );
-}
-
 type FormHeaderProps = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
@@ -793,83 +758,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginTop: 3,
-  },
-  sellerProgress: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  stepPill: {
-    minHeight: 34,
-    flexGrow: 1,
-    flexBasis: '47%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 10,
-  },
-  stepPillActive: {
-    borderColor: colors.brandBlueLine,
-    backgroundColor: colors.brandBlueSoft,
-  },
-  stepDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: colors.lineStrong,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepDotDone: {
-    backgroundColor: colors.brandBlue,
-    borderColor: colors.brandBlue,
-  },
-  stepLabel: {
-    flex: 1,
-    minWidth: 0,
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  stepLabelActive: {
-    color: colors.ink,
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  miniMetric: {
-    flex: 1,
-    minHeight: 66,
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: 10,
-    justifyContent: 'center',
-  },
-  miniMetricValue: {
-    color: colors.ink,
-    fontSize: 21,
-    fontWeight: '700',
-  },
-  miniMetricLabel: {
-    color: colors.inkMuted,
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 3,
-  },
-  infoGroup: {
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    paddingTop: 12,
   },
   formCard: {
     backgroundColor: colors.surface,
