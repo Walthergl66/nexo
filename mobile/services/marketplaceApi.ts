@@ -29,9 +29,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
-
-export const apiBaseUrl = normalizeBaseUrl(env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000/api');
+export const apiBaseUrl = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000/api');
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, '');
@@ -136,8 +134,8 @@ export async function fetchCategoryNames(): Promise<string[]> {
     .filter((name): name is string => name !== null);
 }
 
-export async function fetchCategories(): Promise<CategoryResource[]> {
-  const response = await request<ApiCollection<CategoryResource>>('/categories');
+export async function fetchCategories(timeoutMs?: number): Promise<CategoryResource[]> {
+  const response = await request<ApiCollection<CategoryResource>>('/categories', { timeoutMs });
 
   return response.data;
 }

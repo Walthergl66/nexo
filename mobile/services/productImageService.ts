@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 import { supabase } from './supabaseClient';
 
 const PRODUCT_IMAGES_BUCKET = 'product-images';
@@ -66,7 +67,9 @@ export async function uploadProductImage(storeId: string, asset: ProductImageAss
     throw new Error('La imagen debe pesar menos de 5 MB.');
   }
 
-  const fileBody = new Blob([arrayBuffer], { type: mimeType });
+  const fileBody = Platform.OS === 'web'
+    ? await responseToBlob(response, arrayBuffer, mimeType)
+    : arrayBuffer;
   const { error } = await supabase.storage
     .from(PRODUCT_IMAGES_BUCKET)
     .upload(path, fileBody, {
@@ -82,6 +85,14 @@ export async function uploadProductImage(storeId: string, asset: ProductImageAss
   const { data } = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(path);
 
   return data.publicUrl;
+}
+
+async function responseToBlob(response: Response, arrayBuffer: ArrayBuffer, mimeType: string): Promise<Blob> {
+  try {
+    return await response.blob();
+  } catch {
+    return new Blob([arrayBuffer], { type: mimeType });
+  }
 }
 
 function validateProductImage(asset: ProductImageAsset): void {

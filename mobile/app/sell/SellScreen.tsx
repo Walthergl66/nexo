@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
@@ -80,7 +80,9 @@ const initialProductForm: ProductForm = {
 };
 
 const SELLER_STATE_CACHE_KEY_PREFIX = 'nexo.seller-state.v1.';
+const CATEGORIES_CACHE_KEY = 'nexo.categories.cache.v1';
 const SELLER_CENTER_AUTO_REFRESH_MS = 15000;
+const CATEGORIES_LOAD_TIMEOUT_MS = 12000;
 
 export function SellScreen({
   accessToken,
@@ -92,14 +94,18 @@ export function SellScreen({
   const [store, setStore] = useState<StoreResource | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryResource[]>([]);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
   const [sellerState, setSellerState] = useState<SellerCenterState | null>(null);
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
   const [productForm, setProductForm] = useState(initialProductForm);
   const [isLoading, setIsLoading] = useState(false);
+  const [categoryRefreshKey, setCategoryRefreshKey] = useState(0);
   const [sellerRefreshKey, setSellerRefreshKey] = useState(0);
   const [hasPendingVerificationRequest, setHasPendingVerificationRequest] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const isCategoryRequestInFlight = useRef(false);
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
@@ -107,7 +113,11 @@ export function SellScreen({
 
   const refreshSellerCenter = useCallback(() => {
     setSellerRefreshKey((current) => current + 1);
-  }, [sellerRefreshKey]);
+  }, []);
+
+  const refreshCategories = useCallback(() => {
+    setCategoryRefreshKey((current) => current + 1);
+  }, []);
 
   const loadSellerState = useCallback(async () => {
     if (!accessToken || !profile) {
@@ -163,24 +173,52 @@ export function SellScreen({
   }, [accessToken, onProfileChange, profile, sellerCacheKey]);
 
   useEffect(() => {
-    let isMounted = true;
+    if (isCategoryRequestInFlight.current) {
+      return undefined;
+    }
 
-    fetchCategories()
-      .then((nextCategories) => {
+    let isMounted = true;
+    isCategoryRequestInFlight.current = true;
+
+    const loadCategories = async () => {
+      const cachedCategories = await getCachedCategories();
+
+      if (isMounted && categories.length === 0 && cachedCategories.length > 0) {
+        setCategories(cachedCategories);
+      }
+
+      if (isMounted) {
+        setIsCategoriesLoading(categories.length === 0 && cachedCategories.length === 0);
+        setCategoryError(null);
+      }
+
+      try {
+        const nextCategories = await fetchCategories(CATEGORIES_LOAD_TIMEOUT_MS);
+
         if (isMounted) {
           setCategories(nextCategories);
+          setCategoryError(null);
+          await cacheCategories(nextCategories);
         }
-      })
-      .catch(() => {
+      } catch (error) {
         if (isMounted) {
-          setCategories([]);
+          setCategoryError(error instanceof Error ? error.message : 'No pudimos cargar las categorias.');
         }
-      });
+      } finally {
+        if (isMounted) {
+          setIsCategoriesLoading(false);
+        }
+
+        isCategoryRequestInFlight.current = false;
+      }
+    };
+
+    loadCategories();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [categoryRefreshKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -676,7 +714,12 @@ export function SellScreen({
           <View style={styles.fieldBlock}>
             <Text style={styles.fieldLabel}>Categoria</Text>
             <View style={styles.categoryOptions}>
-              {categories.length > 0 ? (
+              {isCategoriesLoading ? (
+                <View style={styles.categoryLoadingRow}>
+                  <ActivityIndicator color={colors.brandBlue} size="small" />
+                  <Text style={styles.fieldHint}>Cargando categorias...</Text>
+                </View>
+              ) : categories.length > 0 ? (
                 categories.map((category) => (
                   <Pressable
                     key={category.id}
@@ -698,6 +741,17 @@ export function SellScreen({
                     </Text>
                   </Pressable>
                 ))
+              ) : categoryError ? (
+                <View style={styles.categoryErrorRow}>
+                  <Text style={styles.fieldHint}>{categoryError}</Text>
+                  <Pressable
+                    style={({ pressed }) => [styles.retrySmallButton, pressed && styles.buttonPressed]}
+                    onPress={refreshCategories}
+                  >
+                    <Ionicons name="refresh" size={14} color={colors.brandBlue} />
+                    <Text style={styles.retrySmallText}>Reintentar</Text>
+                  </Pressable>
+                </View>
               ) : (
                 <Text style={styles.fieldHint}>No hay categorias activas disponibles.</Text>
               )}
@@ -838,6 +892,34 @@ async function cacheSellerState(key: string, state: CachedSellerState): Promise<
   } catch {
     return;
   }
+}
+
+async function getCachedCategories(): Promise<CategoryResource[]> {
+  try {
+    const rawValue = await AsyncStorage.getItem(CATEGORIES_CACHE_KEY);
+
+    if (!rawValue) {
+      return [];
+    }
+
+    const categories = JSON.parse(rawValue) as Partial<CategoryResource>[];
+
+    return Array.isArray(categories) ? categories.filter(isCategoryResource) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function cacheCategories(categories: CategoryResource[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(categories));
+  } catch {
+    return;
+  }
+}
+
+function isCategoryResource(value: Partial<CategoryResource>): value is CategoryResource {
+  return typeof value.id === 'string' && value.id.length > 0 && typeof value.name === 'string';
 }
 
 type PrimaryButtonProps = {
@@ -1019,6 +1101,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  categoryLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  categoryErrorRow: {
+    gap: 8,
+  },
+  retrySmallButton: {
+    alignSelf: 'flex-start',
+    minHeight: 32,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+  },
+  retrySmallText: {
+    color: colors.brandBlue,
+    fontSize: 12,
+    fontWeight: '700',
   },
   categoryOption: {
     minHeight: 36,
