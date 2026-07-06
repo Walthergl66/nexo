@@ -149,6 +149,7 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * La API protegida usa middleware `supabase.jwt`.
 * Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
 * La app Expo activa vive en `mobile/`.
+* La web administrativa vive en `admin/` y usa Next.js; se mantiene separada de `mobile/` y solo contiene flujos del rol admin.
 * La carpeta histórica `frontend/` fue migrada a `mobile/` y retirada del monorepo.
 * `mobile/` consume el backend con `EXPO_PUBLIC_API_BASE_URL`.
 * `mobile/` usa Supabase Auth con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`; el JWT de la sesion activa se envia a Laravel para rutas protegidas.
@@ -158,6 +159,8 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * Laravel expone `GET /api/identity/lookup`, `GET /api/profiles/availability` y `PATCH /api/me/profile` para onboarding de perfiles.
 * La documentación OpenAPI/Swagger del backend vive en `/api/docs` y `/api/docs/openapi.json`.
 * El contrato OpenAPI se mantiene en `docs/openapi.json` y se sirve sin paquete externo de Swagger.
+* `admin/` autentica con Supabase Auth, valida el rol `admin` contra `GET /api/me` y consume endpoints administrativos de Laravel con el JWT de Supabase.
+* `admin/` gestiona solicitudes de vendedor y categorías con endpoints existentes; los módulos de moderación de publicaciones, bloqueo de usuarios y advertencias quedan preparados hasta que existan endpoints administrativos dedicados en Laravel.
 
 ## Módulos principales
 
@@ -209,6 +212,7 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 ```txt
 nexo/
 ├── backend/
+├── admin/
 ├── mobile/
 ├── docs/
 ├── AGENTS.md
