@@ -6,4 +6,5 @@ return [
     'jwt_algorithm' => env('SUPABASE_JWT_ALGORITHM', 'HS256'),
     'auth_audience' => env('SUPABASE_AUTH_AUDIENCE', 'authenticated'),
     'http_verify_ssl' => filter_var(env('SUPABASE_HTTP_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+    'profile_cache_seconds' => (int) env('SUPABASE_PROFILE_CACHE_SECONDS', 20),
 ];

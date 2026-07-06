@@ -43,6 +43,7 @@ import type { CartItem, Product, TabKey } from './types/marketplace';
 const PROFILE_CACHE_KEY = 'nexo.profile.cache.v1';
 const CATALOG_AUTO_REFRESH_MS = 60000;
 const PROFILE_AUTO_REFRESH_MS = 60000;
+const REFRESH_THROTTLE_MS = 10000;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -77,6 +78,8 @@ export default function App() {
   const headerVisibility = useRef(new Animated.Value(1)).current;
   const isHeaderVisible = useRef(true);
   const currentAccessToken = useRef<string | null>(null);
+  const lastCatalogRefreshRequestAt = useRef(0);
+  const lastProfileRefreshRequestAt = useRef(0);
   const lastProductScrollY = useRef(0);
   const previousActiveIndex = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -168,8 +171,23 @@ export default function App() {
   }, []);
 
   const refreshCatalog = useCallback(() => {
+    const now = Date.now();
+
+    if (now - lastCatalogRefreshRequestAt.current < REFRESH_THROTTLE_MS) {
+      return;
+    }
+
+    lastCatalogRefreshRequestAt.current = now;
     setCatalogRequestKey((current) => current + 1);
   }, []);
+
+  const handleProfileChange = useCallback((nextProfile: ProfileResource | null) => {
+    setProfile(nextProfile);
+
+    if (accessToken && nextProfile) {
+      cacheProfile(accessToken, nextProfile);
+    }
+  }, [accessToken]);
 
   useEffect(() => {
     let isMounted = true;
@@ -345,6 +363,7 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    const hasProfileAtStart = profile !== null;
 
     if (!accessToken) {
       clearCachedProfile();
@@ -357,21 +376,34 @@ export default function App() {
       };
     }
 
-    setIsProfileLoading(true);
+    if (!hasProfileAtStart) {
+      setIsProfileLoading(true);
+    }
+
     setProfileError(null);
 
-    getCachedProfile(accessToken).then((cachedProfile) => {
+    const loadProfile = async () => {
+      const cachedProfile = await getCachedProfile(accessToken);
+
       if (isMounted && cachedProfile) {
         setProfile((current) => current ?? cachedProfile);
+        setProfileError(null);
+        setIsProfileLoading(false);
       }
-    });
 
-    fetchProfile(accessToken)
-      .then((nextProfile) => {
+      try {
+        const nextProfile = await fetchProfile(accessToken);
+
         if (isMounted) {
           if (!nextProfile) {
-            setProfile(null);
-            setProfileError('No pudimos cargar tus datos de cuenta. Intenta nuevamente.');
+            setProfile((current) => {
+              if (current ?? cachedProfile) {
+                return current ?? cachedProfile;
+              }
+
+              setProfileError('No pudimos cargar tus datos de cuenta. Intenta nuevamente.');
+              return null;
+            });
             return;
           }
 
@@ -379,8 +411,7 @@ export default function App() {
           setProfileError(null);
           cacheProfile(accessToken, nextProfile);
         }
-      })
-      .catch(async (error) => {
+      } catch (error) {
         if (isMounted) {
           if (error instanceof ApiRequestError && error.status === 401) {
             try {
@@ -398,25 +429,29 @@ export default function App() {
             return;
           }
 
-          setCartItems([]);
           setProfile((current) => {
-            if (current) {
+            const fallbackProfile = current ?? cachedProfile;
+
+            if (fallbackProfile) {
               setProfileError(null);
-              return current;
+              return fallbackProfile;
             }
 
+            setCartItems([]);
             setProfileError(
               error instanceof Error ? error.message : 'No pudimos cargar tus datos de cuenta. Intenta nuevamente.',
             );
             return null;
           });
         }
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) {
           setIsProfileLoading(false);
         }
-      });
+      }
+    };
+
+    loadProfile();
 
     return () => {
       isMounted = false;
@@ -429,6 +464,13 @@ export default function App() {
     }
 
     const refreshProfile = () => {
+      const now = Date.now();
+
+      if (now - lastProfileRefreshRequestAt.current < REFRESH_THROTTLE_MS) {
+        return;
+      }
+
+      lastProfileRefreshRequestAt.current = now;
       setProfileRefreshKey((current) => current + 1);
     };
     const interval = setInterval(refreshProfile, PROFILE_AUTO_REFRESH_MS);
@@ -849,7 +891,7 @@ export default function App() {
             profile={profile}
             isProfileLoading={isProfileLoading}
             onGoToAccount={() => setActiveTab('Cuenta')}
-            onProfileChange={setProfile}
+            onProfileChange={handleProfileChange}
           />
         );
       case 'Pedidos':
@@ -863,7 +905,7 @@ export default function App() {
             isProfileLoading={isProfileLoading}
             onExplore={() => setActiveTab('Inicio')}
             passwordResetKey={passwordResetKey}
-            onProfileChange={setProfile}
+            onProfileChange={handleProfileChange}
             onRetryProfile={() => setProfileRefreshKey((current) => current + 1)}
             onSell={() => setActiveTab('Vender')}
           />

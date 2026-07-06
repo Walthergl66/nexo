@@ -57,6 +57,17 @@ class SupabaseAuthService
             throw new AuthenticationException('Supabase user id is missing.');
         }
 
+        $cacheSeconds = max(0, (int) config('supabase.profile_cache_seconds', 20));
+
+        if ($cacheSeconds > 0) {
+            /** @var Profile|null $cachedProfile */
+            $cachedProfile = Cache::get($this->profileCacheKey($supabaseUserId));
+
+            if ($cachedProfile !== null) {
+                return $cachedProfile;
+            }
+        }
+
         $email = Arr::get($claims, 'email');
         $metadata = Arr::get($claims, 'user_metadata', []);
 
@@ -66,7 +77,7 @@ class SupabaseAuthService
             ->first();
 
         if ($profile === null) {
-            return DB::transaction(function () use ($email, $metadata, $supabaseUserId): Profile {
+            $profile = DB::transaction(function () use ($email, $metadata, $supabaseUserId): Profile {
                 /** @var Profile $newProfile */
                 $newProfile = Profile::query()->create(
                     [
@@ -82,6 +93,12 @@ class SupabaseAuthService
 
                 return $newProfile;
             });
+
+            if ($cacheSeconds > 0) {
+                Cache::put($this->profileCacheKey($supabaseUserId), $profile, now()->addSeconds($cacheSeconds));
+            }
+
+            return $profile;
         }
 
         $updates = [];
@@ -100,7 +117,20 @@ class SupabaseAuthService
             $profile->forceFill($updates)->save();
         }
 
+        if ($cacheSeconds > 0) {
+            Cache::put($this->profileCacheKey($supabaseUserId), $profile, now()->addSeconds($cacheSeconds));
+        }
+
         return $profile;
+    }
+
+    public function forgetProfileCache(Profile|string $profile): void
+    {
+        $supabaseUserId = $profile instanceof Profile ? $profile->supabase_user_id : $profile;
+
+        if ($supabaseUserId !== '') {
+            Cache::forget($this->profileCacheKey($supabaseUserId));
+        }
     }
 
     /**
@@ -241,6 +271,11 @@ class SupabaseAuthService
     private function jwksCacheKey(): string
     {
         return 'supabase:jwks:'.sha1((string) config('supabase.url'));
+    }
+
+    private function profileCacheKey(string $supabaseUserId): string
+    {
+        return 'supabase:profile:'.sha1($supabaseUserId);
     }
 
     /**

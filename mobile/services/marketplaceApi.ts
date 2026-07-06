@@ -281,7 +281,7 @@ export async function fetchProfile(token?: string): Promise<ProfileResource | nu
     return null;
   }
 
-  const response = await request<ApiDocument<ProfileResource>>('/me', { token, timeoutMs: 12000 });
+  const response = await request<ApiDocument<ProfileResource>>('/me', { token, timeoutMs: 8000 });
 
   return response.data;
 }

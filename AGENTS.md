@@ -70,6 +70,7 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * La validación de JWT soporta `HS256` con `SUPABASE_JWT_SECRET` y tokens asimétricos `RS256`/`ES256` mediante JWKS público de Supabase.
 * `SupabaseAuthService` obtiene las llaves desde `SUPABASE_URL/auth/v1/.well-known/jwks.json` y las cachea para validar tokens firmados con llaves rotables.
 * En desarrollo local se usa `CACHE_STORE=file` para evitar que el cache de JWKS dependa de la latencia de PostgreSQL remoto en Supabase.
+* Laravel cachea perfiles resueltos desde JWT por pocos segundos con `SUPABASE_PROFILE_CACHE_SECONDS` e invalida ese cache al actualizar perfil o estado de vendedor.
 * Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
 * `GET /api/me` crea automáticamente el `profile` si el JWT de Supabase es válido y aún no existe.
 * Los roles y estados se modelan como strings controlados por constantes del modelo `Profile` para mantener portabilidad entre PostgreSQL y SQLite de pruebas.
