@@ -22,12 +22,13 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createCategory,
   fetchCategories,
+  fetchAdminStores,
   fetchMe,
   fetchProducts,
   fetchSellerVerificationRequests,
-  fetchStores,
   reviewSellerVerificationRequest,
   updateCategory,
+  updateStoreStatus,
 } from '@/lib/api';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 import type { Category, Product, Profile, ReviewStatus, SellerVerificationRequest, Store } from '@/lib/types';
@@ -82,7 +83,7 @@ export default function AdminPage() {
       fetchSellerVerificationRequests(accessToken),
       fetchCategories(),
       fetchProducts(),
-      fetchStores(),
+      fetchAdminStores(accessToken),
     ]);
 
     setProfile(currentProfile);
@@ -320,7 +321,9 @@ export default function AdminPage() {
           <RequestsPanel token={token} requests={requests} onError={setError} onChanged={handleRefresh} />
         ) : null}
         {activeSection === 'publications' ? <PublicationsPanel products={products} /> : null}
-        {activeSection === 'stores' ? <StoresPanel stores={stores} /> : null}
+        {activeSection === 'stores' ? (
+          <StoresPanel token={token} stores={stores} onError={setError} onChanged={handleRefresh} />
+        ) : null}
         {activeSection === 'categories' ? (
           <CategoriesPanel
             token={token}
@@ -640,16 +643,41 @@ function PublicationsPanel({ products }: { products: Product[] }) {
   );
 }
 
-function StoresPanel({ stores }: { stores: Store[] }) {
+function StoresPanel({
+  token,
+  stores,
+  onError,
+  onChanged,
+}: {
+  token: string;
+  stores: Store[];
+  onError: (message: string | null) => void;
+  onChanged: () => Promise<void>;
+}) {
+  const [busySlug, setBusySlug] = useState<string | null>(null);
+
+  async function toggleStore(store: Store) {
+    setBusySlug(store.slug);
+    onError(null);
+
+    try {
+      await updateStoreStatus(token, store.slug, store.status === 'active' ? 'suspended' : 'active');
+      await onChanged();
+    } catch (caughtError) {
+      onError(toErrorMessage(caughtError));
+    } finally {
+      setBusySlug(null);
+    }
+  }
+
   return (
     <section className="panel">
       <div className="panel-header">
         <div>
-          <h2>Tiendas publicas</h2>
-          <p className="muted">Listado de tiendas activas disponibles para compradores.</p>
+          <h2>Tiendas</h2>
+          <p className="muted">Suspender retira la tienda del catalogo publico e impide compras de sus productos.</p>
         </div>
       </div>
-      <PendingBackendNotice text="Para suspender o reactivar tiendas directamente falta un endpoint admin. Hoy la suspension ocurre al rechazar o suspender una verificacion de vendedor." />
       <div className="table-wrap">
         <table>
           <thead>
@@ -672,8 +700,8 @@ function StoresPanel({ stores }: { stores: Store[] }) {
                   <StatusBadge status={store.status} />
                 </td>
                 <td>
-                  <button className="button" type="button" disabled>
-                    Suspender tienda
+                  <button className="button" type="button" disabled={busySlug === store.slug} onClick={() => toggleStore(store)}>
+                    {store.status === 'active' ? 'Suspender' : 'Reactivar'}
                   </button>
                 </td>
               </tr>

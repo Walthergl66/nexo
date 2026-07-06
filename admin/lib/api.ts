@@ -142,3 +142,19 @@ export async function fetchStores(): Promise<Store[]> {
 
   return response.data;
 }
+
+export async function fetchAdminStores(token: string): Promise<Store[]> {
+  const response = await request<ApiCollection<Store>>('/admin/stores', { token });
+
+  return response.data;
+}
+
+export async function updateStoreStatus(token: string, slug: string, status: 'active' | 'suspended'): Promise<Store> {
+  const response = await request<ApiDocument<Store>>(`/admin/stores/${slug}`, {
+    method: 'PATCH',
+    token,
+    body: { status },
+  });
+
+  return response.data;
+}
