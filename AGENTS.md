@@ -153,6 +153,7 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * La API protegida usa middleware `supabase.jwt`.
 * Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
 * La app Expo activa vive en `mobile/`.
+* `mobile/` usa Expo SDK 54.
 * La web administrativa vive en `admin/` y usa Next.js; se mantiene separada de `mobile/` y solo contiene flujos del rol admin.
 * La carpeta histórica `frontend/` fue migrada a `mobile/` y retirada del monorepo.
 * `mobile/` consume el backend con `EXPO_PUBLIC_API_BASE_URL`.

@@ -41,8 +41,8 @@ import { colors } from './theme/colors';
 import type { CartItem, Product, TabKey } from './types/marketplace';
 
 const PROFILE_CACHE_KEY = 'nexo.profile.cache.v1';
-const CATALOG_AUTO_REFRESH_MS = 20000;
-const PROFILE_AUTO_REFRESH_MS = 30000;
+const CATALOG_AUTO_REFRESH_MS = 60000;
+const PROFILE_AUTO_REFRESH_MS = 60000;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -405,7 +405,9 @@ export default function App() {
               return current;
             }
 
-            setProfileError('No pudimos cargar tus datos de cuenta. Intenta nuevamente.');
+            setProfileError(
+              error instanceof Error ? error.message : 'No pudimos cargar tus datos de cuenta. Intenta nuevamente.',
+            );
             return null;
           });
         }

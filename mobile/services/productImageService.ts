@@ -66,9 +66,10 @@ export async function uploadProductImage(storeId: string, asset: ProductImageAss
     throw new Error('La imagen debe pesar menos de 5 MB.');
   }
 
+  const fileBody = new Blob([arrayBuffer], { type: mimeType });
   const { error } = await supabase.storage
     .from(PRODUCT_IMAGES_BUCKET)
-    .upload(path, arrayBuffer, {
+    .upload(path, fileBody, {
       cacheControl: '3600',
       contentType: mimeType,
       upsert: false,
@@ -102,8 +103,26 @@ function toPublicStorageError(error: { message?: string; statusCode?: string | n
     return new Error('El almacenamiento de productos no esta listo. Crea el bucket product-images en Supabase.');
   }
 
-  if (message.includes('row-level security') || message.includes('permission') || message.includes('policy')) {
+  if (
+    message.includes('row-level security')
+    || message.includes('permission')
+    || message.includes('policy')
+    || message.includes('unauthorized')
+    || message.includes('violates')
+  ) {
     return new Error('Faltan permisos para guardar imagenes de productos. Revisa las politicas del bucket product-images.');
+  }
+
+  if (message.includes('mime') || message.includes('content type')) {
+    return new Error('El bucket product-images debe permitir imagenes JPG, PNG o WebP.');
+  }
+
+  if (String(error.statusCode ?? '') === '400') {
+    return new Error(
+      error.message
+        ? `Supabase no acepto la imagen: ${error.message}`
+        : 'Supabase no acepto la imagen. Revisa el bucket product-images y sus politicas.',
+    );
   }
 
   return new Error('No pudimos subir la imagen del producto. Intenta nuevamente.');
