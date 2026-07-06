@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  AppState,
   Easing,
   LayoutChangeEvent,
   Linking,
@@ -40,6 +41,8 @@ import { colors } from './theme/colors';
 import type { CartItem, Product, TabKey } from './types/marketplace';
 
 const PROFILE_CACHE_KEY = 'nexo.profile.cache.v1';
+const CATALOG_AUTO_REFRESH_MS = 20000;
+const PROFILE_AUTO_REFRESH_MS = 30000;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -164,6 +167,10 @@ export default function App() {
     });
   }, []);
 
+  const refreshCatalog = useCallback(() => {
+    setCatalogRequestKey((current) => current + 1);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     const isInitialLoad = !hasLoadedCatalog.current;
@@ -242,6 +249,24 @@ export default function App() {
   useEffect(() => {
     setFilteredProducts(applyCatalogFilters(marketplaceProducts, activeFilter, search));
   }, [activeFilter, applyCatalogFilters, marketplaceProducts, search]);
+
+  useEffect(() => {
+    if (activeTab !== 'Inicio' || !isSessionReady) {
+      return undefined;
+    }
+
+    const interval = setInterval(refreshCatalog, CATALOG_AUTO_REFRESH_MS);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshCatalog();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [activeTab, isSessionReady, refreshCatalog]);
 
   useEffect(() => {
     let isMounted = true;
@@ -397,6 +422,27 @@ export default function App() {
   }, [accessToken, profileRefreshKey]);
 
   useEffect(() => {
+    if (!accessToken) {
+      return undefined;
+    }
+
+    const refreshProfile = () => {
+      setProfileRefreshKey((current) => current + 1);
+    };
+    const interval = setInterval(refreshProfile, PROFILE_AUTO_REFRESH_MS);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshProfile();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [accessToken]);
+
+  useEffect(() => {
     let isMounted = true;
 
     if (!accessToken || !profile) {
@@ -501,7 +547,7 @@ export default function App() {
   };
 
   const handleRefreshCatalog = () => {
-    setCatalogRequestKey((current) => current + 1);
+    refreshCatalog();
   };
 
   const handleChangeCartQuantity = async (productId: string, quantity: number) => {
@@ -540,6 +586,10 @@ export default function App() {
     setActiveTab(tab);
     setIsCartOpen(false);
     setSelectedProductId(null);
+
+    if (tab === 'Inicio') {
+      refreshCatalog();
+    }
   };
 
   const handleRemoveCartItem = (productId: string) => {

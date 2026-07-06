@@ -158,6 +158,7 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * `mobile/` consume el backend con `EXPO_PUBLIC_API_BASE_URL`.
 * `mobile/` usa Supabase Auth con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`; el JWT de la sesion activa se envia a Laravel para rutas protegidas.
 * `mobile/` consume el catálogo público desde `GET /api/products` y usa JWT para carrito, órdenes, perfil y tienda propia.
+* `mobile/` refresca de forma periódica y al volver a primer plano el perfil, catálogo, categorías y centro de ventas para reflejar cambios hechos desde `admin/` sin recarga manual.
 * `mobile/` registra usuarios desde la pantalla Cuenta: valida cedula por backend, crea usuario en Supabase Auth y completa el perfil interno en Laravel.
 * Las fotos de perfil se guardan como archivos en Supabase Storage; Laravel conserva la URL oficial en `profiles.avatar_url` y sigue siendo la fuente de verdad del perfil.
 * Laravel expone `GET /api/identity/lookup`, `GET /api/profiles/availability` y `PATCH /api/me/profile` para onboarding de perfiles.

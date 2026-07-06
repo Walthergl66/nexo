@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { Tag } from '../../components/common/Tag';
@@ -80,6 +80,7 @@ const initialProductForm: ProductForm = {
 };
 
 const SELLER_STATE_CACHE_KEY_PREFIX = 'nexo.seller-state.v1.';
+const SELLER_CENTER_AUTO_REFRESH_MS = 15000;
 
 export function SellScreen({
   accessToken,
@@ -96,12 +97,17 @@ export function SellScreen({
   const [storeForm, setStoreForm] = useState(initialStoreForm);
   const [productForm, setProductForm] = useState(initialProductForm);
   const [isLoading, setIsLoading] = useState(false);
+  const [sellerRefreshKey, setSellerRefreshKey] = useState(0);
   const [hasPendingVerificationRequest, setHasPendingVerificationRequest] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
   const sellerCacheKey = profile ? `${SELLER_STATE_CACHE_KEY_PREFIX}${profile.id}` : null;
+
+  const refreshSellerCenter = useCallback(() => {
+    setSellerRefreshKey((current) => current + 1);
+  }, [sellerRefreshKey]);
 
   const loadSellerState = useCallback(async () => {
     if (!accessToken || !profile) {
@@ -188,7 +194,25 @@ export function SellScreen({
     return () => {
       isMounted = false;
     };
-  }, [loadSellerState]);
+  }, [loadSellerState, sellerRefreshKey]);
+
+  useEffect(() => {
+    if (!accessToken || !profile) {
+      return undefined;
+    }
+
+    const interval = setInterval(refreshSellerCenter, SELLER_CENTER_AUTO_REFRESH_MS);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshSellerCenter();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [accessToken, profile, refreshSellerCenter]);
 
   const sellerStep = useMemo(() => {
     if (!isAuthenticated) {
