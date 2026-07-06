@@ -136,6 +136,12 @@ export async function fetchCategoryNames(): Promise<string[]> {
     .filter((name): name is string => name !== null);
 }
 
+export async function fetchCategories(): Promise<CategoryResource[]> {
+  const response = await request<ApiCollection<CategoryResource>>('/categories');
+
+  return response.data;
+}
+
 export type ProfileResource = {
   id: string;
   email: string | null;
@@ -161,6 +167,14 @@ export type IdentityLookup = {
 };
 
 export type StoreResource = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: string;
+};
+
+export type CategoryResource = {
   id: string;
   name: string;
   slug: string;
@@ -365,8 +379,10 @@ export async function fetchMyProducts(token?: string): Promise<Product[]> {
 export async function createProduct(
   token: string,
   payload: {
+    category_id?: string | null;
     name: string;
     description?: string | null;
+    images?: Array<{ alt_text?: string | null; url: string }>;
     price_cents: number;
     stock: number;
     status?: 'draft' | 'active' | 'paused';

@@ -1,20 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { Tag } from '../../components/common/Tag';
 import {
   createProduct,
   createStore,
+  fetchCategories,
   fetchProfile,
   fetchSellerCenter,
   submitSellerVerification,
+  type CategoryResource,
   type ProfileResource,
   type SellerCenterState,
   type StoreResource,
 } from '../../services/marketplaceApi';
+import {
+  pickProductImage,
+  takeProductImage,
+  uploadProductImage,
+  type ProductImageAsset,
+} from '../../services/productImageService';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -40,11 +48,13 @@ type VerificationForm = {
 };
 
 type ProductForm = {
+  categoryId: string;
   name: string;
   description: string;
+  image: ProductImageAsset | null;
   price: string;
-  stock: string;
   publishNow: boolean;
+  stock: string;
 };
 
 const initialVerificationForm: VerificationForm = {
@@ -60,11 +70,13 @@ const initialStoreForm: StoreForm = {
 };
 
 const initialProductForm: ProductForm = {
+  categoryId: '',
   name: '',
   description: '',
+  image: null,
   price: '',
-  stock: '',
   publishNow: false,
+  stock: '',
 };
 
 const SELLER_STATE_CACHE_KEY_PREFIX = 'nexo.seller-state.v1.';
@@ -78,6 +90,7 @@ export function SellScreen({
 }: SellScreenProps) {
   const [store, setStore] = useState<StoreResource | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryResource[]>([]);
   const [sellerState, setSellerState] = useState<SellerCenterState | null>(null);
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
@@ -146,6 +159,26 @@ export function SellScreen({
   useEffect(() => {
     let isMounted = true;
 
+    fetchCategories()
+      .then((nextCategories) => {
+        if (isMounted) {
+          setCategories(nextCategories);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCategories([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
     loadSellerState().catch(() => {
       if (isMounted) {
         setMessage('No pudimos cargar tu centro de ventas.');
@@ -179,11 +212,11 @@ export function SellScreen({
         return 'Tienda suspendida';
       case 'catalog_required':
       case 'catalog_ready':
-        return 'Publicar productos';
+        return store?.name ?? 'Tu tienda';
       default:
         return hasPendingVerificationRequest ? 'Revision pendiente' : 'Solicitar validacion';
     }
-  }, [hasPendingVerificationRequest, isAuthenticated, isProfileLoading, profile, sellerState]);
+  }, [hasPendingVerificationRequest, isAuthenticated, isProfileLoading, profile, sellerState, store]);
 
   const sellerStateDescription = useMemo(() => {
     switch (sellerState) {
@@ -278,26 +311,42 @@ export function SellScreen({
   };
 
   const handleCreateProduct = async () => {
-    if (!accessToken || !canCreateProducts) {
+    if (!accessToken || !canCreateProducts || !store) {
       return;
     }
 
     const name = productForm.name.trim();
+    const description = productForm.description.trim();
     const price = Number(productForm.price.replace(',', '.'));
     const stock = Number(productForm.stock);
 
     if (name.length < 3) {
-      setMessage('Ingresa un nombre de producto valido.');
+      setMessage('Ingresa un titulo de producto valido.');
       return;
     }
 
-    if (!Number.isFinite(price) || price <= 0) {
-      setMessage('Ingresa un precio mayor a cero.');
+    if (description.length < 10) {
+      setMessage('Ingresa una descripcion de al menos 10 caracteres.');
+      return;
+    }
+
+    if (!productForm.categoryId) {
+      setMessage('Selecciona una categoria para el producto.');
+      return;
+    }
+
+    if (!Number.isFinite(price) || price <= 0 || price > 9999999.99) {
+      setMessage('Ingresa un precio valido mayor a cero.');
       return;
     }
 
     if (!Number.isInteger(stock) || stock < 0) {
-      setMessage('Ingresa un stock valido.');
+      setMessage('Ingresa una cantidad disponible valida.');
+      return;
+    }
+
+    if (!productForm.image) {
+      setMessage('Agrega una imagen del producto desde la camara o galeria.');
       return;
     }
 
@@ -305,9 +354,12 @@ export function SellScreen({
     setMessage(null);
 
     try {
+      const imageUrl = await uploadProductImage(store.id, productForm.image);
       const nextProduct = await createProduct(accessToken, {
+        category_id: productForm.categoryId,
         name,
-        description: productForm.description.trim() || null,
+        description,
+        images: [{ url: imageUrl, alt_text: name }],
         price_cents: Math.round(price * 100),
         stock,
         status: productForm.publishNow ? 'active' : 'draft',
@@ -329,6 +381,34 @@ export function SellScreen({
       setMessage(error instanceof Error ? error.message : 'No se pudo crear el producto.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePickProductImage = async () => {
+    setMessage(null);
+
+    try {
+      const image = await pickProductImage();
+
+      if (image) {
+        setProductForm((current) => ({ ...current, image }));
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen.');
+    }
+  };
+
+  const handleTakeProductImage = async () => {
+    setMessage(null);
+
+    try {
+      const image = await takeProductImage();
+
+      if (image) {
+        setProductForm((current) => ({ ...current, image }));
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos tomar la foto.');
     }
   };
 
@@ -552,10 +632,10 @@ export function SellScreen({
           <FormHeader
             icon="pricetag-outline"
             title="Nuevo producto"
-            subtitle="Publica de inmediato o guarda como borrador para terminarlo despues."
+            subtitle="Completa la informacion, agrega una imagen y elige si publicarlo ahora."
           />
           <TextInput
-            placeholder="Nombre"
+            placeholder="Titulo del producto"
             placeholderTextColor={colors.inkSoft}
             style={styles.input}
             value={productForm.name}
@@ -563,12 +643,42 @@ export function SellScreen({
           />
           <TextInput
             multiline
-            placeholder="Descripcion"
+            placeholder="Descripcion del producto"
             placeholderTextColor={colors.inkSoft}
             style={[styles.input, styles.textArea]}
             value={productForm.description}
             onChangeText={(value) => setProductForm((current) => ({ ...current, description: value }))}
           />
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>Categoria</Text>
+            <View style={styles.categoryOptions}>
+              {categories.length > 0 ? (
+                categories.map((category) => (
+                  <Pressable
+                    key={category.id}
+                    style={({ pressed }) => [
+                      styles.categoryOption,
+                      productForm.categoryId === category.id && styles.categoryOptionActive,
+                      pressed && styles.buttonPressed,
+                    ]}
+                    onPress={() => setProductForm((current) => ({ ...current, categoryId: category.id }))}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.categoryOptionText,
+                        productForm.categoryId === category.id && styles.categoryOptionTextActive,
+                      ]}
+                    >
+                      {category.name}
+                    </Text>
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={styles.fieldHint}>No hay categorias activas disponibles.</Text>
+              )}
+            </View>
+          </View>
           <View style={styles.inlineRow}>
             <TextInput
               keyboardType="decimal-pad"
@@ -580,12 +690,38 @@ export function SellScreen({
             />
             <TextInput
               keyboardType="number-pad"
-              placeholder="Stock"
+              placeholder="Cantidad"
               placeholderTextColor={colors.inkSoft}
               style={[styles.input, styles.inlineInput]}
               value={productForm.stock}
               onChangeText={(value) => setProductForm((current) => ({ ...current, stock: value.replace(/\D+/g, '') }))}
             />
+          </View>
+          <View style={styles.imagePickerPanel}>
+            {productForm.image ? (
+              <Image source={{ uri: productForm.image.uri }} style={styles.productImagePreview} />
+            ) : (
+              <View style={styles.productImagePlaceholder}>
+                <Ionicons name="image-outline" size={28} color={colors.brandBlue} />
+                <Text style={styles.fieldHint}>JPG, PNG o WebP. Maximo 5 MB.</Text>
+              </View>
+            )}
+            <View style={styles.imageActionRow}>
+              <Pressable
+                style={({ pressed }) => [styles.imageActionButton, pressed && styles.buttonPressed]}
+                onPress={handleTakeProductImage}
+              >
+                <Ionicons name="camera-outline" size={16} color={colors.brandBlue} />
+                <Text style={styles.imageActionText}>Tomar foto</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.imageActionButton, pressed && styles.buttonPressed]}
+                onPress={handlePickProductImage}
+              >
+                <Ionicons name="images-outline" size={16} color={colors.brandBlue} />
+                <Text style={styles.imageActionText}>Subir imagen</Text>
+              </Pressable>
+            </View>
           </View>
           <Pressable
             accessibilityRole="switch"
@@ -840,6 +976,96 @@ const styles = StyleSheet.create({
   inlineInput: {
     flex: 1,
     minWidth: 120,
+  },
+  fieldBlock: {
+    gap: 8,
+  },
+  fieldLabel: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  fieldHint: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+  categoryOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryOption: {
+    minHeight: 36,
+    maxWidth: '100%',
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryOptionActive: {
+    backgroundColor: colors.brandBlueSoft,
+    borderColor: colors.brandBlueLine,
+  },
+  categoryOptionText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  categoryOptionTextActive: {
+    color: colors.brandBlue,
+  },
+  imagePickerPanel: {
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
+    padding: 10,
+    gap: 10,
+  },
+  productImagePreview: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: radii.small,
+    backgroundColor: colors.surface,
+  },
+  productImagePlaceholder: {
+    minHeight: 150,
+    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
+  },
+  imageActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  imageActionButton: {
+    flex: 1,
+    minWidth: 132,
+    minHeight: 38,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  imageActionText: {
+    color: colors.brandBlue,
+    fontSize: 12,
+    fontWeight: '700',
   },
   toggleRow: {
     minHeight: 42,
