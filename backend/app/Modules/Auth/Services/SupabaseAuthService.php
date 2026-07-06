@@ -57,38 +57,50 @@ class SupabaseAuthService
             throw new AuthenticationException('Supabase user id is missing.');
         }
 
-        return DB::transaction(function () use ($claims, $supabaseUserId): Profile {
-            $email = Arr::get($claims, 'email');
-            $metadata = Arr::get($claims, 'user_metadata', []);
+        $email = Arr::get($claims, 'email');
+        $metadata = Arr::get($claims, 'user_metadata', []);
 
-            /** @var Profile $profile */
-            $profile = Profile::query()->firstOrCreate(
-                ['supabase_user_id' => $supabaseUserId],
-                [
-                    'email' => is_string($email) ? $email : null,
-                    'display_name' => $this->displayNameFromMetadata($metadata),
-                    ...$this->profileFieldsFromMetadata($metadata),
-                    'role' => Profile::ROLE_BUYER,
-                    'verification_status' => Profile::VERIFICATION_PENDING,
-                    'metadata' => is_array($metadata) ? $metadata : [],
-                ],
-            );
+        /** @var Profile|null $profile */
+        $profile = Profile::query()
+            ->where('supabase_user_id', $supabaseUserId)
+            ->first();
 
-            if (is_string($email) && $email !== '' && $profile->email !== $email) {
-                $profile->forceFill(['email' => $email])->save();
+        if ($profile === null) {
+            return DB::transaction(function () use ($email, $metadata, $supabaseUserId): Profile {
+                /** @var Profile $newProfile */
+                $newProfile = Profile::query()->create(
+                    [
+                        'supabase_user_id' => $supabaseUserId,
+                        'email' => is_string($email) ? $email : null,
+                        'display_name' => $this->displayNameFromMetadata($metadata),
+                        ...$this->profileFieldsFromMetadata($metadata),
+                        'role' => Profile::ROLE_BUYER,
+                        'verification_status' => Profile::VERIFICATION_PENDING,
+                        'metadata' => is_array($metadata) ? $metadata : [],
+                    ],
+                );
+
+                return $newProfile;
+            });
+        }
+
+        $updates = [];
+
+        if (is_string($email) && $email !== '' && $profile->email !== $email) {
+            $updates['email'] = $email;
+        }
+
+        foreach ($this->profileFieldsFromMetadata($metadata) as $key => $value) {
+            if ($value !== null && blank($profile->{$key})) {
+                $updates[$key] = $value;
             }
+        }
 
-            $metadataFields = $this->profileFieldsFromMetadata($metadata);
-            $missingMetadataFields = collect($metadataFields)
-                ->filter(fn (mixed $value, string $key): bool => $value !== null && blank($profile->{$key}))
-                ->all();
+        if ($updates !== []) {
+            $profile->forceFill($updates)->save();
+        }
 
-            if ($missingMetadataFields !== []) {
-                $profile->forceFill($missingMetadataFields)->save();
-            }
-
-            return $profile->refresh();
-        });
+        return $profile;
     }
 
     /**

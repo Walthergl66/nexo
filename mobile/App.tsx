@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -24,6 +25,7 @@ import { OrdersScreen } from './app/orders/OrdersScreen';
 import { SellScreen } from './app/sell/SellScreen';
 import {
   addProductToCart,
+  ApiRequestError,
   createOrderFromCart,
   fetchCategoryNames,
   fetchCart,
@@ -33,9 +35,11 @@ import {
   updateCartItemQuantity,
   type ProfileResource,
 } from './services/marketplaceApi';
-import { getCurrentSession, onAuthStateChange, openPasswordRecoverySession } from './services/authService';
+import { getCurrentSession, onAuthStateChange, openPasswordRecoverySession, signOut } from './services/authService';
 import { colors } from './theme/colors';
 import type { CartItem, Product, TabKey } from './types/marketplace';
+
+const PROFILE_CACHE_KEY = 'nexo.profile.cache.v1';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -48,6 +52,7 @@ export default function App() {
   const [categoryFilters, setCategoryFilters] = useState<string[]>(['Todo']);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isSessionReady, setIsSessionReady] = useState(false);
   const [profile, setProfile] = useState<ProfileResource | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -68,6 +73,7 @@ export default function App() {
   const hasLoadedCatalog = useRef(false);
   const headerVisibility = useRef(new Animated.Value(1)).current;
   const isHeaderVisible = useRef(true);
+  const currentAccessToken = useRef<string | null>(null);
   const lastProductScrollY = useRef(0);
   const previousActiveIndex = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -161,6 +167,17 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     const isInitialLoad = !hasLoadedCatalog.current;
+    const shouldDeferCatalog = accessToken !== null && profile === null && profileError === null;
+
+    if (!isSessionReady || activeTab !== 'Inicio' || shouldDeferCatalog) {
+      if (!hasLoadedCatalog.current) {
+        setIsCatalogLoading(false);
+      }
+
+      return () => {
+        isMounted = false;
+      };
+    }
 
     if (isInitialLoad) {
       setIsCatalogLoading(true);
@@ -175,14 +192,12 @@ export default function App() {
         }
 
         setMarketplaceProducts(nextProducts);
-        setFilteredProducts(applyCatalogFilters(nextProducts, activeFilter, search));
         setLastCatalogSync(new Date());
         hasLoadedCatalog.current = true;
       })
       .catch(() => {
         if (isMounted) {
           setMarketplaceProducts([]);
-          setFilteredProducts([]);
         }
       })
       .finally(() => {
@@ -195,10 +210,17 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [activeFilter, applyCatalogFilters, catalogRequestKey, search]);
+  }, [accessToken, activeTab, catalogRequestKey, isSessionReady, profile, profileError]);
 
   useEffect(() => {
     let isMounted = true;
+    const shouldDeferCatalog = accessToken !== null && profile === null && profileError === null;
+
+    if (!isSessionReady || activeTab !== 'Inicio' || shouldDeferCatalog) {
+      return () => {
+        isMounted = false;
+      };
+    }
 
     fetchCategoryNames()
       .then((names) => {
@@ -215,7 +237,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [catalogRequestKey]);
+  }, [accessToken, activeTab, catalogRequestKey, isSessionReady, profile, profileError]);
 
   useEffect(() => {
     setFilteredProducts(applyCatalogFilters(marketplaceProducts, activeFilter, search));
@@ -223,23 +245,32 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    const applySessionToken = (nextToken: string | null) => {
+      if (!isMounted || currentAccessToken.current === nextToken) {
+        return;
+      }
+
+      currentAccessToken.current = nextToken;
+      setAccessToken(nextToken);
+      setSelectedProductId(null);
+      setIsCartOpen(false);
+    };
 
     getCurrentSession()
       .then((session) => {
-        if (isMounted) {
-          setAccessToken(session?.access_token ?? null);
-        }
+        applySessionToken(session?.access_token ?? null);
       })
       .catch(() => {
+        applySessionToken(null);
+      })
+      .finally(() => {
         if (isMounted) {
-          setAccessToken(null);
+          setIsSessionReady(true);
         }
       });
 
     const subscription = onAuthStateChange((session) => {
-      setAccessToken(session?.access_token ?? null);
-      setSelectedProductId(null);
-      setIsCartOpen(false);
+      applySessionToken(session?.access_token ?? null);
     });
 
     return () => {
@@ -291,6 +322,7 @@ export default function App() {
     let isMounted = true;
 
     if (!accessToken) {
+      clearCachedProfile();
       setProfile(null);
       setCartItems([]);
       setIsProfileLoading(false);
@@ -303,18 +335,54 @@ export default function App() {
     setIsProfileLoading(true);
     setProfileError(null);
 
+    getCachedProfile(accessToken).then((cachedProfile) => {
+      if (isMounted && cachedProfile) {
+        setProfile((current) => current ?? cachedProfile);
+      }
+    });
+
     fetchProfile(accessToken)
       .then((nextProfile) => {
         if (isMounted) {
+          if (!nextProfile) {
+            setProfile(null);
+            setProfileError('No pudimos cargar tus datos de cuenta. Intenta nuevamente.');
+            return;
+          }
+
           setProfile(nextProfile);
           setProfileError(null);
+          cacheProfile(accessToken, nextProfile);
         }
       })
-      .catch((error) => {
+      .catch(async (error) => {
         if (isMounted) {
-          setProfile(null);
+          if (error instanceof ApiRequestError && error.status === 401) {
+            try {
+              await signOut();
+            } catch {
+              return;
+            }
+
+            currentAccessToken.current = null;
+            setAccessToken(null);
+            setProfile(null);
+            setCartItems([]);
+            setProfileError(null);
+            clearCachedProfile();
+            return;
+          }
+
           setCartItems([]);
-          setProfileError('No pudimos cargar tus datos de cuenta. Intenta nuevamente.');
+          setProfile((current) => {
+            if (current) {
+              setProfileError(null);
+              return current;
+            }
+
+            setProfileError('No pudimos cargar tus datos de cuenta. Intenta nuevamente.');
+            return null;
+          });
         }
       })
       .finally(() => {
@@ -813,6 +881,86 @@ export default function App() {
       </View>
     </SafeAreaView>
   );
+}
+
+type CachedProfile = {
+  profile: ProfileResource;
+  subject: string;
+};
+
+async function getCachedProfile(token: string): Promise<ProfileResource | null> {
+  const subject = getTokenSubject(token);
+
+  if (!subject) {
+    return null;
+  }
+
+  try {
+    const rawValue = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+
+    if (!rawValue) {
+      return null;
+    }
+
+    const cached = JSON.parse(rawValue) as Partial<CachedProfile>;
+
+    if (cached.subject !== subject || !cached.profile) {
+      return null;
+    }
+
+    return cached.profile;
+  } catch {
+    return null;
+  }
+}
+
+async function cacheProfile(token: string, profile: ProfileResource): Promise<void> {
+  const subject = getTokenSubject(token);
+
+  if (!subject) {
+    return;
+  }
+
+  try {
+    await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ profile, subject }));
+  } catch {
+    return;
+  }
+}
+
+async function clearCachedProfile(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
+  } catch {
+    return;
+  }
+}
+
+function getTokenSubject(token: string): string | null {
+  const [, encodedPayload] = token.split('.');
+
+  if (!encodedPayload) {
+    return null;
+  }
+
+  const atob = (globalThis as { atob?: (value: string) => string }).atob;
+
+  if (!atob) {
+    return null;
+  }
+
+  try {
+    const normalizedPayload = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    );
+    const payload = JSON.parse(atob(paddedPayload)) as { sub?: unknown };
+
+    return typeof payload.sub === 'string' && payload.sub.length > 0 ? payload.sub : null;
+  } catch {
+    return null;
+  }
 }
 
 const styles = StyleSheet.create({

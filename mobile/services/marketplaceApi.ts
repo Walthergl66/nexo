@@ -16,8 +16,18 @@ type ApiDocument<T> = {
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: Record<string, unknown>;
+  timeoutMs?: number;
   token?: string;
 };
+
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number | null = null,
+  ) {
+    super(message);
+  }
+}
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 
@@ -31,6 +41,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 10000);
 
   if (options.body) {
     headers['Content-Type'] = 'application/json';
@@ -40,14 +52,23 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.Authorization = `Bearer ${options.token}`;
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch {
+    throw new ApiRequestError('No pudimos conectar con nexo. Revisa tu conexion e intenta nuevamente.');
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
-    throw new Error(await getApiErrorMessage(response));
+    throw new ApiRequestError(await getApiErrorMessage(response), response.status);
   }
 
   if (response.status === 204) {
@@ -221,7 +242,7 @@ export async function fetchProfile(token?: string): Promise<ProfileResource | nu
     return null;
   }
 
-  const response = await request<ApiDocument<ProfileResource>>('/me', { token });
+  const response = await request<ApiDocument<ProfileResource>>('/me', { token, timeoutMs: 12000 });
 
   return response.data;
 }
