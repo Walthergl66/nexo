@@ -8,7 +8,6 @@ type LoginFormProps = {
   email: string;
   isLoading: boolean;
   isPasswordVisible: boolean;
-  message: string | null;
   password: string;
   onChangeEmail: (value: string) => void;
   onChangePassword: (value: string) => void;
@@ -22,7 +21,6 @@ export function LoginForm({
   email,
   isLoading,
   isPasswordVisible,
-  message,
   password,
   onChangeEmail,
   onChangePassword,
@@ -66,7 +64,6 @@ export function LoginForm({
       <Pressable disabled={isLoading} style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={onSubmit}>
         {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
       </Pressable>
-      {message && <Text style={styles.formMessage}>{message}</Text>}
       <Pressable style={({ pressed }) => [styles.recoveryLink, pressed && styles.recoveryLinkPressed]} onPress={onRecoverPassword}>
         <Text style={styles.recoveryLinkText}>Recuperar contraseña</Text>
       </Pressable>

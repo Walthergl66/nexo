@@ -10,7 +10,6 @@ import { accountStyles as styles } from './accountStyles';
 
 type AuthenticatedAccountPanelProps = {
   isLoggingOut: boolean;
-  message: string | null;
   products: Product[];
   profile: ProfileResource;
   onLogout: () => void;
@@ -20,7 +19,6 @@ type AuthenticatedAccountPanelProps = {
 
 export function AuthenticatedAccountPanel({
   isLoggingOut,
-  message,
   products,
   profile,
   onLogout,
@@ -163,14 +161,12 @@ export function AuthenticatedAccountPanel({
           </View>
         )}
       </View>
-      {message && <Text style={styles.message}>{message}</Text>}
     </>
   );
 }
 
 type AccountSettingsPanelProps = {
   isSavingProfile: boolean;
-  message: string | null;
   profile: ProfileResource;
   onBack: () => void;
   onChangeAvatar: () => Promise<void>;
@@ -181,7 +177,6 @@ type AccountSettingsPanelProps = {
 
 export function AccountSettingsPanel({
   isSavingProfile,
-  message,
   profile,
   onBack,
   onChangeAvatar,
@@ -396,7 +391,6 @@ export function AccountSettingsPanel({
           <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
         </Pressable>
       </View>
-      {message && <Text style={styles.message}>{message}</Text>}
     </>
   );
 }

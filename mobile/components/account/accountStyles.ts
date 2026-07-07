@@ -776,23 +776,6 @@ export const accountStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  formMessage: {
-    color: colors.ink,
-    fontSize: 12,
-    lineHeight: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.small,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  message: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 10,
-  },
   errorText: {
     color: '#9f1239',
     fontSize: 11,

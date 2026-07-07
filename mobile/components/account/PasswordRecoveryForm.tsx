@@ -6,7 +6,6 @@ import { accountStyles as styles } from './accountStyles';
 type PasswordRecoveryFormProps = {
   email: string;
   isLoading: boolean;
-  message: string | null;
   onBackToLogin: () => void;
   onChangeEmail: (value: string) => void;
   onSubmit: () => void;
@@ -15,7 +14,6 @@ type PasswordRecoveryFormProps = {
 export function PasswordRecoveryForm({
   email,
   isLoading,
-  message,
   onBackToLogin,
   onChangeEmail,
   onSubmit,
@@ -39,7 +37,6 @@ export function PasswordRecoveryForm({
       <Pressable disabled={isLoading} style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={onSubmit}>
         {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Enviar enlace</Text>}
       </Pressable>
-      {message && <Text style={styles.formMessage}>{message}</Text>}
       <Pressable style={({ pressed }) => [styles.recoveryLink, pressed && styles.recoveryLinkPressed]} onPress={onBackToLogin}>
         <Text style={styles.recoveryLinkText}>Volver a iniciar sesión</Text>
       </Pressable>

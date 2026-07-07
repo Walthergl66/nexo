@@ -119,6 +119,7 @@ Get-NetTCPConnection -LocalPort 8010
 
 ```bash
 cd backend
+composer update
 composer install
 cp .env.example .env
 php artisan key:generate
