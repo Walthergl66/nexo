@@ -12,6 +12,7 @@ services:
       DB_PERSISTENT: "true"
     volumes:
       - ./backend:/var/www/html
+      - ./docs:/var/www/docs:ro
       - backend-vendor:/var/www/html/vendor
     networks:
       - nexo
