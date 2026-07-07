@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -209,6 +210,10 @@ export function HomeScreen({
           <View style={styles.featuredCopy}>
             <Text style={styles.featuredCategory}>{featuredProduct.category}</Text>
             <Text numberOfLines={3} style={styles.featuredTitle}>{featuredProduct.title}</Text>
+            <View style={styles.featuredSellerRow}>
+              <Ionicons name="storefront-outline" size={12} color={colors.surface} />
+              <Text numberOfLines={1} style={styles.featuredSeller}>{featuredProduct.seller}</Text>
+            </View>
             <Text style={styles.featuredPrice}>{formatPrice(featuredProduct.price)}</Text>
             <Pressable
               style={({ pressed }) => [styles.featuredButton, pressed && styles.pressFeedback]}
@@ -222,7 +227,16 @@ export function HomeScreen({
           </View>
           <View style={styles.featuredVisual}>
             <View style={styles.featuredHalo} />
-            <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
+            {featuredProduct.imageUrl ? (
+              <Image
+                accessibilityLabel={`Imagen de ${featuredProduct.title}`}
+                source={{ uri: featuredProduct.imageUrl }}
+                style={styles.featuredImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
+            )}
           </View>
         </Pressable>
       )}
@@ -469,6 +483,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
     maxWidth: 190,
   },
+  featuredSellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+    maxWidth: 190,
+  },
+  featuredSeller: {
+    flex: 1,
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.9,
+  },
   featuredPrice: {
     color: colors.surface,
     fontSize: 18,
@@ -499,6 +527,13 @@ const styles = StyleSheet.create({
     height: 116,
     borderRadius: 58,
     backgroundColor: colors.brandBlue,
+  },
+  featuredImage: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   resultsHeader: {
     flexDirection: 'row',

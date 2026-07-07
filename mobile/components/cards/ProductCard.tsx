@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -57,6 +58,8 @@ const palettes: Record<Product['visualTone'], BottlePalette> = {
 
 export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectProduct }: ProductCardProps) {
   const palette = palettes[product.visualTone];
+  const [hasImageError, setHasImageError] = useState(false);
+  const showRealImage = Boolean(product.imageUrl) && !hasImageError;
   const addLabel = isAuthenticated ? `Agregar ${product.title} al carrito` : `Iniciar sesion para comprar ${product.title}`;
 
   return (
@@ -69,27 +72,42 @@ export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectPro
         <View style={styles.favoriteButton}>
           <Ionicons name="heart-outline" size={14} color={colors.ink} />
         </View>
-        <View style={[styles.leaf, styles.leafLeft, { backgroundColor: palette.leaf }]} />
-        <View style={[styles.leaf, styles.leafRight, { backgroundColor: palette.leafAlt }]} />
-        <View style={styles.productShape}>
-          <View style={[styles.productPump, { backgroundColor: palette.cap }]} />
-          <View style={[styles.productNozzle, { backgroundColor: palette.cap }]} />
-          <View style={[styles.productNeck, { backgroundColor: palette.cap }]} />
-          <View style={[styles.productBody, { backgroundColor: palette.bottle }]}>
-            <View style={[styles.productLabel, { backgroundColor: palette.label }]}>
-              <Text style={[styles.labelTitle, { color: palette.labelText }]}>NEXO</Text>
-              <Text style={[styles.labelLine, { color: palette.labelText }]}>{product.category}</Text>
+        {showRealImage ? (
+          <Image
+            accessibilityLabel={`Imagen de ${product.title}`}
+            source={{ uri: product.imageUrl as string }}
+            style={styles.productImage}
+            resizeMode="cover"
+            onError={() => setHasImageError(true)}
+          />
+        ) : (
+          <>
+            <View style={[styles.leaf, styles.leafLeft, { backgroundColor: palette.leaf }]} />
+            <View style={[styles.leaf, styles.leafRight, { backgroundColor: palette.leafAlt }]} />
+            <View style={styles.productShape}>
+              <View style={[styles.productPump, { backgroundColor: palette.cap }]} />
+              <View style={[styles.productNozzle, { backgroundColor: palette.cap }]} />
+              <View style={[styles.productNeck, { backgroundColor: palette.cap }]} />
+              <View style={[styles.productBody, { backgroundColor: palette.bottle }]}>
+                <View style={[styles.productLabel, { backgroundColor: palette.label }]}>
+                  <Text style={[styles.labelTitle, { color: palette.labelText }]}>NEXO</Text>
+                  <Text style={[styles.labelLine, { color: palette.labelText }]}>{product.category}</Text>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
+          </>
+        )}
       </View>
 
       <Text numberOfLines={2} style={styles.title}>
         {product.title}
       </Text>
-      <Text numberOfLines={1} style={styles.seller}>
-        {product.seller}
-      </Text>
+      <View style={styles.sellerRow}>
+        <Ionicons name="storefront-outline" size={11} color={colors.brandBlue} />
+        <Text numberOfLines={1} style={styles.seller}>
+          {product.seller}
+        </Text>
+      </View>
       <View style={styles.bottomRow}>
         <View>
           <Text style={styles.price}>{formatPrice(product.price)}</Text>
@@ -138,6 +156,11 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderWidth: 1,
     borderColor: colors.line,
+  },
+  productImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   leaf: {
     position: 'absolute',
@@ -245,11 +268,17 @@ const styles = StyleSheet.create({
     minHeight: 31,
     lineHeight: 17,
   },
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
   seller: {
+    flex: 1,
     fontSize: 10,
-    color: colors.inkMuted,
-    marginTop: 2,
-    fontWeight: '500',
+    color: colors.brandBlue,
+    fontWeight: '600',
   },
   bottomRow: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -17,6 +18,9 @@ export function ProductDetailCard({
   onAddToCart,
   onBack,
 }: ProductDetailCardProps) {
+  const [hasImageError, setHasImageError] = useState(false);
+  const showRealImage = Boolean(product.imageUrl) && !hasImageError;
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
@@ -34,9 +38,21 @@ export function ProductDetailCard({
       <Text style={styles.pageTitle}>Producto</Text>
 
       <View style={styles.heroVisual}>
-        <View style={styles.heroHalo} />
-        <View style={styles.heroOrbit} />
-        <Ionicons name="bag-handle-outline" size={112} color={colors.ink} />
+        {showRealImage ? (
+          <Image
+            accessibilityLabel={`Imagen de ${product.title}`}
+            source={{ uri: product.imageUrl as string }}
+            style={styles.heroImage}
+            resizeMode="cover"
+            onError={() => setHasImageError(true)}
+          />
+        ) : (
+          <>
+            <View style={styles.heroHalo} />
+            <View style={styles.heroOrbit} />
+            <Ionicons name="bag-handle-outline" size={112} color={colors.ink} />
+          </>
+        )}
         <View style={styles.heroBadge}>
           <Ionicons name="shield-checkmark-outline" size={15} color={colors.ink} />
         </View>
@@ -54,7 +70,10 @@ export function ProductDetailCard({
         <View style={styles.headingCopy}>
           <Text style={styles.category}>{product.category}</Text>
           <Text style={styles.title}>{product.title}</Text>
-          <Text style={styles.seller}>por {product.seller}</Text>
+          <View style={styles.sellerRow}>
+            <Ionicons name="storefront-outline" size={13} color={colors.brandBlue} />
+            <Text numberOfLines={1} style={styles.seller}>{product.seller}</Text>
+          </View>
         </View>
         <Text style={styles.price}>{formatPrice(product.price)}</Text>
       </View>
@@ -151,6 +170,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
   heroHalo: {
     position: 'absolute',
     width: 190,
@@ -222,10 +246,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
     marginTop: 4,
   },
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+  },
   seller: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    marginTop: 4,
+    flex: 1,
+    color: colors.brandBlue,
+    fontSize: 12,
+    fontWeight: '600',
   },
   price: {
     color: colors.ink,
