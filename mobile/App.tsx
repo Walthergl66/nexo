@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 import { AmbientBackground } from './components/common/AmbientBackground';
+import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { StatusToast } from './components/common/StatusToast';
 import { AppHeader } from './components/navigation/AppHeader';
 import { BottomNav } from './components/navigation/BottomNav';
@@ -22,12 +23,14 @@ import { useScreenTransition } from './hooks/navigation/useScreenTransition';
 import { signOut } from './services/authService';
 import { colors } from './theme/colors';
 import type { Product, TabKey } from './types/marketplace';
-import type { StatusMessage, StatusTone } from './types/status';
+import type { ConfirmActionRequest, StatusMessage, StatusTone } from './types/status';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmActionRequest | null>(null);
+  const [isConfirmResolving, setIsConfirmResolving] = useState(false);
   const [statusToast, setStatusToast] = useState<StatusMessage | null>(null);
   const [passwordResetKey, setPasswordResetKey] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -74,6 +77,10 @@ export default function App() {
     setActiveTab('Pedidos');
   }, []);
 
+  const handleStatusMessage = useCallback((text: string, tone: StatusTone) => {
+    setStatusToast({ text, tone });
+  }, []);
+
   const cart = useCart({
     accessToken,
     profile,
@@ -81,6 +88,7 @@ export default function App() {
     isProfileLoading,
     onRequireAccount: goToAccount,
     onOrderPlaced: goToOrders,
+    onStatusMessage: handleStatusMessage,
   });
 
   const handlePasswordRecovery = useCallback(
@@ -111,13 +119,34 @@ export default function App() {
     return () => clearTimeout(timeoutId);
   }, [statusToast]);
 
-  const handleStatusMessage = useCallback((text: string, tone: StatusTone) => {
-    setStatusToast({ text, tone });
-  }, []);
-
   const handleClearStatusMessage = useCallback(() => {
     setStatusToast(null);
   }, []);
+
+  const requestConfirmation = useCallback((action: ConfirmActionRequest) => {
+    setConfirmAction(action);
+  }, []);
+
+  const handleCancelConfirmation = useCallback(() => {
+    if (!isConfirmResolving) {
+      setConfirmAction(null);
+    }
+  }, [isConfirmResolving]);
+
+  const handleConfirmAction = useCallback(async () => {
+    if (!confirmAction) {
+      return;
+    }
+
+    setIsConfirmResolving(true);
+
+    try {
+      await confirmAction.onConfirm();
+      setConfirmAction(null);
+    } finally {
+      setIsConfirmResolving(false);
+    }
+  }, [confirmAction]);
 
   const visibleTabs = useMemo<TabKey[]>(
     () => (hasBusinessProfile ? tabs : ['Inicio', 'Cuenta']),
@@ -177,6 +206,35 @@ export default function App() {
     catalog.refreshCatalog();
   };
 
+  const handleChangeCartQuantity = (productId: string, quantity: number) => {
+    if (quantity > 0) {
+      cart.changeQuantity(productId, quantity);
+      return;
+    }
+
+    const item = cart.cartItems.find((cartItem) => cartItem.product.id === productId);
+    requestConfirmation({
+      title: 'Eliminar producto',
+      description: `Quieres eliminar ${item?.product.title ?? 'este producto'} del carrito?`,
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      tone: 'danger',
+      onConfirm: () => cart.removeItem(productId),
+    });
+  };
+
+  const handleRemoveCartItem = (productId: string) => {
+    const item = cart.cartItems.find((cartItem) => cartItem.product.id === productId);
+    requestConfirmation({
+      title: 'Eliminar producto',
+      description: `Quieres eliminar ${item?.product.title ?? 'este producto'} del carrito?`,
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      tone: 'danger',
+      onConfirm: () => cart.removeItem(productId),
+    });
+  };
+
   const handleSelectTab = (tab: TabKey) => {
     if (!hasBusinessProfile && (tab === 'Vender' || tab === 'Pedidos')) {
       setActiveTab('Cuenta');
@@ -202,9 +260,9 @@ export default function App() {
           items={cart.cartItems}
           shipping={4.99}
           onBackToCatalog={handleBackToCatalog}
-          onChangeQuantity={cart.changeQuantity}
+          onChangeQuantity={handleChangeCartQuantity}
           onCheckout={cart.checkout}
-          onRemoveItem={cart.removeItem}
+          onRemoveItem={handleRemoveCartItem}
         />
       );
     }
@@ -240,6 +298,7 @@ export default function App() {
             onExploreProducts={() => setActiveTab('Inicio')}
             onGoToAccount={() => setActiveTab('Cuenta')}
             onProfileChange={onProfileChange}
+            onStatusMessage={handleStatusMessage}
           />
         );
       case 'Pedidos':
@@ -252,6 +311,7 @@ export default function App() {
             profileError={profileError}
             isProfileLoading={isProfileLoading}
             onClearStatusMessage={handleClearStatusMessage}
+            onConfirmAction={requestConfirmation}
             onStatusMessage={handleStatusMessage}
             onExplore={() => setActiveTab('Inicio')}
             passwordResetKey={passwordResetKey}
@@ -303,6 +363,12 @@ export default function App() {
           </Animated.View>
         </Animated.ScrollView>
 
+        <ConfirmDialog
+          action={confirmAction}
+          isResolving={isConfirmResolving}
+          onCancel={handleCancelConfirmation}
+          onConfirm={handleConfirmAction}
+        />
         <StatusToast status={statusToast} />
 
         <BottomNav

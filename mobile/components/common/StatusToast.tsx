@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
-import type { StatusMessage } from '../../types/status';
+import type { StatusMessage, StatusTone } from '../../types/status';
 
 type StatusToastProps = {
   status: StatusMessage | null;
@@ -13,12 +13,35 @@ export function StatusToast({ status }: StatusToastProps) {
 
   return (
     <View pointerEvents="none" style={styles.layer}>
-      <Text style={[styles.toast, status.tone === 'success' ? styles.success : styles.error]}>
+      <Text style={[styles.toast, toneStyles[status.tone]]}>
         {status.text}
       </Text>
     </View>
   );
 }
+
+const toneStyles: Record<StatusTone, object> = {
+  success: {
+    color: '#166534',
+    backgroundColor: '#ecfdf3',
+    borderColor: '#86efac',
+  },
+  error: {
+    color: '#9f1239',
+    backgroundColor: '#fff1f2',
+    borderColor: '#fda4af',
+  },
+  info: {
+    color: colors.brandBlue,
+    backgroundColor: colors.brandBlueSoft,
+    borderColor: colors.brandBlueLine,
+  },
+  warning: {
+    color: '#92400e',
+    backgroundColor: '#fffbeb',
+    borderColor: '#fcd34d',
+  },
+};
 
 const styles = StyleSheet.create({
   layer: {
@@ -45,15 +68,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 18,
     elevation: 12,
-  },
-  success: {
-    color: '#166534',
-    backgroundColor: '#ecfdf3',
-    borderColor: '#86efac',
-  },
-  error: {
-    color: '#9f1239',
-    backgroundColor: '#fff1f2',
-    borderColor: '#fda4af',
   },
 });

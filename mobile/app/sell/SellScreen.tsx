@@ -42,6 +42,7 @@ export function SellScreen({
   onExploreProducts,
   onGoToAccount,
   onProfileChange,
+  onStatusMessage,
 }: SellScreenProps) {
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
@@ -52,8 +53,19 @@ export function SellScreen({
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const notify = useCallback(
+    (nextMessage: string, tone: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+      if (onStatusMessage) {
+        onStatusMessage(nextMessage, tone);
+        return;
+      }
+
+      setMessage(nextMessage);
+    },
+    [onStatusMessage],
+  );
   const handleSellerLoaded = useCallback(() => setMessage(null), []);
-  const handleSellerError = useCallback((nextMessage: string) => setMessage(nextMessage), []);
+  const handleSellerError = useCallback((nextMessage: string) => notify(nextMessage, 'error'), [notify]);
   const {
     categories,
     categoryError,
@@ -143,7 +155,7 @@ export function SellScreen({
     const businessName = verificationForm.businessName.trim();
 
     if (businessName.length < 3) {
-      setMessage('Ingresa el nombre comercial de tu emprendimiento.');
+      notify('Ingresa el nombre comercial de tu emprendimiento.', 'warning');
       return;
     }
 
@@ -163,9 +175,9 @@ export function SellScreen({
       setSellerState('verification_pending');
       setVerificationForm(initialVerificationForm);
       await loadSellerState();
-      setMessage('Solicitud enviada. Un administrador debe revisarla.');
+      notify('Solicitud enviada. Un administrador debe revisarla.', 'success');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No se pudo enviar la solicitud.');
+      notify(error instanceof Error ? error.message : 'No se pudo enviar la solicitud.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -179,7 +191,7 @@ export function SellScreen({
     const name = storeForm.name.trim();
 
     if (name.length < 3) {
-      setMessage('Ingresa un nombre de tienda valido.');
+      notify('Ingresa un nombre de tienda valido.', 'warning');
       return;
     }
 
@@ -197,10 +209,10 @@ export function SellScreen({
       setSellerState('catalog_required');
       saveSellerState({ sellerState: 'catalog_required', store: nextStore, products });
       setStoreForm(initialStoreForm);
-      setMessage('Tienda creada y activa.');
+      notify('Tienda creada y activa.', 'success');
     } catch (error) {
       await loadSellerState().catch(() => undefined);
-      setMessage(error instanceof Error ? error.message : 'No se pudo crear la tienda.');
+      notify(error instanceof Error ? error.message : 'No se pudo crear la tienda.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -216,7 +228,7 @@ export function SellScreen({
         setStoreForm((current) => ({ ...current, logo: image }));
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen de la tienda.');
+      notify(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen de la tienda.', 'error');
     }
   };
 
@@ -230,7 +242,7 @@ export function SellScreen({
         setStoreForm((current) => ({ ...current, logo: image }));
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos tomar la imagen de la tienda.');
+      notify(error instanceof Error ? error.message : 'No pudimos tomar la imagen de la tienda.', 'error');
     }
   };
 
@@ -245,32 +257,32 @@ export function SellScreen({
     const stock = Number(productForm.stock);
 
     if (name.length < 3) {
-      setMessage('Ingresa un titulo de producto valido.');
+      notify('Ingresa un titulo de producto valido.', 'warning');
       return;
     }
 
     if (description.length < 10) {
-      setMessage('Ingresa una descripcion de al menos 10 caracteres.');
+      notify('Ingresa una descripcion de al menos 10 caracteres.', 'warning');
       return;
     }
 
     if (!productForm.categoryId) {
-      setMessage('Selecciona una categoria para el producto.');
+      notify('Selecciona una categoria para el producto.', 'warning');
       return;
     }
 
     if (!Number.isFinite(price) || price <= 0 || price > 9999999.99) {
-      setMessage('Ingresa un precio valido mayor a cero.');
+      notify('Ingresa un precio valido mayor a cero.', 'warning');
       return;
     }
 
     if (!Number.isInteger(stock) || stock < 0) {
-      setMessage('Ingresa una cantidad disponible valida.');
+      notify('Ingresa una cantidad disponible valida.', 'warning');
       return;
     }
 
     if (!productForm.image) {
-      setMessage('Agrega una imagen del producto desde la camara o galeria.');
+      notify('Agrega una imagen del producto desde la camara o galeria.', 'warning');
       return;
     }
 
@@ -308,7 +320,7 @@ export function SellScreen({
           : 'Quedo como borrador en tu centro de ventas.',
       });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No se pudo crear el producto.');
+      notify(error instanceof Error ? error.message : 'No se pudo crear el producto.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -334,7 +346,7 @@ export function SellScreen({
         setProductForm((current) => ({ ...current, image }));
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen.');
+      notify(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen.', 'error');
     }
   };
 
@@ -348,7 +360,7 @@ export function SellScreen({
         setProductForm((current) => ({ ...current, image }));
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No pudimos tomar la foto.');
+      notify(error instanceof Error ? error.message : 'No pudimos tomar la foto.', 'error');
     }
   };
 

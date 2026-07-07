@@ -2,6 +2,7 @@ import type { CategoryResource, ProfileResource, SellerCenterState, StoreResourc
 import type { ProductImageAsset } from '../services/productImageService';
 import type { StoreLogoAsset } from '../services/storeLogoService';
 import type { Product } from './marketplace';
+import type { StatusTone } from './status';
 
 export type SellScreenProps = {
   accessToken: string | null;
@@ -10,6 +11,7 @@ export type SellScreenProps = {
   onExploreProducts: () => void;
   onGoToAccount: () => void;
   onProfileChange: (profile: ProfileResource | null) => void;
+  onStatusMessage?: (message: string, tone: StatusTone) => void;
 };
 
 export type StoreForm = {

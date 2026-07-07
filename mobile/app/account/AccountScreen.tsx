@@ -21,7 +21,7 @@ import { sendPasswordResetEmail, signInWithEmail, signOut, signUpWithEmail, upda
 import { deleteProfileAvatar, pickProfileAvatar, uploadProfileAvatar } from '../../services/profileAvatarService';
 import { initialRegisterForm, type AccountMode, type RegisterForm as RegisterFormState } from '../../types/account';
 import type { Product } from '../../types/marketplace';
-import type { StatusTone } from '../../types/status';
+import type { ConfirmActionRequest, StatusTone } from '../../types/status';
 import { validatePassword, validateRegisterForm } from '../../utils/accountValidation';
 
 type AccountScreenProps = {
@@ -30,6 +30,7 @@ type AccountScreenProps = {
   profileError: string | null;
   isProfileLoading: boolean;
   onClearStatusMessage?: () => void;
+  onConfirmAction?: (action: ConfirmActionRequest) => void;
   onStatusMessage?: (message: string, tone: StatusTone) => void;
   onExplore: () => void;
   onProfileChange: (profile: ProfileResource | null) => void;
@@ -44,6 +45,7 @@ export function AccountScreen({
   profileError,
   isProfileLoading,
   onClearStatusMessage,
+  onConfirmAction,
   onStatusMessage,
   onExplore,
   onProfileChange,
@@ -304,6 +306,22 @@ export function AccountScreen({
   };
 
   const handleLogout = async () => {
+    if (onConfirmAction) {
+      onConfirmAction({
+        title: 'Cerrar sesion',
+        description: 'Quieres cerrar tu sesion en nexo?',
+        confirmLabel: 'Cerrar sesion',
+        cancelLabel: 'Cancelar',
+        tone: 'danger',
+        onConfirm: performLogout,
+      });
+      return;
+    }
+
+    await performLogout();
+  };
+
+  const performLogout = async () => {
     setIsLoading(true);
     clearMessage();
 
@@ -390,6 +408,26 @@ export function AccountScreen({
   };
 
   const handleDeleteAvatar = async () => {
+    if (!profile?.avatar_url) {
+      return;
+    }
+
+    if (onConfirmAction) {
+      onConfirmAction({
+        title: 'Eliminar foto',
+        description: 'Quieres eliminar tu foto de perfil?',
+        confirmLabel: 'Eliminar',
+        cancelLabel: 'Cancelar',
+        tone: 'danger',
+        onConfirm: performDeleteAvatar,
+      });
+      return;
+    }
+
+    await performDeleteAvatar();
+  };
+
+  const performDeleteAvatar = async () => {
     if (!profile?.avatar_url) {
       return;
     }
