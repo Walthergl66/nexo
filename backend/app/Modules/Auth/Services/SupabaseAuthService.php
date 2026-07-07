@@ -60,8 +60,7 @@ class SupabaseAuthService
         $cacheSeconds = max(0, (int) config('supabase.profile_cache_seconds', 20));
 
         if ($cacheSeconds > 0) {
-            /** @var Profile|null $cachedProfile */
-            $cachedProfile = Cache::get($this->profileCacheKey($supabaseUserId));
+            $cachedProfile = $this->profileFromCache($supabaseUserId);
 
             if ($cachedProfile !== null) {
                 return $cachedProfile;
@@ -95,7 +94,7 @@ class SupabaseAuthService
             });
 
             if ($cacheSeconds > 0) {
-                Cache::put($this->profileCacheKey($supabaseUserId), $profile, now()->addSeconds($cacheSeconds));
+                $this->cacheProfile($supabaseUserId, $profile, $cacheSeconds);
             }
 
             return $profile;
@@ -118,7 +117,7 @@ class SupabaseAuthService
         }
 
         if ($cacheSeconds > 0) {
-            Cache::put($this->profileCacheKey($supabaseUserId), $profile, now()->addSeconds($cacheSeconds));
+            $this->cacheProfile($supabaseUserId, $profile, $cacheSeconds);
         }
 
         return $profile;
@@ -276,6 +275,31 @@ class SupabaseAuthService
     private function profileCacheKey(string $supabaseUserId): string
     {
         return 'supabase:profile:'.sha1($supabaseUserId);
+    }
+
+    private function profileFromCache(string $supabaseUserId): ?Profile
+    {
+        $cachedProfileId = Cache::get($this->profileCacheKey($supabaseUserId));
+
+        if (! is_string($cachedProfileId) || $cachedProfileId === '') {
+            Cache::forget($this->profileCacheKey($supabaseUserId));
+
+            return null;
+        }
+
+        /** @var Profile|null $profile */
+        $profile = Profile::query()->find($cachedProfileId);
+
+        if ($profile === null) {
+            Cache::forget($this->profileCacheKey($supabaseUserId));
+        }
+
+        return $profile;
+    }
+
+    private function cacheProfile(string $supabaseUserId, Profile $profile, int $cacheSeconds): void
+    {
+        Cache::put($this->profileCacheKey($supabaseUserId), (string) $profile->getKey(), now()->addSeconds($cacheSeconds));
     }
 
     /**

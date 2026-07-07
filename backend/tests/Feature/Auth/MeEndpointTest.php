@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Profile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class MeEndpointTest extends TestCase
@@ -88,6 +89,31 @@ class MeEndpointTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/me')
             ->assertUnauthorized();
+    }
+
+    public function test_me_ignores_invalid_cached_profile_value(): void
+    {
+        config([
+            'supabase.jwt_secret' => 'test-secret',
+            'supabase.jwt_algorithm' => 'HS256',
+            'supabase.auth_audience' => 'authenticated',
+            'supabase.profile_cache_seconds' => 20,
+        ]);
+
+        $supabaseUserId = '018f1d4c-40a5-7fd2-9a5a-123456789abc';
+        Cache::put('supabase:profile:'.sha1($supabaseUserId), new \stdClass(), now()->addMinute());
+
+        $token = $this->supabaseToken([
+            'sub' => $supabaseUserId,
+            'aud' => 'authenticated',
+            'email' => 'buyer@example.com',
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withToken($token)
+            ->getJson('/api/me')
+            ->assertOk()
+            ->assertJsonPath('data.supabase_user_id', $supabaseUserId);
     }
 
     /**

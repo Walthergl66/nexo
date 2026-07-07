@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $repoRoot "mobile/.env.local"
+$backendEnvPath = Join-Path $repoRoot "backend/.env"
 
 if (-not (Test-Path $envPath)) {
     $examplePath = Join-Path $repoRoot "mobile/.env.example"
@@ -60,3 +61,56 @@ Set-Content -Path $envPath -Value $lines
 
 Write-Host "Mobile API URL actualizada:"
 Write-Host $replacement
+
+$phpServers = Get-CimInstance Win32_Process -Filter "Name = 'php.exe'" |
+    Where-Object { $_.CommandLine -match "-S\s+0\.0\.0\.0:$Port|-S\s+127\.0\.0\.1:$Port|-S\s+localhost:$Port" }
+
+if ($phpServers) {
+    Write-Host ""
+    Write-Host "Advertencia: hay un servidor PHP local usando el puerto $Port."
+    Write-Host "Eso puede competir con Docker. Detenlo con:"
+    $phpServers | ForEach-Object {
+        Write-Host "Stop-Process -Id $($_.ProcessId) -Force"
+    }
+    Write-Host ""
+}
+
+if (Test-Path $backendEnvPath) {
+    $backendLines = Get-Content $backendEnvPath
+    $corsKey = "CORS_ALLOWED_ORIGINS"
+    $corsOrigins = @(
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://localhost:5173",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
+        "http://localhost:8100",
+        "http://127.0.0.1:8100",
+        "http://${ip}:3000",
+        "http://${ip}:8081",
+        "http://${ip}:19006"
+    ) -join ","
+    $corsReplacement = "$corsKey=$corsOrigins"
+    $corsUpdated = $false
+
+    $backendLines = $backendLines | ForEach-Object {
+        if ($_ -match "^$corsKey=") {
+            $corsUpdated = $true
+            $corsReplacement
+        } else {
+            $_
+        }
+    }
+
+    if (-not $corsUpdated) {
+        $backendLines += $corsReplacement
+    }
+
+    Set-Content -Path $backendEnvPath -Value $backendLines
+
+    Write-Host "Backend CORS actualizado:"
+    Write-Host $corsReplacement
+    Write-Host "Si Docker ya esta levantado, ejecuta: docker compose exec backend php artisan config:clear"
+}

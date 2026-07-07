@@ -109,6 +109,12 @@ docker compose logs -f backend backend-web
 docker compose down
 ```
 
+Si aparece un error aunque Docker este arriba, revisa que no siga corriendo `php artisan serve` en el mismo puerto:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8010
+```
+
 ## Correr localmente sin Docker
 
 ```bash
