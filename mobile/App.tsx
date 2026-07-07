@@ -890,6 +890,7 @@ export default function App() {
             accessToken={accessToken}
             profile={profile}
             isProfileLoading={isProfileLoading}
+            onExploreProducts={() => setActiveTab('Inicio')}
             onGoToAccount={() => setActiveTab('Cuenta')}
             onProfileChange={handleProfileChange}
           />

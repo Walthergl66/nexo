@@ -5,6 +5,7 @@ import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { CreateStoreForm } from '../../components/sell/CreateStoreForm';
 import { ProductCreateForm } from '../../components/sell/ProductCreateForm';
+import { ProductSuccessDialog } from '../../components/sell/ProductSuccessDialog';
 import { SellerProductList } from '../../components/sell/SellerProductList';
 import {
   createProduct,
@@ -38,12 +39,17 @@ export function SellScreen({
   accessToken,
   profile,
   isProfileLoading,
+  onExploreProducts,
   onGoToAccount,
   onProfileChange,
 }: SellScreenProps) {
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
   const [productForm, setProductForm] = useState(initialProductForm);
+  const [productSuccess, setProductSuccess] = useState<{
+    description: string;
+    title: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const handleSellerLoaded = useCallback(() => setMessage(null), []);
@@ -75,6 +81,9 @@ export function SellScreen({
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
+  const resetProductForm = useCallback(() => {
+    setProductForm({ ...initialProductForm, image: null });
+  }, []);
 
   const sellerStep = useMemo(() => {
     if (!isAuthenticated) {
@@ -266,6 +275,7 @@ export function SellScreen({
 
     setIsLoading(true);
     setMessage(null);
+    const shouldPublishProduct = productForm.publishNow;
 
     try {
       const imageUrl = await uploadProductImage(store.id, productForm.image);
@@ -276,7 +286,7 @@ export function SellScreen({
         images: [{ url: imageUrl, alt_text: name }],
         price_cents: Math.round(price * 100),
         stock,
-        status: productForm.publishNow ? 'active' : 'draft',
+        status: shouldPublishProduct ? 'active' : 'draft',
       });
       setProducts((current) => {
         const nextProducts = [nextProduct, ...current];
@@ -287,13 +297,30 @@ export function SellScreen({
 
         return nextProducts;
       });
-      setProductForm(initialProductForm);
-      setMessage(productForm.publishNow ? 'Producto publicado.' : 'Producto guardado como borrador.');
+      resetProductForm();
+      setProductSuccess({
+        title: shouldPublishProduct
+          ? 'Tu producto ha sido publicado correctamente'
+          : 'Tu producto ha sido guardado correctamente',
+        description: shouldPublishProduct
+          ? 'Ya esta listo para aparecer en el catalogo de nexo.'
+          : 'Quedo como borrador en tu centro de ventas.',
+      });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo crear el producto.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleExploreProducts = () => {
+    setProductSuccess(null);
+    onExploreProducts();
+  };
+
+  const handlePublishAnother = () => {
+    setProductSuccess(null);
+    resetProductForm();
   };
 
   const handlePickProductImage = async () => {
@@ -363,6 +390,14 @@ export function SellScreen({
 
   return (
     <>
+      <ProductSuccessDialog
+        description={productSuccess?.description ?? ''}
+        title={productSuccess?.title ?? ''}
+        visible={productSuccess !== null}
+        onExploreProducts={handleExploreProducts}
+        onPublishAnother={handlePublishAnother}
+      />
+
       <SectionTitle title="Centro de ventas" subtitle="Verificacion, tienda e inventario." />
 
       <View style={styles.statusPanel}>

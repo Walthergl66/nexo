@@ -7,6 +7,7 @@ export type SellScreenProps = {
   accessToken: string | null;
   profile: ProfileResource | null;
   isProfileLoading: boolean;
+  onExploreProducts: () => void;
   onGoToAccount: () => void;
   onProfileChange: (profile: ProfileResource | null) => void;
 };
