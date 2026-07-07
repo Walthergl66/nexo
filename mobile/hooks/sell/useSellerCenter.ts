@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import {
   fetchSellerCenter,
@@ -31,7 +31,9 @@ export function useSellerCenter({
   const [sellerState, setSellerState] = useState<SellerCenterState | null>(null);
   const [hasPendingVerificationRequest, setHasPendingVerificationRequest] = useState(false);
   const [sellerRefreshKey, setSellerRefreshKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const sellerCacheKey = profile ? `${SELLER_STATE_CACHE_KEY_PREFIX}${profile.id}` : null;
+  const profileId = profile?.id ?? null;
 
   const refreshSellerCenter = useCallback(() => {
     setSellerRefreshKey((current) => current + 1);
@@ -96,19 +98,33 @@ export function useSellerCenter({
     }
   }, [accessToken, onLoaded, onProfileChange, profile, saveSellerState, sellerCacheKey]);
 
+  const loadSellerStateRef = useRef(loadSellerState);
+  loadSellerStateRef.current = loadSellerState;
+
   useEffect(() => {
     let isMounted = true;
 
-    loadSellerState().catch(() => {
-      if (isMounted) {
-        onError('No pudimos cargar tu centro de ventas.');
-      }
-    });
+    setIsLoading(true);
+    loadSellerStateRef.current()
+      .catch(() => {
+        if (isMounted) {
+          onError('No pudimos cargar tu centro de ventas.');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [loadSellerState, onError, sellerRefreshKey]);
+    // Re-run only when the account or an explicit refresh changes. We intentionally
+    // avoid depending on `loadSellerState`'s identity: it changes on every `profile`
+    // object update, and since loading calls `onProfileChange`, that would create an
+    // endless refetch loop against /seller-center.
+  }, [accessToken, profileId, sellerRefreshKey, onError]);
 
   useEffect(() => {
     if (!accessToken || !profile) {
@@ -130,6 +146,7 @@ export function useSellerCenter({
 
   return {
     hasPendingVerificationRequest,
+    isLoading,
     loadSellerState,
     products,
     saveSellerState,

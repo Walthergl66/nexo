@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
   Easing,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { RemoteImage } from '../../components/common/RemoteImage';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
 import { colors, radii, shadows } from '../../theme/colors';
@@ -83,6 +83,28 @@ function AnimatedProductCell({
         onSelectProduct={onSelectProduct}
       />
     </Animated.View>
+  );
+}
+
+function FeaturedVisual({ product }: { product: Product }) {
+  const [hasImageError, setHasImageError] = useState(false);
+  const showRealImage = Boolean(product.imageUrl) && !hasImageError;
+
+  return (
+    <View style={styles.featuredVisual}>
+      <View style={styles.featuredHalo} />
+      {showRealImage ? (
+        <RemoteImage
+          accessibilityLabel={`Imagen de ${product.title}`}
+          uri={product.imageUrl as string}
+          width={320}
+          style={styles.featuredImage}
+          onFinalError={() => setHasImageError(true)}
+        />
+      ) : (
+        <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
+      )}
+    </View>
   );
 }
 
@@ -225,19 +247,7 @@ export function HomeScreen({
               <Text style={styles.featuredButtonText}>Comprar ahora</Text>
             </Pressable>
           </View>
-          <View style={styles.featuredVisual}>
-            <View style={styles.featuredHalo} />
-            {featuredProduct.imageUrl ? (
-              <Image
-                accessibilityLabel={`Imagen de ${featuredProduct.title}`}
-                source={{ uri: featuredProduct.imageUrl }}
-                style={styles.featuredImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
-            )}
-          </View>
+          <FeaturedVisual product={featuredProduct} />
         </Pressable>
       )}
 

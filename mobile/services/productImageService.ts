@@ -1,9 +1,12 @@
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import { supabase } from './supabaseClient';
 
 const PRODUCT_IMAGES_BUCKET = 'product-images';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const PRODUCT_OUTPUT_WIDTH = 1080;
+const PRODUCT_IMAGE_COMPRESS = 0.8;
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export type ProductImageAsset = ImagePicker.ImagePickerAsset;
@@ -57,10 +60,11 @@ export async function takeProductImage(): Promise<ProductImageAsset | null> {
 export async function uploadProductImage(storeId: string, asset: ProductImageAsset): Promise<string> {
   validateProductImage(asset);
 
-  const mimeType = normalizeMimeType(asset.mimeType, asset.uri);
-  const extension = getFileExtension(mimeType, asset.uri);
+  const prepared = await compressProductImage(asset);
+  const mimeType = prepared.mimeType;
+  const extension = getFileExtension(mimeType, prepared.uri);
   const path = `${storeId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-  const response = await fetch(asset.uri);
+  const response = await fetch(prepared.uri);
   const arrayBuffer = await response.arrayBuffer();
 
   if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
@@ -85,6 +89,39 @@ export async function uploadProductImage(storeId: string, asset: ProductImageAss
   const { data } = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(path);
 
   return data.publicUrl;
+}
+
+async function compressProductImage(asset: ProductImageAsset): Promise<{ mimeType: string; uri: string }> {
+  const mimeType = normalizeMimeType(asset.mimeType, asset.uri);
+  const actions: ImageManipulator.Action[] = [];
+
+  if (asset.width && asset.width > PRODUCT_OUTPUT_WIDTH) {
+    actions.push({ resize: { width: PRODUCT_OUTPUT_WIDTH } });
+  }
+
+  try {
+    const result = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+      compress: PRODUCT_IMAGE_COMPRESS,
+      format: imageManipulatorFormat(mimeType),
+    });
+
+    return { mimeType, uri: result.uri };
+  } catch {
+    // If manipulation fails (e.g. an unsupported format), fall back to the original asset.
+    return { mimeType, uri: asset.uri };
+  }
+}
+
+function imageManipulatorFormat(mimeType: string): ImageManipulator.SaveFormat {
+  if (mimeType === 'image/png') {
+    return ImageManipulator.SaveFormat.PNG;
+  }
+
+  if (mimeType === 'image/webp') {
+    return ImageManipulator.SaveFormat.WEBP;
+  }
+
+  return ImageManipulator.SaveFormat.JPEG;
 }
 
 async function responseToBlob(response: Response, arrayBuffer: ArrayBuffer, mimeType: string): Promise<Blob> {

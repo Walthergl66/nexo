@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { RemoteImage } from '../common/RemoteImage';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -39,12 +40,12 @@ export function ProductDetailCard({
 
       <View style={styles.heroVisual}>
         {showRealImage ? (
-          <Image
+          <RemoteImage
             accessibilityLabel={`Imagen de ${product.title}`}
-            source={{ uri: product.imageUrl as string }}
+            uri={product.imageUrl as string}
+            width={900}
             style={styles.heroImage}
-            resizeMode="cover"
-            onError={() => setHasImageError(true)}
+            onFinalError={() => setHasImageError(true)}
           />
         ) : (
           <>

@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
+import { SellerProductCard } from '../cards/SellerProductCard';
 import { Tag } from '../common/Tag';
 import type { ProfileResource } from '../../services/marketplaceApi';
 import type { Product } from '../../types/marketplace';
-import { formatPrice } from '../../utils/format';
 import { colors } from '../../theme/colors';
 import { accountStyles as styles } from './accountStyles';
 
@@ -161,12 +161,8 @@ export function AuthenticatedAccountPanel({
         {products.length > 0 ? (
           <View style={styles.postGrid}>
             {products.map((product) => (
-              <View key={product.id} style={styles.postTile}>
-                <View style={styles.postTileIcon}>
-                  <Ionicons name={product.available ? 'cube-outline' : 'document-text-outline'} size={21} color={colors.brandBlue} />
-                </View>
-                <Text numberOfLines={2} style={styles.postTileTitle}>{product.title}</Text>
-                <Text style={styles.postTileMeta}>{formatPrice(product.price)}</Text>
+              <View key={product.id} style={styles.postCell}>
+                <SellerProductCard product={product} />
               </View>
             ))}
           </View>

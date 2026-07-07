@@ -352,7 +352,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
-  productRow: {
+  productLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -360,25 +360,8 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.surface,
-    padding: 12,
+    padding: 14,
     ...shadows.card,
-  },
-  productIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brandBlueSoft,
-  },
-  productInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  productName: {
-    color: colors.ink,
-    fontSize: 14,
-    fontWeight: '700',
   },
   productMeta: {
     color: colors.inkMuted,

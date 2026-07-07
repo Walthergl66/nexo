@@ -62,6 +62,7 @@ export function SellScreen({
   } = useSellCategories();
   const {
     hasPendingVerificationRequest,
+    isLoading: isSellerLoading,
     loadSellerState,
     products,
     saveSellerState,
@@ -578,7 +579,7 @@ export function SellScreen({
         />
       )}
 
-      <SellerProductList products={products} />
+      <SellerProductList products={products} isLoading={isSellerLoading} />
 
     </>
   );

@@ -286,34 +286,8 @@ export const accountStyles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  postTile: {
+  postCell: {
     width: '48.7%',
-    minHeight: 116,
-    borderRadius: radii.small,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surfaceMuted,
-    padding: 10,
-    justifyContent: 'space-between',
-  },
-  postTileIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.brandBlueSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  postTileTitle: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 16,
-  },
-  postTileMeta: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '500',
   },
   emptyPosts: {
     minHeight: 150,
