@@ -90,7 +90,7 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * Los listados públicos de productos solo muestran productos `active` de tiendas `active`.
 * `GET /api/my-products` devuelve una colección vacía si el seller aprobado aún no tiene tienda, en lugar de responder 404.
 * `mobile/` permite tomar o subir imagen de producto, la guarda en Supabase Storage bucket `product-images` y envía la URL a Laravel en `product_images`.
-* `mobile/` permite agregar una foto/logo al crear tienda; por ahora se guarda en el bucket `product-images` bajo `store-logos/` y Laravel conserva la URL en `stores.logo_url`.
+* `mobile/` permite agregar una foto/logo al crear tienda; se redimensiona antes de subir, se guarda en Supabase Storage bucket `store-images` bajo la carpeta `{auth.uid()}/` y Laravel conserva la URL en `stores.logo_url`.
 * El carrito se modela con `cart_items` por `profile_id`; no existe tabla `carts` mientras solo haya un carrito activo por usuario.
 * Agregar al carrito valida producto `active`, tienda `active` y stock suficiente, pero no descuenta stock.
 * El checkout deberá revalidar carrito, precio, disponibilidad y stock antes de crear órdenes o iniciar pago.

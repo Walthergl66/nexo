@@ -144,11 +144,16 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  storeLogoPreview: {
+  storeLogoPreviewFrame: {
     width: 74,
     height: 74,
     borderRadius: 37,
     backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  storeLogoPreview: {
+    width: '100%',
+    height: '100%',
   },
   storeLogoPlaceholder: {
     width: 74,
@@ -165,32 +170,32 @@ export const styles = StyleSheet.create({
     minWidth: 0,
     gap: 7,
   },
-  sizeOptions: {
+  cropControls: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
   },
-  sizeOption: {
-    minHeight: 34,
-    borderRadius: radii.pill,
+  cropButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 12,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sizeOptionActive: {
-    backgroundColor: colors.brandBlueSoft,
-    borderColor: colors.brandBlueLine,
+  cropTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: colors.line,
+    overflow: 'hidden',
   },
-  sizeOptionText: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  sizeOptionTextActive: {
-    color: colors.brandBlue,
+  cropTrackFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: colors.brandBlue,
   },
   categoryOptions: {
     flexDirection: 'row',

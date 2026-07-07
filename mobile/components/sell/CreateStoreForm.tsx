@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, Text, TextInput, View } from 'react-native';
 import { colors } from '../../theme/colors';
-import type { StoreForm, StoreLogoSize } from '../../types/sell';
+import type { StoreForm } from '../../types/sell';
 import { FormHeader, PrimaryButton } from './FormControls';
 import { styles } from './sellStyles';
 
@@ -13,12 +13,6 @@ type CreateStoreFormProps = {
   onPickLogo: () => void;
   onTakeLogo: () => void;
 };
-
-const logoSizeOptions: Array<{ label: string; value: StoreLogoSize }> = [
-  { label: 'Pequena', value: 'small' },
-  { label: 'Normal', value: 'medium' },
-  { label: 'Grande', value: 'large' },
-];
 
 export function CreateStoreForm({
   form,
@@ -37,7 +31,12 @@ export function CreateStoreForm({
       />
       <View style={styles.storeLogoPanel}>
         {form.logo ? (
-          <Image source={{ uri: form.logo.uri }} style={styles.storeLogoPreview} />
+          <View style={styles.storeLogoPreviewFrame}>
+            <Image
+              source={{ uri: form.logo.uri }}
+              style={[styles.storeLogoPreview, { transform: [{ scale: form.logoZoom }] }]}
+            />
+          </View>
         ) : (
           <View style={styles.storeLogoPlaceholder}>
             <Ionicons name="storefront-outline" size={26} color={colors.brandBlue} />
@@ -59,24 +58,35 @@ export function CreateStoreForm({
       </View>
       {form.logo && (
         <View style={styles.fieldBlock}>
-          <Text style={styles.fieldLabel}>Tamano de imagen</Text>
-          <View style={styles.sizeOptions}>
-            {logoSizeOptions.map((option) => (
-              <Pressable
-                key={option.value}
-                style={({ pressed }) => [
-                  styles.sizeOption,
-                  form.logoSize === option.value && styles.sizeOptionActive,
-                  pressed && styles.buttonPressed,
-                ]}
-                onPress={() => onChange({ ...form, logoSize: option.value })}
-              >
-                <Text style={[styles.sizeOptionText, form.logoSize === option.value && styles.sizeOptionTextActive]}>
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
+          <Text style={styles.fieldLabel}>Recorte de imagen</Text>
+          <View style={styles.cropControls}>
+            <Pressable
+              disabled={form.logoZoom <= 1}
+              style={({ pressed }) => [
+                styles.cropButton,
+                form.logoZoom <= 1 && styles.buttonDisabled,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => onChange({ ...form, logoZoom: Math.max(1, Number((form.logoZoom - 0.1).toFixed(1))) })}
+            >
+              <Ionicons name="remove" size={16} color={colors.brandBlue} />
+            </Pressable>
+            <View style={styles.cropTrack}>
+              <View style={[styles.cropTrackFill, { width: `${((form.logoZoom - 1) / 1.5) * 100}%` }]} />
+            </View>
+            <Pressable
+              disabled={form.logoZoom >= 2.5}
+              style={({ pressed }) => [
+                styles.cropButton,
+                form.logoZoom >= 2.5 && styles.buttonDisabled,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => onChange({ ...form, logoZoom: Math.min(2.5, Number((form.logoZoom + 0.1).toFixed(1))) })}
+            >
+              <Ionicons name="add" size={16} color={colors.brandBlue} />
+            </Pressable>
           </View>
+          <Text style={styles.fieldHint}>Acerca la imagen para recortar el logo dentro del circulo.</Text>
         </View>
       )}
       <TextInput

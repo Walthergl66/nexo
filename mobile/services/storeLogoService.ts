@@ -2,16 +2,11 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import { supabase } from './supabaseClient';
-import type { StoreLogoSize } from '../types/sell';
 
 const STORE_LOGOS_BUCKET = 'store-images';
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const LOGO_OUTPUT_WIDTH = 768;
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const LOGO_SIZE_WIDTHS: Record<StoreLogoSize, number> = {
-  small: 384,
-  medium: 768,
-  large: 1200,
-};
 
 export type StoreLogoAsset = ImagePicker.ImagePickerAsset;
 
@@ -61,7 +56,7 @@ export async function takeStoreLogo(): Promise<StoreLogoAsset | null> {
   return result.assets[0];
 }
 
-export async function uploadStoreLogo(asset: StoreLogoAsset, size: StoreLogoSize): Promise<string> {
+export async function uploadStoreLogo(asset: StoreLogoAsset, zoom: number): Promise<string> {
   validateStoreLogo(asset);
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -70,7 +65,7 @@ export async function uploadStoreLogo(asset: StoreLogoAsset, size: StoreLogoSize
     throw new Error('Inicia sesion nuevamente para subir la imagen de tu tienda.');
   }
 
-  const preparedLogo = await resizeStoreLogo(asset, size);
+  const preparedLogo = await cropStoreLogo(asset, zoom);
   const mimeType = normalizeMimeType(preparedLogo.mimeType, preparedLogo.uri);
   const extension = getFileExtension(mimeType, preparedLogo.uri);
   const path = `${userData.user.id}/logo-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
@@ -101,14 +96,30 @@ export async function uploadStoreLogo(asset: StoreLogoAsset, size: StoreLogoSize
   return data.publicUrl;
 }
 
-async function resizeStoreLogo(asset: StoreLogoAsset, size: StoreLogoSize): Promise<{ mimeType: string; uri: string }> {
+async function cropStoreLogo(asset: StoreLogoAsset, zoom: number): Promise<{ mimeType: string; uri: string }> {
   const mimeType = normalizeMimeType(asset.mimeType, asset.uri);
-  const width = LOGO_SIZE_WIDTHS[size];
+  const safeZoom = Math.min(2.5, Math.max(1, zoom));
+  const sourceWidth = asset.width;
+  const sourceHeight = asset.height;
+  const baseCropSize = Math.min(sourceWidth, sourceHeight);
+  const cropSize = Math.max(1, Math.floor(baseCropSize / safeZoom));
+  const originX = Math.max(0, Math.floor((sourceWidth - cropSize) / 2));
+  const originY = Math.max(0, Math.floor((sourceHeight - cropSize) / 2));
   const result = await ImageManipulator.manipulateAsync(
     asset.uri,
-    [{ resize: { width } }],
+    [
+      {
+        crop: {
+          originX,
+          originY,
+          width: cropSize,
+          height: cropSize,
+        },
+      },
+      { resize: { width: LOGO_OUTPUT_WIDTH, height: LOGO_OUTPUT_WIDTH } },
+    ],
     {
-      compress: size === 'large' ? 0.9 : 0.86,
+      compress: 0.88,
       format: imageManipulatorFormat(mimeType),
     },
   );

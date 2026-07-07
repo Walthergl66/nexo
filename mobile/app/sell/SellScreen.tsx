@@ -177,7 +177,7 @@ export function SellScreen({
     setMessage(null);
 
     try {
-      const logoUrl = storeForm.logo ? await uploadStoreLogo(storeForm.logo, storeForm.logoSize) : null;
+      const logoUrl = storeForm.logo ? await uploadStoreLogo(storeForm.logo, storeForm.logoZoom) : null;
       const nextStore = await createStore(accessToken, {
         name,
         description: storeForm.description.trim() || null,

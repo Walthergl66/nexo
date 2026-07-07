@@ -13,12 +13,10 @@ export type SellScreenProps = {
 
 export type StoreForm = {
   logo: StoreLogoAsset | null;
-  logoSize: StoreLogoSize;
+  logoZoom: number;
   name: string;
   description: string;
 };
-
-export type StoreLogoSize = 'small' | 'medium' | 'large';
 
 export type VerificationForm = {
   businessName: string;

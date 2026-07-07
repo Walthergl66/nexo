@@ -9,7 +9,7 @@ export const initialVerificationForm: VerificationForm = {
 
 export const initialStoreForm: StoreForm = {
   logo: null,
-  logoSize: 'medium',
+  logoZoom: 1,
   name: '',
   description: '',
 };
