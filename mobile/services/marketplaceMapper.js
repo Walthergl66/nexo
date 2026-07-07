@@ -41,7 +41,6 @@ function mapApiProductToProduct(product) {
     available: product?.status === 'active' && stock > 0,
     seller,
     imageUrl: pickPrimaryImageUrl(product?.images),
-    condition: 'Nuevo',
     visualTone: pickTone(product?.id),
   };
 }

@@ -46,7 +46,7 @@ export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: Ca
           {item.product.title}
         </Text>
         <Text style={styles.itemMeta}>
-          {item.product.condition} / {item.product.seller}
+          {item.product.category} / {item.product.seller}
         </Text>
         <Text style={styles.itemPrice}>{formatPrice(item.product.price)}</Text>
       </View>
