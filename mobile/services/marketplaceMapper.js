@@ -11,6 +11,21 @@ function pickTone(id) {
   return tones[sum % tones.length];
 }
 
+function pickPrimaryImageUrl(images) {
+  if (!Array.isArray(images) || images.length === 0) {
+    return null;
+  }
+
+  const sorted = [...images].sort(
+    (first, second) => Number(first?.position ?? 0) - Number(second?.position ?? 0),
+  );
+  const primary = sorted.find(
+    (image) => typeof image?.url === 'string' && image.url.trim().length > 0,
+  );
+
+  return primary ? primary.url : null;
+}
+
 function mapApiProductToProduct(product) {
   const category = product?.category?.name ?? 'General';
   const seller = product?.store?.name ?? 'Tienda verificada';
@@ -25,7 +40,7 @@ function mapApiProductToProduct(product) {
     stock,
     available: product?.status === 'active' && stock > 0,
     seller,
-    condition: 'Nuevo',
+    imageUrl: pickPrimaryImageUrl(product?.images),
     visualTone: pickTone(product?.id),
   };
 }
@@ -73,5 +88,6 @@ module.exports = {
   mapApiCartItemsToCartItems,
   mapApiOrderToOrder,
   mapApiProductToProduct,
+  pickPrimaryImageUrl,
   pickTone,
 };

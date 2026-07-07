@@ -57,38 +57,79 @@ class SupabaseAuthService
             throw new AuthenticationException('Supabase user id is missing.');
         }
 
-        return DB::transaction(function () use ($claims, $supabaseUserId): Profile {
-            $email = Arr::get($claims, 'email');
-            $metadata = Arr::get($claims, 'user_metadata', []);
+        $cacheSeconds = max(0, (int) config('supabase.profile_cache_seconds', 20));
 
-            /** @var Profile $profile */
-            $profile = Profile::query()->firstOrCreate(
-                ['supabase_user_id' => $supabaseUserId],
-                [
-                    'email' => is_string($email) ? $email : null,
-                    'display_name' => $this->displayNameFromMetadata($metadata),
-                    ...$this->profileFieldsFromMetadata($metadata),
-                    'role' => Profile::ROLE_BUYER,
-                    'verification_status' => Profile::VERIFICATION_PENDING,
-                    'metadata' => is_array($metadata) ? $metadata : [],
-                ],
-            );
+        if ($cacheSeconds > 0) {
+            $cachedProfile = $this->profileFromCache($supabaseUserId);
 
-            if (is_string($email) && $email !== '' && $profile->email !== $email) {
-                $profile->forceFill(['email' => $email])->save();
+            if ($cachedProfile !== null) {
+                return $cachedProfile;
+            }
+        }
+
+        $email = Arr::get($claims, 'email');
+        $metadata = Arr::get($claims, 'user_metadata', []);
+
+        /** @var Profile|null $profile */
+        $profile = Profile::query()
+            ->where('supabase_user_id', $supabaseUserId)
+            ->first();
+
+        if ($profile === null) {
+            $profile = DB::transaction(function () use ($email, $metadata, $supabaseUserId): Profile {
+                /** @var Profile $newProfile */
+                $newProfile = Profile::query()->create(
+                    [
+                        'supabase_user_id' => $supabaseUserId,
+                        'email' => is_string($email) ? $email : null,
+                        'display_name' => $this->displayNameFromMetadata($metadata),
+                        ...$this->profileFieldsFromMetadata($metadata),
+                        'role' => Profile::ROLE_BUYER,
+                        'verification_status' => Profile::VERIFICATION_PENDING,
+                        'metadata' => is_array($metadata) ? $metadata : [],
+                    ],
+                );
+
+                return $newProfile;
+            });
+
+            if ($cacheSeconds > 0) {
+                $this->cacheProfile($supabaseUserId, $profile, $cacheSeconds);
             }
 
-            $metadataFields = $this->profileFieldsFromMetadata($metadata);
-            $missingMetadataFields = collect($metadataFields)
-                ->filter(fn (mixed $value, string $key): bool => $value !== null && blank($profile->{$key}))
-                ->all();
+            return $profile;
+        }
 
-            if ($missingMetadataFields !== []) {
-                $profile->forceFill($missingMetadataFields)->save();
+        $updates = [];
+
+        if (is_string($email) && $email !== '' && $profile->email !== $email) {
+            $updates['email'] = $email;
+        }
+
+        foreach ($this->profileFieldsFromMetadata($metadata) as $key => $value) {
+            if ($value !== null && blank($profile->{$key})) {
+                $updates[$key] = $value;
             }
+        }
 
-            return $profile->refresh();
-        });
+        if ($updates !== []) {
+            $profile->forceFill($updates)->save();
+        }
+
+        if ($cacheSeconds > 0) {
+            $this->cacheProfile($supabaseUserId, $profile, $cacheSeconds);
+        }
+
+        return $profile;
+    }
+
+    public function forgetProfileCache(Profile|string $profile): void
+    {
+        $supabaseUserId = $profile instanceof Profile ? $profile->supabase_user_id : $profile;
+
+        if ($supabaseUserId !== '') {
+            Cache::forget($this->profileCacheKey($supabaseUserId));
+        }
     }
 
     /**
@@ -229,6 +270,36 @@ class SupabaseAuthService
     private function jwksCacheKey(): string
     {
         return 'supabase:jwks:'.sha1((string) config('supabase.url'));
+    }
+
+    private function profileCacheKey(string $supabaseUserId): string
+    {
+        return 'supabase:profile:'.sha1($supabaseUserId);
+    }
+
+    private function profileFromCache(string $supabaseUserId): ?Profile
+    {
+        $cachedProfileId = Cache::get($this->profileCacheKey($supabaseUserId));
+
+        if (! is_string($cachedProfileId) || $cachedProfileId === '') {
+            Cache::forget($this->profileCacheKey($supabaseUserId));
+
+            return null;
+        }
+
+        /** @var Profile|null $profile */
+        $profile = Profile::query()->find($cachedProfileId);
+
+        if ($profile === null) {
+            Cache::forget($this->profileCacheKey($supabaseUserId));
+        }
+
+        return $profile;
+    }
+
+    private function cacheProfile(string $supabaseUserId, Profile $profile, int $cacheSeconds): void
+    {
+        Cache::put($this->profileCacheKey($supabaseUserId), (string) $profile->getKey(), now()->addSeconds($cacheSeconds));
     }
 
     /**

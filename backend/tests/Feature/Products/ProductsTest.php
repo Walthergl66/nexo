@@ -18,6 +18,7 @@ class ProductsTest extends TestCase
         parent::setUp();
 
         config([
+            'supabase.url' => 'https://project.supabase.co',
             'supabase.jwt_secret' => 'test-secret',
             'supabase.jwt_algorithm' => 'HS256',
             'supabase.auth_audience' => 'authenticated',
@@ -28,6 +29,7 @@ class ProductsTest extends TestCase
     {
         [$seller, $store] = $this->sellerWithStore();
         $category = $this->category();
+        $imageUrl = 'https://project.supabase.co/storage/v1/object/public/product-images/'.$store->id.'/cafe.png';
 
         $this->withToken($this->tokenFor($seller))
             ->postJson('/api/products', [
@@ -37,14 +39,14 @@ class ProductsTest extends TestCase
                 'price_cents' => 1299,
                 'stock' => 15,
                 'images' => [
-                    ['url' => 'https://example.com/cafe.png', 'alt_text' => 'Cafe'],
+                    ['url' => $imageUrl, 'alt_text' => 'Cafe'],
                 ],
             ])
             ->assertCreated()
             ->assertJsonPath('data.name', 'Cafe especial')
             ->assertJsonPath('data.slug', 'cafe-especial')
             ->assertJsonPath('data.status', Product::STATUS_DRAFT)
-            ->assertJsonPath('data.images.0.url', 'https://example.com/cafe.png');
+            ->assertJsonPath('data.images.0.url', $imageUrl);
 
         $this->assertDatabaseHas('products', [
             'store_id' => $store->id,
@@ -54,9 +56,26 @@ class ProductsTest extends TestCase
             'status' => Product::STATUS_DRAFT,
         ]);
         $this->assertDatabaseHas('product_images', [
-            'url' => 'https://example.com/cafe.png',
+            'url' => $imageUrl,
             'position' => 0,
         ]);
+    }
+
+    public function test_product_images_must_use_product_images_bucket(): void
+    {
+        [$seller] = $this->sellerWithStore();
+
+        $this->withToken($this->tokenFor($seller))
+            ->postJson('/api/products', [
+                'name' => 'Cafe especial',
+                'description' => 'Cafe tostado por emprendedores.',
+                'price_cents' => 1299,
+                'images' => [
+                    ['url' => 'https://example.com/cafe.png', 'alt_text' => 'Cafe'],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('images.0.url');
     }
 
     public function test_buyer_cannot_create_product(): void
@@ -134,6 +153,19 @@ class ProductsTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.slug', 'producto-activo');
+    }
+
+    public function test_seller_without_store_gets_empty_my_products_list(): void
+    {
+        $seller = $this->profile([
+            'role' => Profile::ROLE_SELLER,
+            'verification_status' => Profile::VERIFICATION_APPROVED,
+        ]);
+
+        $this->withToken($this->tokenFor($seller))
+            ->getJson('/api/my-products')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 
     public function test_non_owner_cannot_update_product(): void

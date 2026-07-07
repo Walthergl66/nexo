@@ -16,7 +16,7 @@ export type Product = {
   stock: number;
   available: boolean;
   seller: string;
-  condition: 'Nuevo' | 'Usado';
+  imageUrl: string | null;
   visualTone: 'light' | 'dark' | 'cool' | 'warm';
 };
 

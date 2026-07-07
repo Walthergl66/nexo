@@ -3,6 +3,7 @@
 namespace App\Modules\Products\Http\Requests;
 
 use App\Models\Product;
+use App\Modules\Products\Rules\ProductImageUrl;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,7 +33,7 @@ class ProductRequest extends FormRequest
             ])],
             'metadata' => ['sometimes', 'array'],
             'images' => ['sometimes', 'array', 'max:10'],
-            'images.*.url' => ['required_with:images', 'url', 'max:2048'],
+            'images.*.url' => ['required_with:images', 'url', 'max:2048', new ProductImageUrl],
             'images.*.alt_text' => ['nullable', 'string', 'max:180'],
         ];
     }

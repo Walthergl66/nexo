@@ -22,8 +22,12 @@ use App\Modules\Profiles\Http\Controllers\LookupIdentityController;
 use App\Modules\Profiles\Http\Controllers\MeController;
 use App\Modules\Sellers\Http\Controllers\ListSellerVerificationRequestsController;
 use App\Modules\Sellers\Http\Controllers\ReviewSellerVerificationRequestController;
+use App\Modules\Sellers\Http\Controllers\SellerCenterController;
 use App\Modules\Sellers\Http\Controllers\SubmitSellerVerificationRequestController;
 use App\Modules\Stores\Http\Controllers\CreateStoreController;
+use App\Modules\Stores\Http\Controllers\Admin\DeleteStoreController;
+use App\Modules\Stores\Http\Controllers\Admin\ListStoresController as AdminListStoresController;
+use App\Modules\Stores\Http\Controllers\Admin\UpdateStoreStatusController;
 use App\Modules\Stores\Http\Controllers\ListStoresController;
 use App\Modules\Stores\Http\Controllers\MyStoreController;
 use App\Modules\Stores\Http\Controllers\ShowStoreController;
@@ -43,6 +47,7 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::patch('/me/profile', CompleteProfileController::class);
 
     Route::post('/seller-verification/request', SubmitSellerVerificationRequestController::class);
+    Route::get('/seller-center', SellerCenterController::class);
 
     Route::get('/my-store', MyStoreController::class);
     Route::post('/stores', CreateStoreController::class);
@@ -66,4 +71,7 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::patch('/admin/seller-verification-requests/{sellerVerificationRequest}', ReviewSellerVerificationRequestController::class);
     Route::post('/admin/categories', CreateCategoryController::class);
     Route::patch('/admin/categories/{category}', UpdateCategoryController::class);
+    Route::get('/admin/stores', AdminListStoresController::class);
+    Route::patch('/admin/stores/{store}', UpdateStoreStatusController::class);
+    Route::delete('/admin/stores/{store}', DeleteStoreController::class);
 });

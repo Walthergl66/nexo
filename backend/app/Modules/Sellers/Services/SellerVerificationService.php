@@ -5,11 +5,14 @@ namespace App\Modules\Sellers\Services;
 use App\Models\Profile;
 use App\Models\SellerVerificationRequest;
 use App\Models\Store;
+use App\Modules\Auth\Services\SupabaseAuthService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SellerVerificationService
 {
+    public function __construct(private readonly SupabaseAuthService $authService) {}
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -38,7 +41,7 @@ class SellerVerificationService
             ]);
         }
 
-        return DB::transaction(function () use ($profile, $data): SellerVerificationRequest {
+        $verificationRequest = DB::transaction(function () use ($profile, $data): SellerVerificationRequest {
             $profile->forceFill([
                 'verification_status' => Profile::VERIFICATION_PENDING,
             ])->save();
@@ -53,6 +56,10 @@ class SellerVerificationService
                 'metadata' => $data['metadata'] ?? [],
             ])->load(['profile', 'reviewer']);
         });
+
+        $this->authService->forgetProfileCache($profile);
+
+        return $verificationRequest;
     }
 
     /**
@@ -63,7 +70,7 @@ class SellerVerificationService
         Profile $reviewer,
         array $data
     ): SellerVerificationRequest {
-        return DB::transaction(function () use ($verificationRequest, $reviewer, $data): SellerVerificationRequest {
+        $reviewedRequest = DB::transaction(function () use ($verificationRequest, $reviewer, $data): SellerVerificationRequest {
             /** @var Profile $sellerProfile */
             $sellerProfile = $verificationRequest->profile()->lockForUpdate()->firstOrFail();
             $status = $data['status'];
@@ -91,5 +98,9 @@ class SellerVerificationService
 
             return $verificationRequest->refresh()->load(['profile', 'reviewer']);
         });
+
+        $this->authService->forgetProfileCache($reviewedRequest->profile);
+
+        return $reviewedRequest;
     }
 }

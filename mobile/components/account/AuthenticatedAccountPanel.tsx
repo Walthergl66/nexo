@@ -1,31 +1,46 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
+import { SellerProductCard } from '../cards/SellerProductCard';
 import { Tag } from '../common/Tag';
 import type { ProfileResource } from '../../services/marketplaceApi';
 import type { Product } from '../../types/marketplace';
-import { formatPrice } from '../../utils/format';
 import { colors } from '../../theme/colors';
 import { accountStyles as styles } from './accountStyles';
 
 type AuthenticatedAccountPanelProps = {
+  isLoggingOut: boolean;
   products: Product[];
   profile: ProfileResource;
+  onLogout: () => void;
   onOpenSettings: () => void;
   onSell: () => void;
 };
 
 export function AuthenticatedAccountPanel({
+  isLoggingOut,
   products,
   profile,
+  onLogout,
   onOpenSettings,
   onSell,
 }: AuthenticatedAccountPanelProps) {
   const canRequestSellerVerification = profile.role === 'buyer' && profile.verification_status !== 'suspended';
   const initials = useMemo(() => getInitials(profile), [profile]);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const roleLabel = getRoleLabel(profile.role);
   const statusLabel = getVerificationLabel(profile.verification_status);
   const publishedProducts = products.filter((product) => product.available);
+
+  const handleOpenSettings = () => {
+    setIsProfileMenuOpen(false);
+    onOpenSettings();
+  };
+
+  const handleLogout = () => {
+    setIsProfileMenuOpen(false);
+    onLogout();
+  };
 
   return (
     <>
@@ -47,43 +62,62 @@ export function AuthenticatedAccountPanel({
           </View>
 
           <View style={styles.socialStats}>
-            <ProfileStat label="posts" value={String(products.length)} />
+            <ProfileStat label="Productos" value={String(products.length)} />
             <ProfileStat label="activos" value={String(publishedProducts.length)} />
-            <ProfileStat label="rol" value={roleLabel} compact />
+            <ProfileStat label="ventas" value="0" />
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.profilePencilButton, pressed && styles.buttonPressed]}
-            onPress={onOpenSettings}
-          >
-            <Ionicons name="create-outline" size={20} color={colors.ink} />
-          </Pressable>
+          <View style={styles.profileHeaderActions}>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.profilePencilButton, pressed && styles.buttonPressed]}
+              onPress={() => setIsProfileMenuOpen((current) => !current)}
+            >
+              <Ionicons name="settings-outline" size={20} color={colors.ink} />
+            </Pressable>
+            {isProfileMenuOpen && (
+              <View style={styles.profileOptionsMenu}>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.profileOptionItem, pressed && styles.profileOptionItemPressed]}
+                  onPress={handleOpenSettings}
+                >
+                  <Ionicons name="create-outline" size={17} color={colors.ink} />
+                  <Text style={styles.profileOptionText}>Editar perfil</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isLoggingOut}
+                  style={({ pressed }) => [
+                    styles.profileOptionItem,
+                    pressed && styles.profileOptionItemPressed,
+                    isLoggingOut && styles.buttonDisabled,
+                  ]}
+                  onPress={handleLogout}
+                >
+                  {isLoggingOut ? (
+                    <ActivityIndicator size="small" color="#9f1239" />
+                  ) : (
+                    <Ionicons name="log-out-outline" size={17} color="#9f1239" />
+                  )}
+                  <Text style={styles.profileOptionTextDanger}>Cerrar sesion</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.socialBio}>
           <Text style={styles.accountName}>{profile.display_name ?? profile.email ?? 'Usuario nexo'}</Text>
-          <Text style={styles.socialBioText}>
-            {profile.role === 'seller'
-              ? 'Emprendedor verificado en nexo.'
-              : 'Comprador en nexo. Puede activar su perfil vendedor cuando este listo.'}
-          </Text>
-          <View style={styles.accountTags}>
-            <Tag text={roleLabel} tone="default" />
-            <Tag text={statusLabel} tone={profile.verification_status === 'approved' ? 'success' : 'warning'} />
-          </View>
         </View>
 
         <View style={styles.profileImportantStrip}>
           <ImportantInfo icon="mail-outline" label={profile.email ?? 'Correo no registrado'} />
           <ImportantInfo icon="call-outline" label={profile.phone ?? 'Telefono no registrado'} />
-          <ImportantInfo icon="location-outline" label={profile.address ?? 'Direccion no registrada'} />
         </View>
 
         <View style={styles.profileActionRow}>
-          <Pressable style={({ pressed }) => [styles.profileActionButton, pressed && styles.buttonPressed]} onPress={onOpenSettings}>
-            <Text style={styles.profileActionText}>Editar perfil</Text>
-          </Pressable>
+          
           {canRequestSellerVerification ? (
             <Pressable style={({ pressed }) => [styles.profileActionButton, pressed && styles.buttonPressed]} onPress={onSell}>
               <Text style={styles.profileActionText}>Vender</Text>
@@ -98,7 +132,6 @@ export function AuthenticatedAccountPanel({
         <View style={styles.profileHighlights}>
           <Highlight icon="receipt-outline" label="Pedidos" />
           <Highlight icon="heart-outline" label="Favoritos" />
-          <Highlight icon="shield-checkmark-outline" label="Confianza" />
         </View>
 
         <View style={styles.profileTabs}>
@@ -113,12 +146,8 @@ export function AuthenticatedAccountPanel({
         {products.length > 0 ? (
           <View style={styles.postGrid}>
             {products.map((product) => (
-              <View key={product.id} style={styles.postTile}>
-                <View style={styles.postTileIcon}>
-                  <Ionicons name={product.available ? 'cube-outline' : 'document-text-outline'} size={21} color={colors.brandBlue} />
-                </View>
-                <Text numberOfLines={2} style={styles.postTileTitle}>{product.title}</Text>
-                <Text style={styles.postTileMeta}>{formatPrice(product.price)}</Text>
+              <View key={product.id} style={styles.postCell}>
+                <SellerProductCard product={product} />
               </View>
             ))}
           </View>

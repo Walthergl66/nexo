@@ -2,6 +2,8 @@
 
 La app Expo activa vive en esta carpeta.
 
+SDK objetivo actual: Expo SDK 54.
+
 Antes de tocar integraciones Expo, revisar la documentacion versionada correspondiente al SDK declarado en `package.json`.
 
 La app debe consumir el backend Laravel mediante `EXPO_PUBLIC_API_BASE_URL`.

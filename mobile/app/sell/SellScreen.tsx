@@ -1,128 +1,90 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
-import { InfoRow } from '../../components/common/InfoRow';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { Tag } from '../../components/common/Tag';
+import { CreateStoreForm } from '../../components/sell/CreateStoreForm';
+import { ProductCreateForm } from '../../components/sell/ProductCreateForm';
+import { ProductSuccessDialog } from '../../components/sell/ProductSuccessDialog';
+import { SellerProductList } from '../../components/sell/SellerProductList';
 import {
   createProduct,
   createStore,
-  fetchMyProducts,
-  fetchMyStore,
   fetchProfile,
   submitSellerVerification,
-  type ProfileResource,
-  type StoreResource,
 } from '../../services/marketplaceApi';
-import { colors, radii, shadows } from '../../theme/colors';
-import type { Product } from '../../types/marketplace';
-import { formatPrice } from '../../utils/format';
-
-type SellScreenProps = {
-  accessToken: string | null;
-  profile: ProfileResource | null;
-  isProfileLoading: boolean;
-  onGoToAccount: () => void;
-  onProfileChange: (profile: ProfileResource | null) => void;
-};
-
-type StoreForm = {
-  name: string;
-  description: string;
-};
-
-type VerificationForm = {
-  businessName: string;
-  businessDescription: string;
-  documentType: string;
-  documentNumber: string;
-};
-
-type ProductForm = {
-  name: string;
-  description: string;
-  price: string;
-  stock: string;
-  publishNow: boolean;
-};
-
-const initialVerificationForm: VerificationForm = {
-  businessName: '',
-  businessDescription: '',
-  documentType: 'ruc',
-  documentNumber: '',
-};
-
-const initialStoreForm: StoreForm = {
-  name: '',
-  description: '',
-};
-
-const initialProductForm: ProductForm = {
-  name: '',
-  description: '',
-  price: '',
-  stock: '',
-  publishNow: false,
-};
+import {
+  pickProductImage,
+  takeProductImage,
+  uploadProductImage,
+} from '../../services/productImageService';
+import {
+  pickStoreLogo,
+  takeStoreLogo,
+  uploadStoreLogo,
+} from '../../services/storeLogoService';
+import { colors } from '../../theme/colors';
+import { FormHeader, PrimaryButton } from '../../components/sell/FormControls';
+import { styles } from '../../components/sell/sellStyles';
+import {
+  initialProductForm,
+  initialStoreForm,
+  initialVerificationForm,
+} from '../../constants/sell';
+import { useSellCategories } from '../../hooks/sell/useSellCategories';
+import { useSellerCenter } from '../../hooks/sell/useSellerCenter';
+import type { SellScreenProps } from '../../types/sell';
 
 export function SellScreen({
   accessToken,
   profile,
   isProfileLoading,
+  onExploreProducts,
   onGoToAccount,
   onProfileChange,
 }: SellScreenProps) {
-  const [store, setStore] = useState<StoreResource | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
   const [productForm, setProductForm] = useState(initialProductForm);
+  const [productSuccess, setProductSuccess] = useState<{
+    description: string;
+    title: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasPendingVerificationRequest, setHasPendingVerificationRequest] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const handleSellerLoaded = useCallback(() => setMessage(null), []);
+  const handleSellerError = useCallback((nextMessage: string) => setMessage(nextMessage), []);
+  const {
+    categories,
+    categoryError,
+    isCategoriesLoading,
+    refreshCategories,
+  } = useSellCategories();
+  const {
+    hasPendingVerificationRequest,
+    isLoading: isSellerLoading,
+    loadSellerState,
+    products,
+    saveSellerState,
+    sellerState,
+    setHasPendingVerificationRequest,
+    setProducts,
+    setSellerState,
+    setStore,
+    store,
+  } = useSellerCenter({
+    accessToken,
+    profile,
+    onError: handleSellerError,
+    onLoaded: handleSellerLoaded,
+    onProfileChange,
+  });
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
-  const activeProducts = products.filter((product) => product.available).length;
-  const draftProducts = Math.max(0, products.length - activeProducts);
-
-  const loadSellerState = useCallback(async () => {
-    if (!accessToken || !profile) {
-      setStore(null);
-      setProducts([]);
-      return;
-    }
-
-    if (!isApprovedSeller) {
-      setStore(null);
-      setProducts([]);
-      return;
-    }
-
-    const [nextStore, nextProducts] = await Promise.all([
-      fetchMyStore(accessToken).catch(() => null),
-      fetchMyProducts(accessToken).catch(() => []),
-    ]);
-
-    setStore(nextStore);
-    setProducts(nextProducts);
-  }, [accessToken, isApprovedSeller, profile]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    loadSellerState().catch(() => {
-      if (isMounted) {
-        setMessage('No pudimos cargar tu centro de ventas.');
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [loadSellerState]);
+  const resetProductForm = useCallback(() => {
+    setProductForm({ ...initialProductForm, image: null });
+  }, []);
 
   const sellerStep = useMemo(() => {
     if (!isAuthenticated) {
@@ -133,28 +95,45 @@ export function SellScreen({
       return 'Cargando cuenta';
     }
 
-    if (profile.role === 'buyer' && profile.verification_status === 'pending' && !hasPendingVerificationRequest) {
-      return 'Solicitar validacion';
+    switch (sellerState) {
+      case 'verification_pending':
+        return 'Revision pendiente';
+      case 'verification_rejected':
+        return 'Verificacion rechazada';
+      case 'seller_suspended':
+        return 'Vendedor suspendido';
+      case 'store_required':
+        return 'Crear tienda';
+      case 'store_suspended':
+        return 'Tienda suspendida';
+      case 'catalog_required':
+      case 'catalog_ready':
+        return store?.name ?? 'Tu tienda';
+      default:
+        return hasPendingVerificationRequest ? 'Revision pendiente' : 'Solicitar validacion';
     }
+  }, [hasPendingVerificationRequest, isAuthenticated, isProfileLoading, profile, sellerState, store]);
 
-    if (profile.verification_status === 'pending') {
-      return 'Revision pendiente';
+  const sellerStateDescription = useMemo(() => {
+    switch (sellerState) {
+      case 'verification_pending':
+        return 'Tu solicitud esta en revision.';
+      case 'verification_rejected':
+        return 'Puedes enviar una nueva solicitud con datos actualizados.';
+      case 'seller_suspended':
+        return 'La venta esta pausada mientras se revisa tu cuenta.';
+      case 'store_required':
+        return 'Crea tu tienda para empezar a preparar tu catalogo.';
+      case 'store_suspended':
+        return 'Tu tienda esta pausada temporalmente.';
+      case 'catalog_required':
+        return 'Tu tienda esta activa. Agrega tu primer producto.';
+      case 'catalog_ready':
+        return 'Tu tienda esta activa y lista para seguir vendiendo.';
+      default:
+        return 'Completa la validacion para activar tus herramientas de venta.';
     }
-
-    if (profile.verification_status === 'rejected') {
-      return 'Verificacion rechazada';
-    }
-
-    if (profile.verification_status === 'suspended') {
-      return 'Vendedor suspendido';
-    }
-
-    if (!store) {
-      return 'Crear tienda';
-    }
-
-    return 'Publicar productos';
-  }, [hasPendingVerificationRequest, isAuthenticated, isProfileLoading, profile, store]);
+  }, [sellerState]);
 
   const handleRequestVerification = async () => {
     if (!accessToken) {
@@ -181,6 +160,7 @@ export function SellScreen({
       const nextProfile = await fetchProfile(accessToken).catch(() => profile);
       onProfileChange(nextProfile);
       setHasPendingVerificationRequest(true);
+      setSellerState('verification_pending');
       setVerificationForm(initialVerificationForm);
       await loadSellerState();
       setMessage('Solicitud enviada. Un administrador debe revisarla.');
@@ -207,62 +187,168 @@ export function SellScreen({
     setMessage(null);
 
     try {
+      const logoUrl = storeForm.logo ? await uploadStoreLogo(storeForm.logo, storeForm.logoZoom) : null;
       const nextStore = await createStore(accessToken, {
         name,
         description: storeForm.description.trim() || null,
+        logo_url: logoUrl,
       });
       setStore(nextStore);
+      setSellerState('catalog_required');
+      saveSellerState({ sellerState: 'catalog_required', store: nextStore, products });
       setStoreForm(initialStoreForm);
       setMessage('Tienda creada y activa.');
     } catch (error) {
+      await loadSellerState().catch(() => undefined);
       setMessage(error instanceof Error ? error.message : 'No se pudo crear la tienda.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handlePickStoreLogo = async () => {
+    setMessage(null);
+
+    try {
+      const image = await pickStoreLogo();
+
+      if (image) {
+        setStoreForm((current) => ({ ...current, logo: image }));
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen de la tienda.');
+    }
+  };
+
+  const handleTakeStoreLogo = async () => {
+    setMessage(null);
+
+    try {
+      const image = await takeStoreLogo();
+
+      if (image) {
+        setStoreForm((current) => ({ ...current, logo: image }));
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos tomar la imagen de la tienda.');
+    }
+  };
+
   const handleCreateProduct = async () => {
-    if (!accessToken || !canCreateProducts) {
+    if (!accessToken || !canCreateProducts || !store) {
       return;
     }
 
     const name = productForm.name.trim();
+    const description = productForm.description.trim();
     const price = Number(productForm.price.replace(',', '.'));
     const stock = Number(productForm.stock);
 
     if (name.length < 3) {
-      setMessage('Ingresa un nombre de producto valido.');
+      setMessage('Ingresa un titulo de producto valido.');
       return;
     }
 
-    if (!Number.isFinite(price) || price <= 0) {
-      setMessage('Ingresa un precio mayor a cero.');
+    if (description.length < 10) {
+      setMessage('Ingresa una descripcion de al menos 10 caracteres.');
+      return;
+    }
+
+    if (!productForm.categoryId) {
+      setMessage('Selecciona una categoria para el producto.');
+      return;
+    }
+
+    if (!Number.isFinite(price) || price <= 0 || price > 9999999.99) {
+      setMessage('Ingresa un precio valido mayor a cero.');
       return;
     }
 
     if (!Number.isInteger(stock) || stock < 0) {
-      setMessage('Ingresa un stock valido.');
+      setMessage('Ingresa una cantidad disponible valida.');
+      return;
+    }
+
+    if (!productForm.image) {
+      setMessage('Agrega una imagen del producto desde la camara o galeria.');
       return;
     }
 
     setIsLoading(true);
     setMessage(null);
+    const shouldPublishProduct = productForm.publishNow;
 
     try {
+      const imageUrl = await uploadProductImage(store.id, productForm.image);
       const nextProduct = await createProduct(accessToken, {
+        category_id: productForm.categoryId,
         name,
-        description: productForm.description.trim() || null,
+        description,
+        images: [{ url: imageUrl, alt_text: name }],
         price_cents: Math.round(price * 100),
         stock,
-        status: productForm.publishNow ? 'active' : 'draft',
+        status: shouldPublishProduct ? 'active' : 'draft',
       });
-      setProducts((current) => [nextProduct, ...current]);
-      setProductForm(initialProductForm);
-      setMessage(productForm.publishNow ? 'Producto publicado.' : 'Producto guardado como borrador.');
+      setProducts((current) => {
+        const nextProducts = [nextProduct, ...current];
+        const nextState = nextProducts.length > 0 ? 'catalog_ready' : 'catalog_required';
+
+        setSellerState(nextState);
+        saveSellerState({ sellerState: nextState, store, products: nextProducts });
+
+        return nextProducts;
+      });
+      resetProductForm();
+      setProductSuccess({
+        title: shouldPublishProduct
+          ? 'Tu producto ha sido publicado correctamente'
+          : 'Tu producto ha sido guardado correctamente',
+        description: shouldPublishProduct
+          ? 'Ya esta listo para aparecer en el catalogo de nexo.'
+          : 'Quedo como borrador en tu centro de ventas.',
+      });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo crear el producto.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleExploreProducts = () => {
+    setProductSuccess(null);
+    onExploreProducts();
+  };
+
+  const handlePublishAnother = () => {
+    setProductSuccess(null);
+    resetProductForm();
+  };
+
+  const handlePickProductImage = async () => {
+    setMessage(null);
+
+    try {
+      const image = await pickProductImage();
+
+      if (image) {
+        setProductForm((current) => ({ ...current, image }));
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen.');
+    }
+  };
+
+  const handleTakeProductImage = async () => {
+    setMessage(null);
+
+    try {
+      const image = await takeProductImage();
+
+      if (image) {
+        setProductForm((current) => ({ ...current, image }));
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos tomar la foto.');
     }
   };
 
@@ -291,7 +377,7 @@ export function SellScreen({
     );
   }
 
-  if (isProfileLoading || !profile) {
+  if (!profile) {
     return (
       <>
         <SectionTitle title="Centro de ventas" subtitle="Cargando tus opciones de venta." />
@@ -305,39 +391,31 @@ export function SellScreen({
 
   return (
     <>
+      <ProductSuccessDialog
+        description={productSuccess?.description ?? ''}
+        title={productSuccess?.title ?? ''}
+        visible={productSuccess !== null}
+        onExploreProducts={handleExploreProducts}
+        onPublishAnother={handlePublishAnother}
+      />
+
       <SectionTitle title="Centro de ventas" subtitle="Verificacion, tienda e inventario." />
 
       <View style={styles.statusPanel}>
         <View style={styles.statusHeader}>
           <View style={styles.statusIdentity}>
             <View style={styles.statusIcon}>
-              <Ionicons name="storefront-outline" size={23} color={colors.brandBlue} />
+              {store?.logo_url ? (
+                <Image source={{ uri: store.logo_url }} style={styles.statusLogo} />
+              ) : (
+                <Ionicons name="storefront-outline" size={23} color={colors.brandBlue} />
+              )}
             </View>
             <View style={styles.statusCopy}>
               <Text style={styles.statusTitle}>{sellerStep}</Text>
-              <Text style={styles.statusSubtitle}>{profile?.display_name ?? profile?.email ?? 'Cuenta NEXO'}</Text>
+              <Text style={styles.statusSubtitle}>{sellerStateDescription}</Text>
             </View>
           </View>
-          <Tag text={profile?.verification_status ?? 'sync'} tone={isApprovedSeller ? 'success' : 'warning'} />
-        </View>
-
-        <View style={styles.sellerProgress}>
-          <StepPill label="Cuenta" active done />
-          <StepPill label="Validacion" active={isApprovedSeller || profile.verification_status === 'pending'} done={isApprovedSeller} />
-          <StepPill label="Tienda" active={Boolean(store)} done={store?.status === 'active'} />
-          <StepPill label="Catalogo" active={products.length > 0} done={activeProducts > 0} />
-        </View>
-
-        <View style={styles.metricsGrid}>
-          <MiniMetric label="Productos" value={String(products.length)} />
-          <MiniMetric label="Activos" value={String(activeProducts)} />
-          <MiniMetric label="Borradores" value={String(draftProducts)} />
-        </View>
-
-        <View style={styles.infoGroup}>
-          <InfoRow label="Rol" value={profile?.role ?? 'buyer'} />
-          <InfoRow label="Tienda" value={store?.name ?? 'Sin tienda'} />
-          <InfoRow label="Estado tienda" value={store?.status ?? 'No disponible'} />
         </View>
       </View>
 
@@ -348,7 +426,7 @@ export function SellScreen({
         </View>
       )}
 
-      {profile.role === 'buyer' && profile.verification_status === 'pending' && !hasPendingVerificationRequest ? (
+      {(sellerState === 'verification_required' || (!sellerState && profile.role === 'buyer' && profile.verification_status === 'pending')) && !hasPendingVerificationRequest ? (
         <View style={styles.formCard}>
           <FormHeader
             icon="shield-checkmark-outline"
@@ -398,14 +476,14 @@ export function SellScreen({
         </View>
       ) : null}
 
-      {hasPendingVerificationRequest && (
+      {(hasPendingVerificationRequest || sellerState === 'verification_pending') && (
         <LogicCard
           title="Solicitud en revision"
           description="Tu cuenta sigue como buyer hasta que un administrador apruebe la validacion de vendedor."
         />
       )}
 
-      {profile?.verification_status === 'rejected' && (
+      {sellerState === 'verification_rejected' && (
         <>
           <LogicCard
             title="Solicitud rechazada"
@@ -461,502 +539,48 @@ export function SellScreen({
         </>
       )}
 
-      {profile?.verification_status === 'suspended' && (
+      {sellerState === 'seller_suspended' && (
         <LogicCard
           title="Venta pausada"
           description="Tu tienda queda fuera del catalogo publico hasta que un administrador revise la suspension."
         />
       )}
 
-      {isApprovedSeller && !store && (
-        <View style={styles.formCard}>
-          <FormHeader
-            icon="business-outline"
-            title="Crear tienda"
-            subtitle="Tu tienda quedara activa al crearla porque ya estas aprobado."
-          />
-          <TextInput
-            placeholder="Nombre de tienda"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={storeForm.name}
-            onChangeText={(value) => setStoreForm((current) => ({ ...current, name: value }))}
-          />
-          <TextInput
-            multiline
-            placeholder="Descripcion corta"
-            placeholderTextColor={colors.inkSoft}
-            style={[styles.input, styles.textArea]}
-            value={storeForm.description}
-            onChangeText={(value) => setStoreForm((current) => ({ ...current, description: value }))}
-          />
-          <PrimaryButton disabled={isLoading} icon="storefront" label="Crear tienda" loading={isLoading} onPress={handleCreateStore} />
-        </View>
+      {sellerState === 'store_suspended' && (
+        <LogicCard
+          title="Tienda pausada"
+          description="Tu tienda queda fuera del catalogo publico y no puede vender hasta que un administrador la reactive."
+        />
       )}
 
-      {canCreateProducts && (
-        <View style={styles.formCard}>
-          <FormHeader
-            icon="pricetag-outline"
-            title="Nuevo producto"
-            subtitle="Publica de inmediato o guarda como borrador para terminarlo despues."
-          />
-          <TextInput
-            placeholder="Nombre"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={productForm.name}
-            onChangeText={(value) => setProductForm((current) => ({ ...current, name: value }))}
-          />
-          <TextInput
-            multiline
-            placeholder="Descripcion"
-            placeholderTextColor={colors.inkSoft}
-            style={[styles.input, styles.textArea]}
-            value={productForm.description}
-            onChangeText={(value) => setProductForm((current) => ({ ...current, description: value }))}
-          />
-          <View style={styles.inlineRow}>
-            <TextInput
-              keyboardType="decimal-pad"
-              placeholder="Precio"
-              placeholderTextColor={colors.inkSoft}
-              style={[styles.input, styles.inlineInput]}
-              value={productForm.price}
-              onChangeText={(value) => setProductForm((current) => ({ ...current, price: value.replace(/[^0-9.,]/g, '') }))}
-            />
-            <TextInput
-              keyboardType="number-pad"
-              placeholder="Stock"
-              placeholderTextColor={colors.inkSoft}
-              style={[styles.input, styles.inlineInput]}
-              value={productForm.stock}
-              onChangeText={(value) => setProductForm((current) => ({ ...current, stock: value.replace(/\D+/g, '') }))}
-            />
-          </View>
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityState={{ checked: productForm.publishNow }}
-            style={({ pressed }) => [styles.toggleRow, pressed && styles.buttonPressed]}
-            onPress={() => setProductForm((current) => ({ ...current, publishNow: !current.publishNow }))}
-          >
-            <View style={[styles.toggleBox, productForm.publishNow && styles.toggleBoxActive]}>
-              {productForm.publishNow && <Ionicons name="checkmark" size={15} color={colors.surface} />}
-            </View>
-            <Text style={styles.toggleText}>Publicar inmediatamente</Text>
-          </Pressable>
-          <PrimaryButton
-            disabled={isLoading}
-            icon={productForm.publishNow ? 'cloud-upload' : 'document-text'}
-            label={productForm.publishNow ? 'Publicar producto' : 'Guardar borrador'}
-            loading={isLoading}
-            onPress={handleCreateProduct}
-          />
-        </View>
+      {sellerState === 'store_required' && (
+        <CreateStoreForm
+          form={storeForm}
+          isLoading={isLoading}
+          onChange={setStoreForm}
+          onCreateStore={handleCreateStore}
+          onPickLogo={handlePickStoreLogo}
+          onTakeLogo={handleTakeStoreLogo}
+        />
       )}
 
-      {products.length > 0 && (
-        <View style={styles.productList}>
-          <View style={styles.productListHeader}>
-            <Text style={styles.formTitle}>Tus productos</Text>
-            <Tag text={`${products.length} items`} tone="default" />
-          </View>
-          {products.map((product) => (
-            <View key={product.id} style={styles.productRow}>
-              <View style={styles.productIcon}>
-                <Ionicons name={product.available ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={colors.brandBlue} />
-              </View>
-              <View style={styles.productInfo}>
-                <Text numberOfLines={1} style={styles.productName}>{product.title}</Text>
-                <Text style={styles.productMeta}>{formatPrice(product.price)} / stock {product.stock}</Text>
-              </View>
-              <Tag text={product.available ? 'active' : 'draft'} tone={product.available ? 'success' : 'default'} />
-            </View>
-          ))}
-        </View>
+      {(sellerState === 'catalog_required' || sellerState === 'catalog_ready') && canCreateProducts && (
+        <ProductCreateForm
+          categories={categories}
+          categoryError={categoryError}
+          form={productForm}
+          isCategoriesLoading={isCategoriesLoading}
+          isLoading={isLoading}
+          onChange={setProductForm}
+          onCreateProduct={handleCreateProduct}
+          onPickImage={handlePickProductImage}
+          onRefreshCategories={refreshCategories}
+          onTakeImage={handleTakeProductImage}
+        />
       )}
+
+      <SellerProductList products={products} isLoading={isSellerLoading} />
 
     </>
   );
 }
-
-type PrimaryButtonProps = {
-  disabled: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  loading: boolean;
-  onPress: () => void;
-};
-
-type StepPillProps = {
-  label: string;
-  active: boolean;
-  done: boolean;
-};
-
-function StepPill({ label, active, done }: StepPillProps) {
-  return (
-    <View style={[styles.stepPill, active && styles.stepPillActive]}>
-      <View style={[styles.stepDot, done && styles.stepDotDone]}>
-        {done && <Ionicons name="checkmark" size={11} color={colors.surface} />}
-      </View>
-      <Text numberOfLines={1} style={[styles.stepLabel, active && styles.stepLabelActive]}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-type MiniMetricProps = {
-  label: string;
-  value: string;
-};
-
-function MiniMetric({ label, value }: MiniMetricProps) {
-  return (
-    <View style={styles.miniMetric}>
-      <Text style={styles.miniMetricValue}>{value}</Text>
-      <Text style={styles.miniMetricLabel}>{label}</Text>
-    </View>
-  );
-}
-
-type FormHeaderProps = {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-};
-
-function FormHeader({ icon, title, subtitle }: FormHeaderProps) {
-  return (
-    <View style={styles.formHeader}>
-      <View style={styles.formIcon}>
-        <Ionicons name={icon} size={18} color={colors.brandBlue} />
-      </View>
-      <View style={styles.formHeaderCopy}>
-        <Text style={styles.formTitle}>{title}</Text>
-        <Text style={styles.formSubtitle}>{subtitle}</Text>
-      </View>
-    </View>
-  );
-}
-
-function PrimaryButton({ disabled, icon, label, loading, onPress }: PrimaryButtonProps) {
-  return (
-    <Pressable
-      disabled={disabled}
-      style={({ pressed }) => [styles.primaryButton, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}
-      onPress={onPress}
-    >
-      {loading ? (
-        <ActivityIndicator color={colors.surface} />
-      ) : (
-        <>
-          <Ionicons name={icon} size={17} color={colors.surface} />
-          <Text style={styles.primaryButtonText}>{label}</Text>
-        </>
-      )}
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  statusPanel: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.medium,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: 14,
-    ...shadows.card,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  statusIdentity: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statusIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: colors.brandBlueSoft,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  statusTitle: {
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  statusSubtitle: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  sellerProgress: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  stepPill: {
-    minHeight: 34,
-    flexGrow: 1,
-    flexBasis: '47%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 10,
-  },
-  stepPillActive: {
-    borderColor: colors.brandBlueLine,
-    backgroundColor: colors.brandBlueSoft,
-  },
-  stepDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: colors.lineStrong,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepDotDone: {
-    backgroundColor: colors.brandBlue,
-    borderColor: colors.brandBlue,
-  },
-  stepLabel: {
-    flex: 1,
-    minWidth: 0,
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  stepLabelActive: {
-    color: colors.ink,
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  miniMetric: {
-    flex: 1,
-    minHeight: 66,
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: 10,
-    justifyContent: 'center',
-  },
-  miniMetricValue: {
-    color: colors.ink,
-    fontSize: 21,
-    fontWeight: '700',
-  },
-  miniMetricLabel: {
-    color: colors.inkMuted,
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 3,
-  },
-  infoGroup: {
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    paddingTop: 12,
-  },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.medium,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: 11,
-    ...shadows.card,
-  },
-  formHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    marginBottom: 2,
-  },
-  formIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    backgroundColor: colors.brandBlueSoft,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  formHeaderCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  formTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  formSubtitle: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 17,
-    marginTop: 3,
-  },
-  input: {
-    minHeight: 44,
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.line,
-    color: colors.ink,
-    paddingHorizontal: 12,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  textArea: {
-    minHeight: 86,
-    paddingTop: 10,
-    textAlignVertical: 'top',
-  },
-  inlineRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  inlineInput: {
-    flex: 1,
-    minWidth: 120,
-  },
-  toggleRow: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  toggleBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  toggleBoxActive: {
-    backgroundColor: colors.brandBlue,
-    borderColor: colors.brandBlue,
-  },
-  toggleText: {
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  primaryButton: {
-    minHeight: 48,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  primaryButtonText: {
-    color: colors.surface,
-    fontWeight: '700',
-  },
-  buttonDisabled: {
-    opacity: 0.72,
-  },
-  buttonPressed: {
-    transform: [{ scale: 0.97 }],
-  },
-  productList: {
-    gap: 10,
-  },
-  productListHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  productRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: radii.medium,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    padding: 12,
-    ...shadows.card,
-  },
-  productIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brandBlueSoft,
-  },
-  productInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  productName: {
-    color: colors.ink,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  productMeta: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  logicList: {
-    gap: 12,
-  },
-  messagePanel: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    borderRadius: radii.medium,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    backgroundColor: colors.brandBlueSoft,
-    padding: 12,
-  },
-  message: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 18,
-    flex: 1,
-    minWidth: 0,
-  },
-});

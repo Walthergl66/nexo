@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { RemoteImage } from '../common/RemoteImage';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -17,73 +19,75 @@ export function ProductDetailCard({
   onAddToCart,
   onBack,
 }: ProductDetailCardProps) {
+  const [hasImageError, setHasImageError] = useState(false);
+  const showRealImage = Boolean(product.imageUrl) && !hasImageError;
+  const stockLabel = product.stock === 1 ? '1 disponible' : `${product.stock} disponibles`;
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         <Pressable
-          accessibilityLabel="Volver al catálogo"
+          accessibilityLabel="Volver al catalogo"
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           onPress={onBack}
         >
           <Ionicons name="chevron-back" size={18} color={colors.ink} />
           <Text style={styles.backText}>Volver</Text>
         </Pressable>
-        <Text style={styles.changeText}>{product.available ? 'Disponible' : 'Agotado'}</Text>
+        <Text style={styles.statusText}>{product.available ? 'Disponible' : 'Agotado'}</Text>
       </View>
 
-      <Text style={styles.pageTitle}>Producto</Text>
+      <Text style={styles.title}>{product.title}</Text>
 
       <View style={styles.heroVisual}>
-        <View style={styles.heroHalo} />
-        <View style={styles.heroOrbit} />
-        <Ionicons name="bag-handle-outline" size={112} color={colors.ink} />
-        <View style={styles.heroBadge}>
-          <Ionicons name="shield-checkmark-outline" size={15} color={colors.ink} />
-        </View>
-      </View>
-
-      <View style={styles.thumbnailRow}>
-        {[0, 1, 2, 3].map((item) => (
-          <View key={item} style={[styles.thumbnail, item === 1 && styles.thumbnailActive]}>
-            <Ionicons name="bag-handle-outline" size={28} color={item === 1 ? colors.surface : colors.inkMuted} />
+        {showRealImage ? (
+          <RemoteImage
+            accessibilityLabel={`Imagen de ${product.title}`}
+            uri={product.imageUrl as string}
+            width={900}
+            style={styles.heroImage}
+            onFinalError={() => setHasImageError(true)}
+          />
+        ) : (
+          <View style={styles.imageFallback}>
+            <Ionicons name="image-outline" size={52} color={colors.inkMuted} />
+            <Text style={styles.imageFallbackText}>Imagen no disponible</Text>
           </View>
-        ))}
+        )}
       </View>
 
-      <View style={styles.productHeading}>
-        <View style={styles.headingCopy}>
+      <View style={styles.summaryRow}>
+        <View style={styles.summaryCopy}>
           <Text style={styles.category}>{product.category}</Text>
-          <Text style={styles.title}>{product.title}</Text>
-          <Text style={styles.seller}>por {product.seller}</Text>
+          <View style={styles.sellerRow}>
+            <Ionicons name="storefront-outline" size={13} color={colors.brandBlue} />
+            <Text numberOfLines={1} style={styles.seller}>{product.seller}</Text>
+          </View>
         </View>
         <Text style={styles.price}>{formatPrice(product.price)}</Text>
       </View>
 
-      <View style={styles.optionRow}>
-        <View>
-          <Text style={styles.optionLabel}>Condición</Text>
-          <View style={styles.sizeRow}>
-            <View style={styles.sizeActive}><Text style={styles.sizeActiveText}>{product.condition}</Text></View>
-            <View style={styles.sizeChip}><Text style={styles.sizeText}>{product.stock} uds.</Text></View>
+      <View style={styles.infoGrid}>
+        <View style={styles.infoItem}>
+          <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
+          <View style={styles.infoCopy}>
+            <Text style={styles.infoLabel}>Inventario</Text>
+            <Text style={styles.infoValue}>{stockLabel}</Text>
           </View>
         </View>
-        <View style={styles.colorBlock}>
-          <Text style={styles.optionLabel}>Estilo</Text>
-          <View style={styles.colorRow}>
-            <View style={[styles.colorDot, { backgroundColor: colors.silver }]} />
-            <View style={[styles.colorDot, styles.colorDotActive, { backgroundColor: colors.brandAccent }]} />
-            <View style={[styles.colorDot, { backgroundColor: colors.primarySoft }]} />
+        <View style={styles.infoItem}>
+          <Ionicons name="pricetag-outline" size={16} color={colors.brandBlue} />
+          <View style={styles.infoCopy}>
+            <Text style={styles.infoLabel}>Categoria</Text>
+            <Text numberOfLines={1} style={styles.infoValue}>{product.category}</Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.tabs}>
-        <Text style={[styles.tabText, styles.tabActive]}>Acerca de</Text>
-        <Text style={styles.tabText}>Detalles</Text>
-        <Text style={styles.tabText}>Reseñas</Text>
+      <View style={styles.descriptionBlock}>
+        <Text style={styles.sectionTitle}>Descripcion</Text>
+        <Text style={styles.description}>{product.description}</Text>
       </View>
-
-      <Text style={styles.description}>{product.description}</Text>
 
       <View style={styles.bottomActions}>
         <View style={styles.protection}>
@@ -100,7 +104,7 @@ export function ProductDetailCard({
           onPress={onAddToCart}
         >
           <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
-          <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesión'}</Text>
+          <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
         </Pressable>
       </View>
     </View>
@@ -121,6 +125,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
   },
   backButton: {
     flexDirection: 'row',
@@ -132,183 +137,118 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  changeText: {
+  statusText: {
     color: colors.ink,
     fontSize: 10,
     fontWeight: '700',
   },
-  pageTitle: {
+  title: {
     color: colors.ink,
     fontSize: 26,
-    fontWeight: '600',
-    letterSpacing: -0.8,
+    lineHeight: 31,
+    fontWeight: '700',
   },
   heroVisual: {
-    height: 248,
+    height: 280,
     borderRadius: 22,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  heroHalo: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: colors.surfaceSoft,
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
-  heroOrbit: {
-    position: 'absolute',
-    bottom: 30,
-    width: 220,
-    height: 48,
-    borderRadius: 110,
-    borderWidth: 2,
-    borderColor: colors.lineStrong,
-    transform: [{ scaleY: 0.35 }],
-  },
-  heroBadge: {
-    position: 'absolute',
-    right: 14,
-    bottom: 14,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.surface,
+  imageFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.card,
-  },
-  thumbnailRow: {
-    flexDirection: 'row',
     gap: 8,
+    padding: 20,
   },
-  thumbnail: {
-    flex: 1,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
+  imageFallbackText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '700',
   },
-  thumbnailActive: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
-  },
-  productHeading: {
+  summaryRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: 16,
   },
-  headingCopy: {
+  summaryCopy: {
     flex: 1,
+    minWidth: 0,
   },
   category: {
     color: colors.brandAccent,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
   },
-  title: {
-    color: colors.ink,
-    fontSize: 23,
-    lineHeight: 27,
-    fontWeight: '600',
-    letterSpacing: -0.7,
-    marginTop: 4,
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
   },
   seller: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    marginTop: 4,
+    flex: 1,
+    color: colors.brandBlue,
+    fontSize: 12,
+    fontWeight: '700',
   },
   price: {
     color: colors.ink,
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  optionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  optionLabel: {
-    color: colors.inkMuted,
-    fontSize: 10,
+    fontSize: 21,
     fontWeight: '700',
-    marginBottom: 8,
   },
-  sizeRow: {
+  infoGrid: {
     flexDirection: 'row',
-    gap: 6,
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  sizeChip: {
-    minHeight: 30,
-    borderRadius: radii.pill,
+  infoItem: {
+    flex: 1,
+    minWidth: 138,
+    minHeight: 56,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.line,
-    paddingHorizontal: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sizeActive: {
-    minHeight: 30,
-    borderRadius: radii.pill,
-    backgroundColor: colors.ink,
-    paddingHorizontal: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sizeText: {
-    color: colors.inkMuted,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  sizeActiveText: {
-    color: colors.surface,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  colorBlock: {
-    alignItems: 'flex-end',
-  },
-  colorRow: {
-    flexDirection: 'row',
-    gap: 7,
-  },
-  colorDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  colorDotActive: {
-    borderColor: colors.ink,
-  },
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  tabText: {
-    flex: 1,
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 12,
     paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
   },
-  tabActive: {
+  infoCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  infoLabel: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  infoValue: {
     color: colors.ink,
-    fontWeight: '600',
-    borderBottomWidth: 2,
-    borderBottomColor: colors.ink,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 3,
+  },
+  descriptionBlock: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 14,
+    gap: 8,
+  },
+  sectionTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '700',
   },
   description: {
     color: colors.inkMuted,
@@ -356,6 +296,6 @@ const styles = StyleSheet.create({
   addCartText: {
     color: colors.surface,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

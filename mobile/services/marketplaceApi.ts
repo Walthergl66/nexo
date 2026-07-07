@@ -16,12 +16,20 @@ type ApiDocument<T> = {
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: Record<string, unknown>;
+  timeoutMs?: number;
   token?: string;
 };
 
-const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number | null = null,
+  ) {
+    super(message);
+  }
+}
 
-export const apiBaseUrl = normalizeBaseUrl(env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000/api');
+export const apiBaseUrl = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000/api');
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, '');
@@ -31,6 +39,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 10000);
 
   if (options.body) {
     headers['Content-Type'] = 'application/json';
@@ -40,14 +50,23 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.Authorization = `Bearer ${options.token}`;
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch {
+    throw new ApiRequestError('No pudimos conectar con nexo. Revisa tu conexion e intenta nuevamente.');
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
-    throw new Error(await getApiErrorMessage(response));
+    throw new ApiRequestError(await getApiErrorMessage(response), response.status);
   }
 
   if (response.status === 204) {
@@ -59,7 +78,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 async function getApiErrorMessage(response: Response): Promise<string> {
   try {
-    const payload = await response.json() as { message?: unknown; errors?: unknown };
+    const payload = await response.json() as { message?: unknown; errors?: Record<string, unknown> };
+
+    if (payload.errors && Object.keys(payload.errors).length > 0) {
+      const errorMessages = Object.values(payload.errors)
+        .flatMap((value) => (Array.isArray(value) ? value : [value]))
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      if (errorMessages.length > 0) {
+        return errorMessages.map(toPublicErrorMessage).join(' ');
+      }
+    }
 
     if (typeof payload.message === 'string' && payload.message.trim().length > 0) {
       return toPublicErrorMessage(payload.message);
@@ -105,6 +134,12 @@ export async function fetchCategoryNames(): Promise<string[]> {
     .filter((name): name is string => name !== null);
 }
 
+export async function fetchCategories(timeoutMs?: number): Promise<CategoryResource[]> {
+  const response = await request<ApiCollection<CategoryResource>>('/categories', { timeoutMs });
+
+  return response.data;
+}
+
 export type ProfileResource = {
   id: string;
   email: string | null;
@@ -134,6 +169,16 @@ export type StoreResource = {
   name: string;
   slug: string;
   description: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
+  status: string;
+};
+
+export type CategoryResource = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
   status: string;
 };
 
@@ -144,6 +189,23 @@ export type SellerVerificationResource = {
   document_type: string | null;
   document_number: string | null;
   status: string;
+};
+
+export type SellerCenterState =
+  | 'verification_required'
+  | 'verification_pending'
+  | 'verification_rejected'
+  | 'seller_suspended'
+  | 'store_required'
+  | 'store_suspended'
+  | 'catalog_required'
+  | 'catalog_ready';
+
+export type SellerCenterResource = {
+  state: SellerCenterState;
+  profile: ProfileResource;
+  products: Product[];
+  store: StoreResource | null;
 };
 
 export async function fetchCart(token?: string): Promise<CartItem[]> {
@@ -221,7 +283,7 @@ export async function fetchProfile(token?: string): Promise<ProfileResource | nu
     return null;
   }
 
-  const response = await request<ApiDocument<ProfileResource>>('/me', { token });
+  const response = await request<ApiDocument<ProfileResource>>('/me', { token, timeoutMs: 8000 });
 
   return response.data;
 }
@@ -231,6 +293,8 @@ export async function fetchMyStore(token?: string): Promise<{
   name: string;
   slug: string;
   description: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
   status: string;
 } | null> {
   if (!token) {
@@ -242,10 +306,32 @@ export async function fetchMyStore(token?: string): Promise<{
     name: string;
     slug: string;
     description: string | null;
+    logo_url: string | null;
+    banner_url: string | null;
     status: string;
   }>>('/my-store', { token });
 
   return response.data;
+}
+
+export async function fetchSellerCenter(token?: string): Promise<SellerCenterResource | null> {
+  if (!token) {
+    return null;
+  }
+
+  const response = await request<ApiDocument<{
+    state: SellerCenterState;
+    profile: ProfileResource;
+    products: unknown[];
+    store: StoreResource | null;
+  }>>('/seller-center', { token, timeoutMs: 12000 });
+
+  return {
+    state: response.data.state,
+    profile: response.data.profile,
+    products: response.data.products.map(mapApiProductToProduct),
+    store: response.data.store,
+  };
 }
 
 export async function submitSellerVerification(
@@ -297,8 +383,10 @@ export async function fetchMyProducts(token?: string): Promise<Product[]> {
 export async function createProduct(
   token: string,
   payload: {
+    category_id?: string | null;
     name: string;
     description?: string | null;
+    images?: Array<{ alt_text?: string | null; url: string }>;
     price_cents: number;
     stock: number;
     status?: 'draft' | 'active' | 'paused';

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { RemoteImage } from '../../components/common/RemoteImage';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
 import { colors, radii, shadows } from '../../theme/colors';
@@ -82,6 +83,28 @@ function AnimatedProductCell({
         onSelectProduct={onSelectProduct}
       />
     </Animated.View>
+  );
+}
+
+function FeaturedVisual({ product }: { product: Product }) {
+  const [hasImageError, setHasImageError] = useState(false);
+  const showRealImage = Boolean(product.imageUrl) && !hasImageError;
+
+  return (
+    <View style={styles.featuredVisual}>
+      <View style={styles.featuredHalo} />
+      {showRealImage ? (
+        <RemoteImage
+          accessibilityLabel={`Imagen de ${product.title}`}
+          uri={product.imageUrl as string}
+          width={320}
+          style={styles.featuredImage}
+          onFinalError={() => setHasImageError(true)}
+        />
+      ) : (
+        <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
+      )}
+    </View>
   );
 }
 
@@ -209,6 +232,10 @@ export function HomeScreen({
           <View style={styles.featuredCopy}>
             <Text style={styles.featuredCategory}>{featuredProduct.category}</Text>
             <Text numberOfLines={3} style={styles.featuredTitle}>{featuredProduct.title}</Text>
+            <View style={styles.featuredSellerRow}>
+              <Ionicons name="storefront-outline" size={12} color={colors.surface} />
+              <Text numberOfLines={1} style={styles.featuredSeller}>{featuredProduct.seller}</Text>
+            </View>
             <Text style={styles.featuredPrice}>{formatPrice(featuredProduct.price)}</Text>
             <Pressable
               style={({ pressed }) => [styles.featuredButton, pressed && styles.pressFeedback]}
@@ -220,10 +247,7 @@ export function HomeScreen({
               <Text style={styles.featuredButtonText}>Comprar ahora</Text>
             </Pressable>
           </View>
-          <View style={styles.featuredVisual}>
-            <View style={styles.featuredHalo} />
-            <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
-          </View>
+          <FeaturedVisual product={featuredProduct} />
         </Pressable>
       )}
 
@@ -469,6 +493,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
     maxWidth: 190,
   },
+  featuredSellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+    maxWidth: 190,
+  },
+  featuredSeller: {
+    flex: 1,
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.9,
+  },
   featuredPrice: {
     color: colors.surface,
     fontSize: 18,
@@ -499,6 +537,13 @@ const styles = StyleSheet.create({
     height: 116,
     borderRadius: 58,
     backgroundColor: colors.brandBlue,
+  },
+  featuredImage: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   resultsHeader: {
     flexDirection: 'row',

@@ -65,10 +65,13 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 
 ## Decisiones técnicas actuales
 
-* El backend vive en `backend/` y usa Laravel 13 con PHP 8.3.
+* El backend vive en `backend/` y usa Laravel 13 con PHP 8.4.
+* En desarrollo local se recomienda levantar el backend con Docker usando Nginx + PHP-FPM en `http://127.0.0.1:8010`, en vez de depender de `php artisan serve` para pruebas desde mobile/web.
 * La API protegida usa middleware `supabase.jwt`.
 * La validación de JWT soporta `HS256` con `SUPABASE_JWT_SECRET` y tokens asimétricos `RS256`/`ES256` mediante JWKS público de Supabase.
 * `SupabaseAuthService` obtiene las llaves desde `SUPABASE_URL/auth/v1/.well-known/jwks.json` y las cachea para validar tokens firmados con llaves rotables.
+* En desarrollo local se usa `CACHE_STORE=file` para evitar que el cache de JWKS dependa de la latencia de PostgreSQL remoto en Supabase.
+* Laravel cachea perfiles resueltos desde JWT por pocos segundos con `SUPABASE_PROFILE_CACHE_SECONDS` e invalida ese cache al actualizar perfil o estado de vendedor.
 * Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
 * `GET /api/me` crea automáticamente el `profile` si el JWT de Supabase es válido y aún no existe.
 * Los roles y estados se modelan como strings controlados por constantes del modelo `Profile` para mantener portabilidad entre PostgreSQL y SQLite de pruebas.
@@ -79,11 +82,15 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * Cada vendedor aprobado puede tener una sola tienda en `stores`.
 * Como la verificación del vendedor ya es el control principal, una tienda nueva creada por un seller aprobado inicia con `store_status=active`.
 * Los listados públicos de tiendas solo muestran tiendas `active`.
+* `GET /api/seller-center` entrega el estado unificado del centro de ventas por usuario, derivado de `profiles`, `stores` y productos, para evitar inconsistencias entre pantallas.
 * Las categorías se administran por admin y solo las categorías `active` aparecen en listados públicos.
 * Los productos pertenecen a una tienda y pueden tener una categoría opcional.
 * Los precios de productos se guardan como enteros en centavos (`price_cents`) y moneda ISO de 3 letras (`currency`).
 * Los productos nuevos inician como `draft` salvo que el seller publique explícitamente con `status=active`.
 * Los listados públicos de productos solo muestran productos `active` de tiendas `active`.
+* `GET /api/my-products` devuelve una colección vacía si el seller aprobado aún no tiene tienda, en lugar de responder 404.
+* `mobile/` permite tomar o subir imagen de producto, la guarda en Supabase Storage bucket `product-images` y envía la URL a Laravel en `product_images`.
+* `mobile/` permite agregar una foto/logo al crear tienda; se redimensiona antes de subir, se guarda en Supabase Storage bucket `store-images` bajo la carpeta `{auth.uid()}/` y Laravel conserva la URL en `stores.logo_url`.
 * El carrito se modela con `cart_items` por `profile_id`; no existe tabla `carts` mientras solo haya un carrito activo por usuario.
 * Agregar al carrito valida producto `active`, tienda `active` y stock suficiente, pero no descuenta stock.
 * El checkout deberá revalidar carrito, precio, disponibilidad y stock antes de crear órdenes o iniciar pago.
@@ -149,15 +156,23 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * La API protegida usa middleware `supabase.jwt`.
 * Laravel no usa `users` como identidad principal para la API. La identidad de negocio está en `profiles.supabase_user_id`.
 * La app Expo activa vive en `mobile/`.
+* `mobile/` usa Expo SDK 54.
+* La web administrativa vive en `admin/` y usa Next.js; se mantiene separada de `mobile/` y solo contiene flujos del rol admin.
 * La carpeta histórica `frontend/` fue migrada a `mobile/` y retirada del monorepo.
 * `mobile/` consume el backend con `EXPO_PUBLIC_API_BASE_URL`.
 * `mobile/` usa Supabase Auth con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`; el JWT de la sesion activa se envia a Laravel para rutas protegidas.
 * `mobile/` consume el catálogo público desde `GET /api/products` y usa JWT para carrito, órdenes, perfil y tienda propia.
+* `mobile/` refresca de forma periódica y al volver a primer plano el perfil, catálogo, categorías y centro de ventas para reflejar cambios hechos desde `admin/` sin recarga manual.
+* En `mobile/`, las pantallas bajo `app/` deben actuar como composición de screens; los componentes reutilizables del módulo viven en `components/{modulo}/`, la lógica reusable en `hooks/{modulo}/`, las constantes en `constants/` y los tipos compartidos en `types/`.
 * `mobile/` registra usuarios desde la pantalla Cuenta: valida cedula por backend, crea usuario en Supabase Auth y completa el perfil interno en Laravel.
 * Las fotos de perfil se guardan como archivos en Supabase Storage; Laravel conserva la URL oficial en `profiles.avatar_url` y sigue siendo la fuente de verdad del perfil.
 * Laravel expone `GET /api/identity/lookup`, `GET /api/profiles/availability` y `PATCH /api/me/profile` para onboarding de perfiles.
 * La documentación OpenAPI/Swagger del backend vive en `/api/docs` y `/api/docs/openapi.json`.
 * El contrato OpenAPI se mantiene en `docs/openapi.json` y se sirve sin paquete externo de Swagger.
+* `admin/` autentica con Supabase Auth, valida el rol `admin` contra `GET /api/me` y consume endpoints administrativos de Laravel con el JWT de Supabase.
+* `admin/` gestiona solicitudes de vendedor, categorías y estado de tiendas con endpoints administrativos; los módulos de moderación de publicaciones, bloqueo de usuarios y advertencias quedan preparados hasta que existan endpoints administrativos dedicados en Laravel.
+* `PATCH /api/admin/stores/{store}` permite al rol admin suspender o reactivar tiendas cambiando `store_status` entre `active` y `suspended`.
+* `DELETE /api/admin/stores/{store}` permite al rol admin eliminar una tienda; sus productos se eliminan por cascada y las órdenes conservan snapshots de nombres/precios con referencias nulas.
 
 ## Módulos principales
 
@@ -209,6 +224,7 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 ```txt
 nexo/
 ├── backend/
+├── admin/
 ├── mobile/
 ├── docs/
 ├── AGENTS.md
@@ -315,3 +331,7 @@ backend/
 * Limpiar carrito al crear orden.
 * Mantener orden y pago en estado `pending`.
 * No descontar stock hasta confirmación de pago por webhook.
+
+
+scrip
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/update-mobile-api-url.ps1
