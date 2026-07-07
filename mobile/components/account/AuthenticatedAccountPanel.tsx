@@ -64,9 +64,9 @@ export function AuthenticatedAccountPanel({
           </View>
 
           <View style={styles.socialStats}>
-            <ProfileStat label="posts" value={String(products.length)} />
+            <ProfileStat label="Productos" value={String(products.length)} />
             <ProfileStat label="activos" value={String(publishedProducts.length)} />
-            <ProfileStat label="rol" value={roleLabel} compact />
+            <ProfileStat label="ventas" value="0" />
           </View>
 
           <View style={styles.profileHeaderActions}>
@@ -111,27 +111,15 @@ export function AuthenticatedAccountPanel({
 
         <View style={styles.socialBio}>
           <Text style={styles.accountName}>{profile.display_name ?? profile.email ?? 'Usuario nexo'}</Text>
-          <Text style={styles.socialBioText}>
-            {profile.role === 'seller'
-              ? 'Emprendedor verificado en nexo.'
-              : 'Comprador en nexo. Puede activar su perfil vendedor cuando este listo.'}
-          </Text>
-          <View style={styles.accountTags}>
-            <Tag text={roleLabel} tone="default" />
-            <Tag text={statusLabel} tone={profile.verification_status === 'approved' ? 'success' : 'warning'} />
-          </View>
         </View>
 
         <View style={styles.profileImportantStrip}>
           <ImportantInfo icon="mail-outline" label={profile.email ?? 'Correo no registrado'} />
           <ImportantInfo icon="call-outline" label={profile.phone ?? 'Telefono no registrado'} />
-          <ImportantInfo icon="location-outline" label={profile.address ?? 'Direccion no registrada'} />
         </View>
 
         <View style={styles.profileActionRow}>
-          <Pressable style={({ pressed }) => [styles.profileActionButton, pressed && styles.buttonPressed]} onPress={onOpenSettings}>
-            <Text style={styles.profileActionText}>Editar perfil</Text>
-          </Pressable>
+          
           {canRequestSellerVerification ? (
             <Pressable style={({ pressed }) => [styles.profileActionButton, pressed && styles.buttonPressed]} onPress={onSell}>
               <Text style={styles.profileActionText}>Vender</Text>
@@ -146,7 +134,6 @@ export function AuthenticatedAccountPanel({
         <View style={styles.profileHighlights}>
           <Highlight icon="receipt-outline" label="Pedidos" />
           <Highlight icon="heart-outline" label="Favoritos" />
-          <Highlight icon="shield-checkmark-outline" label="Confianza" />
         </View>
 
         <View style={styles.profileTabs}>
