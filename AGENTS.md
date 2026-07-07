@@ -65,7 +65,8 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 
 ## Decisiones técnicas actuales
 
-* El backend vive en `backend/` y usa Laravel 13 con PHP 8.3.
+* El backend vive en `backend/` y usa Laravel 13 con PHP 8.4.
+* En desarrollo local se recomienda levantar el backend con Docker usando Nginx + PHP-FPM en `http://127.0.0.1:8010`, en vez de depender de `php artisan serve` para pruebas desde mobile/web.
 * La API protegida usa middleware `supabase.jwt`.
 * La validación de JWT soporta `HS256` con `SUPABASE_JWT_SECRET` y tokens asimétricos `RS256`/`ES256` mediante JWKS público de Supabase.
 * `SupabaseAuthService` obtiene las llaves desde `SUPABASE_URL/auth/v1/.well-known/jwks.json` y las cachea para validar tokens firmados con llaves rotables.
@@ -328,3 +329,7 @@ backend/
 * Limpiar carrito al crear orden.
 * Mantener orden y pago en estado `pending`.
 * No descontar stock hasta confirmación de pago por webhook.
+
+
+scrip
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/update-mobile-api-url.ps1
