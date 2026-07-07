@@ -90,6 +90,7 @@ Toda regla sensible debe validarse en Laravel. No confiar únicamente en el fron
 * Los listados públicos de productos solo muestran productos `active` de tiendas `active`.
 * `GET /api/my-products` devuelve una colección vacía si el seller aprobado aún no tiene tienda, en lugar de responder 404.
 * `mobile/` permite tomar o subir imagen de producto, la guarda en Supabase Storage bucket `product-images` y envía la URL a Laravel en `product_images`.
+* `mobile/` permite agregar una foto/logo al crear tienda; por ahora se guarda en el bucket `product-images` bajo `store-logos/` y Laravel conserva la URL en `stores.logo_url`.
 * El carrito se modela con `cart_items` por `profile_id`; no existe tabla `carts` mientras solo haya un carrito activo por usuario.
 * Agregar al carrito valida producto `active`, tienda `active` y stock suficiente, pero no descuenta stock.
 * El checkout deberá revalidar carrito, precio, disponibilidad y stock antes de crear órdenes o iniciar pago.
@@ -162,6 +163,7 @@ Un admin puede aprobar, rechazar o suspender vendedores.
 * `mobile/` usa Supabase Auth con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`; el JWT de la sesion activa se envia a Laravel para rutas protegidas.
 * `mobile/` consume el catálogo público desde `GET /api/products` y usa JWT para carrito, órdenes, perfil y tienda propia.
 * `mobile/` refresca de forma periódica y al volver a primer plano el perfil, catálogo, categorías y centro de ventas para reflejar cambios hechos desde `admin/` sin recarga manual.
+* En `mobile/`, las pantallas bajo `app/` deben actuar como composición de screens; los componentes reutilizables del módulo viven en `components/{modulo}/`, la lógica reusable en `hooks/{modulo}/`, las constantes en `constants/` y los tipos compartidos en `types/`.
 * `mobile/` registra usuarios desde la pantalla Cuenta: valida cedula por backend, crea usuario en Supabase Auth y completa el perfil interno en Laravel.
 * Las fotos de perfil se guardan como archivos en Supabase Storage; Laravel conserva la URL oficial en `profiles.avatar_url` y sigue siendo la fuente de verdad del perfil.
 * Laravel expone `GET /api/identity/lookup`, `GET /api/profiles/availability` y `PATCH /api/me/profile` para onboarding de perfiles.

@@ -1,88 +1,38 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { Tag } from '../../components/common/Tag';
+import { CreateStoreForm } from '../../components/sell/CreateStoreForm';
+import { ProductCreateForm } from '../../components/sell/ProductCreateForm';
+import { SellerProductList } from '../../components/sell/SellerProductList';
 import {
   createProduct,
   createStore,
-  fetchCategories,
   fetchProfile,
-  fetchSellerCenter,
   submitSellerVerification,
-  type CategoryResource,
-  type ProfileResource,
-  type SellerCenterState,
-  type StoreResource,
 } from '../../services/marketplaceApi';
 import {
   pickProductImage,
   takeProductImage,
   uploadProductImage,
-  type ProductImageAsset,
 } from '../../services/productImageService';
-import { colors, radii, shadows } from '../../theme/colors';
-import type { Product } from '../../types/marketplace';
-import { formatPrice } from '../../utils/format';
-
-type SellScreenProps = {
-  accessToken: string | null;
-  profile: ProfileResource | null;
-  isProfileLoading: boolean;
-  onGoToAccount: () => void;
-  onProfileChange: (profile: ProfileResource | null) => void;
-};
-
-type StoreForm = {
-  name: string;
-  description: string;
-};
-
-type VerificationForm = {
-  businessName: string;
-  businessDescription: string;
-  documentType: string;
-  documentNumber: string;
-};
-
-type ProductForm = {
-  categoryId: string;
-  name: string;
-  description: string;
-  image: ProductImageAsset | null;
-  price: string;
-  publishNow: boolean;
-  stock: string;
-};
-
-const initialVerificationForm: VerificationForm = {
-  businessName: '',
-  businessDescription: '',
-  documentType: 'ruc',
-  documentNumber: '',
-};
-
-const initialStoreForm: StoreForm = {
-  name: '',
-  description: '',
-};
-
-const initialProductForm: ProductForm = {
-  categoryId: '',
-  name: '',
-  description: '',
-  image: null,
-  price: '',
-  publishNow: false,
-  stock: '',
-};
-
-const SELLER_STATE_CACHE_KEY_PREFIX = 'nexo.seller-state.v1.';
-const CATEGORIES_CACHE_KEY = 'nexo.categories.cache.v1';
-const SELLER_CENTER_AUTO_REFRESH_MS = 15000;
-const CATEGORIES_LOAD_TIMEOUT_MS = 12000;
+import {
+  pickStoreLogo,
+  takeStoreLogo,
+  uploadStoreLogo,
+} from '../../services/storeLogoService';
+import { colors } from '../../theme/colors';
+import { FormHeader, PrimaryButton } from '../../components/sell/FormControls';
+import { styles } from '../../components/sell/sellStyles';
+import {
+  initialProductForm,
+  initialStoreForm,
+  initialVerificationForm,
+} from '../../constants/sell';
+import { useSellCategories } from '../../hooks/sell/useSellCategories';
+import { useSellerCenter } from '../../hooks/sell/useSellerCenter';
+import type { SellScreenProps } from '../../types/sell';
 
 export function SellScreen({
   accessToken,
@@ -91,166 +41,40 @@ export function SellScreen({
   onGoToAccount,
   onProfileChange,
 }: SellScreenProps) {
-  const [store, setStore] = useState<StoreResource | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<CategoryResource[]>([]);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
-  const [sellerState, setSellerState] = useState<SellerCenterState | null>(null);
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
   const [productForm, setProductForm] = useState(initialProductForm);
   const [isLoading, setIsLoading] = useState(false);
-  const [categoryRefreshKey, setCategoryRefreshKey] = useState(0);
-  const [sellerRefreshKey, setSellerRefreshKey] = useState(0);
-  const [hasPendingVerificationRequest, setHasPendingVerificationRequest] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const isCategoryRequestInFlight = useRef(false);
+  const handleSellerLoaded = useCallback(() => setMessage(null), []);
+  const handleSellerError = useCallback((nextMessage: string) => setMessage(nextMessage), []);
+  const {
+    categories,
+    categoryError,
+    isCategoriesLoading,
+    refreshCategories,
+  } = useSellCategories();
+  const {
+    hasPendingVerificationRequest,
+    loadSellerState,
+    products,
+    saveSellerState,
+    sellerState,
+    setHasPendingVerificationRequest,
+    setProducts,
+    setSellerState,
+    setStore,
+    store,
+  } = useSellerCenter({
+    accessToken,
+    profile,
+    onError: handleSellerError,
+    onLoaded: handleSellerLoaded,
+    onProfileChange,
+  });
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
-  const sellerCacheKey = profile ? `${SELLER_STATE_CACHE_KEY_PREFIX}${profile.id}` : null;
-
-  const refreshSellerCenter = useCallback(() => {
-    setSellerRefreshKey((current) => current + 1);
-  }, []);
-
-  const refreshCategories = useCallback(() => {
-    setCategoryRefreshKey((current) => current + 1);
-  }, []);
-
-  const loadSellerState = useCallback(async () => {
-    if (!accessToken || !profile) {
-      setStore(null);
-      setProducts([]);
-      setSellerState(null);
-      return;
-    }
-
-    let usedCachedState = false;
-
-    if (sellerCacheKey) {
-      const cachedState = await getCachedSellerState(sellerCacheKey);
-
-      if (cachedState) {
-        usedCachedState = true;
-        setStore(cachedState.store);
-        setProducts(cachedState.products);
-        setSellerState(cachedState.sellerState);
-        setMessage(null);
-      }
-    }
-
-    let nextCenter;
-
-    try {
-      nextCenter = await fetchSellerCenter(accessToken);
-    } catch (error) {
-      if (usedCachedState) {
-        return;
-      }
-
-      throw error;
-    }
-
-    if (!nextCenter) {
-      return;
-    }
-
-    setStore(nextCenter.store);
-    setProducts(nextCenter.products);
-    setSellerState(nextCenter.state);
-    setMessage(null);
-    onProfileChange(nextCenter.profile);
-
-    if (sellerCacheKey) {
-      cacheSellerState(sellerCacheKey, {
-        sellerState: nextCenter.state,
-        store: nextCenter.store,
-        products: nextCenter.products,
-      });
-    }
-  }, [accessToken, onProfileChange, profile, sellerCacheKey]);
-
-  useEffect(() => {
-    if (isCategoryRequestInFlight.current) {
-      return undefined;
-    }
-
-    let isMounted = true;
-    isCategoryRequestInFlight.current = true;
-
-    const loadCategories = async () => {
-      const cachedCategories = await getCachedCategories();
-
-      if (isMounted && categories.length === 0 && cachedCategories.length > 0) {
-        setCategories(cachedCategories);
-      }
-
-      if (isMounted) {
-        setIsCategoriesLoading(categories.length === 0 && cachedCategories.length === 0);
-        setCategoryError(null);
-      }
-
-      try {
-        const nextCategories = await fetchCategories(CATEGORIES_LOAD_TIMEOUT_MS);
-
-        if (isMounted) {
-          setCategories(nextCategories);
-          setCategoryError(null);
-          await cacheCategories(nextCategories);
-        }
-      } catch (error) {
-        if (isMounted) {
-          setCategoryError(error instanceof Error ? error.message : 'No pudimos cargar las categorias.');
-        }
-      } finally {
-        if (isMounted) {
-          setIsCategoriesLoading(false);
-        }
-
-        isCategoryRequestInFlight.current = false;
-      }
-    };
-
-    loadCategories();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [categoryRefreshKey]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    loadSellerState().catch(() => {
-      if (isMounted) {
-        setMessage('No pudimos cargar tu centro de ventas.');
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [loadSellerState, sellerRefreshKey]);
-
-  useEffect(() => {
-    if (!accessToken || !profile) {
-      return undefined;
-    }
-
-    const interval = setInterval(refreshSellerCenter, SELLER_CENTER_AUTO_REFRESH_MS);
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        refreshSellerCenter();
-      }
-    });
-
-    return () => {
-      clearInterval(interval);
-      subscription.remove();
-    };
-  }, [accessToken, profile, refreshSellerCenter]);
 
   const sellerStep = useMemo(() => {
     if (!isAuthenticated) {
@@ -353,15 +177,15 @@ export function SellScreen({
     setMessage(null);
 
     try {
+      const logoUrl = storeForm.logo ? await uploadStoreLogo(storeForm.logo, storeForm.logoSize) : null;
       const nextStore = await createStore(accessToken, {
         name,
         description: storeForm.description.trim() || null,
+        logo_url: logoUrl,
       });
       setStore(nextStore);
       setSellerState('catalog_required');
-      if (sellerCacheKey) {
-        cacheSellerState(sellerCacheKey, { sellerState: 'catalog_required', store: nextStore, products });
-      }
+      saveSellerState({ sellerState: 'catalog_required', store: nextStore, products });
       setStoreForm(initialStoreForm);
       setMessage('Tienda creada y activa.');
     } catch (error) {
@@ -369,6 +193,34 @@ export function SellScreen({
       setMessage(error instanceof Error ? error.message : 'No se pudo crear la tienda.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePickStoreLogo = async () => {
+    setMessage(null);
+
+    try {
+      const image = await pickStoreLogo();
+
+      if (image) {
+        setStoreForm((current) => ({ ...current, logo: image }));
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen de la tienda.');
+    }
+  };
+
+  const handleTakeStoreLogo = async () => {
+    setMessage(null);
+
+    try {
+      const image = await takeStoreLogo();
+
+      if (image) {
+        setStoreForm((current) => ({ ...current, logo: image }));
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos tomar la imagen de la tienda.');
     }
   };
 
@@ -431,9 +283,7 @@ export function SellScreen({
         const nextState = nextProducts.length > 0 ? 'catalog_ready' : 'catalog_required';
 
         setSellerState(nextState);
-        if (sellerCacheKey) {
-          cacheSellerState(sellerCacheKey, { sellerState: nextState, store, products: nextProducts });
-        }
+        saveSellerState({ sellerState: nextState, store, products: nextProducts });
 
         return nextProducts;
       });
@@ -519,7 +369,11 @@ export function SellScreen({
         <View style={styles.statusHeader}>
           <View style={styles.statusIdentity}>
             <View style={styles.statusIcon}>
-              <Ionicons name="storefront-outline" size={23} color={colors.brandBlue} />
+              {store?.logo_url ? (
+                <Image source={{ uri: store.logo_url }} style={styles.statusLogo} />
+              ) : (
+                <Ionicons name="storefront-outline" size={23} color={colors.brandBlue} />
+              )}
             </View>
             <View style={styles.statusCopy}>
               <Text style={styles.statusTitle}>{sellerStep}</Text>
@@ -664,647 +518,33 @@ export function SellScreen({
       )}
 
       {sellerState === 'store_required' && (
-        <View style={styles.formCard}>
-          <FormHeader
-            icon="business-outline"
-            title="Crear tienda"
-            subtitle="Tu tienda quedara activa al crearla porque ya estas aprobado."
-          />
-          <TextInput
-            placeholder="Nombre de tienda"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={storeForm.name}
-            onChangeText={(value) => setStoreForm((current) => ({ ...current, name: value }))}
-          />
-          <TextInput
-            multiline
-            placeholder="Descripcion corta"
-            placeholderTextColor={colors.inkSoft}
-            style={[styles.input, styles.textArea]}
-            value={storeForm.description}
-            onChangeText={(value) => setStoreForm((current) => ({ ...current, description: value }))}
-          />
-          <PrimaryButton disabled={isLoading} icon="storefront" label="Crear tienda" loading={isLoading} onPress={handleCreateStore} />
-        </View>
+        <CreateStoreForm
+          form={storeForm}
+          isLoading={isLoading}
+          onChange={setStoreForm}
+          onCreateStore={handleCreateStore}
+          onPickLogo={handlePickStoreLogo}
+          onTakeLogo={handleTakeStoreLogo}
+        />
       )}
 
       {(sellerState === 'catalog_required' || sellerState === 'catalog_ready') && canCreateProducts && (
-        <View style={styles.formCard}>
-          <FormHeader
-            icon="pricetag-outline"
-            title="Nuevo producto"
-            subtitle="Completa la informacion, agrega una imagen y elige si publicarlo ahora."
-          />
-          <TextInput
-            placeholder="Titulo del producto"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={productForm.name}
-            onChangeText={(value) => setProductForm((current) => ({ ...current, name: value }))}
-          />
-          <TextInput
-            multiline
-            placeholder="Descripcion del producto"
-            placeholderTextColor={colors.inkSoft}
-            style={[styles.input, styles.textArea]}
-            value={productForm.description}
-            onChangeText={(value) => setProductForm((current) => ({ ...current, description: value }))}
-          />
-          <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>Categoria</Text>
-            <View style={styles.categoryOptions}>
-              {isCategoriesLoading ? (
-                <View style={styles.categoryLoadingRow}>
-                  <ActivityIndicator color={colors.brandBlue} size="small" />
-                  <Text style={styles.fieldHint}>Cargando categorias...</Text>
-                </View>
-              ) : categories.length > 0 ? (
-                categories.map((category) => (
-                  <Pressable
-                    key={category.id}
-                    style={({ pressed }) => [
-                      styles.categoryOption,
-                      productForm.categoryId === category.id && styles.categoryOptionActive,
-                      pressed && styles.buttonPressed,
-                    ]}
-                    onPress={() => setProductForm((current) => ({ ...current, categoryId: category.id }))}
-                  >
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.categoryOptionText,
-                        productForm.categoryId === category.id && styles.categoryOptionTextActive,
-                      ]}
-                    >
-                      {category.name}
-                    </Text>
-                  </Pressable>
-                ))
-              ) : categoryError ? (
-                <View style={styles.categoryErrorRow}>
-                  <Text style={styles.fieldHint}>{categoryError}</Text>
-                  <Pressable
-                    style={({ pressed }) => [styles.retrySmallButton, pressed && styles.buttonPressed]}
-                    onPress={refreshCategories}
-                  >
-                    <Ionicons name="refresh" size={14} color={colors.brandBlue} />
-                    <Text style={styles.retrySmallText}>Reintentar</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Text style={styles.fieldHint}>No hay categorias activas disponibles.</Text>
-              )}
-            </View>
-          </View>
-          <View style={styles.inlineRow}>
-            <TextInput
-              keyboardType="decimal-pad"
-              placeholder="Precio"
-              placeholderTextColor={colors.inkSoft}
-              style={[styles.input, styles.inlineInput]}
-              value={productForm.price}
-              onChangeText={(value) => setProductForm((current) => ({ ...current, price: value.replace(/[^0-9.,]/g, '') }))}
-            />
-            <TextInput
-              keyboardType="number-pad"
-              placeholder="Cantidad"
-              placeholderTextColor={colors.inkSoft}
-              style={[styles.input, styles.inlineInput]}
-              value={productForm.stock}
-              onChangeText={(value) => setProductForm((current) => ({ ...current, stock: value.replace(/\D+/g, '') }))}
-            />
-          </View>
-          <View style={styles.imagePickerPanel}>
-            {productForm.image ? (
-              <Image source={{ uri: productForm.image.uri }} style={styles.productImagePreview} />
-            ) : (
-              <View style={styles.productImagePlaceholder}>
-                <Ionicons name="image-outline" size={28} color={colors.brandBlue} />
-                <Text style={styles.fieldHint}>JPG, PNG o WebP. Maximo 5 MB.</Text>
-              </View>
-            )}
-            <View style={styles.imageActionRow}>
-              <Pressable
-                style={({ pressed }) => [styles.imageActionButton, pressed && styles.buttonPressed]}
-                onPress={handleTakeProductImage}
-              >
-                <Ionicons name="camera-outline" size={16} color={colors.brandBlue} />
-                <Text style={styles.imageActionText}>Tomar foto</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.imageActionButton, pressed && styles.buttonPressed]}
-                onPress={handlePickProductImage}
-              >
-                <Ionicons name="images-outline" size={16} color={colors.brandBlue} />
-                <Text style={styles.imageActionText}>Subir imagen</Text>
-              </Pressable>
-            </View>
-          </View>
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityState={{ checked: productForm.publishNow }}
-            style={({ pressed }) => [styles.toggleRow, pressed && styles.buttonPressed]}
-            onPress={() => setProductForm((current) => ({ ...current, publishNow: !current.publishNow }))}
-          >
-            <View style={[styles.toggleBox, productForm.publishNow && styles.toggleBoxActive]}>
-              {productForm.publishNow && <Ionicons name="checkmark" size={15} color={colors.surface} />}
-            </View>
-            <Text style={styles.toggleText}>Publicar inmediatamente</Text>
-          </Pressable>
-          <PrimaryButton
-            disabled={isLoading}
-            icon={productForm.publishNow ? 'cloud-upload' : 'document-text'}
-            label={productForm.publishNow ? 'Publicar producto' : 'Guardar borrador'}
-            loading={isLoading}
-            onPress={handleCreateProduct}
-          />
-        </View>
+        <ProductCreateForm
+          categories={categories}
+          categoryError={categoryError}
+          form={productForm}
+          isCategoriesLoading={isCategoriesLoading}
+          isLoading={isLoading}
+          onChange={setProductForm}
+          onCreateProduct={handleCreateProduct}
+          onPickImage={handlePickProductImage}
+          onRefreshCategories={refreshCategories}
+          onTakeImage={handleTakeProductImage}
+        />
       )}
 
-      {products.length > 0 && (
-        <View style={styles.productList}>
-          <View style={styles.productListHeader}>
-            <Text style={styles.formTitle}>Tus productos</Text>
-            <Tag text={`${products.length} items`} tone="default" />
-          </View>
-          {products.map((product) => (
-            <View key={product.id} style={styles.productRow}>
-              <View style={styles.productIcon}>
-                <Ionicons name={product.available ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={colors.brandBlue} />
-              </View>
-              <View style={styles.productInfo}>
-                <Text numberOfLines={1} style={styles.productName}>{product.title}</Text>
-                <Text style={styles.productMeta}>{formatPrice(product.price)} / stock {product.stock}</Text>
-              </View>
-              <Tag text={product.available ? 'active' : 'draft'} tone={product.available ? 'success' : 'default'} />
-            </View>
-          ))}
-        </View>
-      )}
+      <SellerProductList products={products} />
 
     </>
   );
 }
-
-type CachedSellerState = {
-  products: Product[];
-  sellerState: SellerCenterState | null;
-  store: StoreResource | null;
-};
-
-async function getCachedSellerState(key: string): Promise<CachedSellerState | null> {
-  try {
-    const rawValue = await AsyncStorage.getItem(key);
-
-    if (!rawValue) {
-      return null;
-    }
-
-    const cached = JSON.parse(rawValue) as Partial<CachedSellerState>;
-
-    return {
-      products: Array.isArray(cached.products) ? cached.products : [],
-      sellerState: isSellerCenterState(cached.sellerState) ? cached.sellerState : null,
-      store: cached.store ?? null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function isSellerCenterState(value: unknown): value is SellerCenterState {
-  return (
-    value === 'verification_required'
-    || value === 'verification_pending'
-    || value === 'verification_rejected'
-    || value === 'seller_suspended'
-    || value === 'store_required'
-    || value === 'store_suspended'
-    || value === 'catalog_required'
-    || value === 'catalog_ready'
-  );
-}
-
-async function cacheSellerState(key: string, state: CachedSellerState): Promise<void> {
-  try {
-    await AsyncStorage.setItem(key, JSON.stringify(state));
-  } catch {
-    return;
-  }
-}
-
-async function getCachedCategories(): Promise<CategoryResource[]> {
-  try {
-    const rawValue = await AsyncStorage.getItem(CATEGORIES_CACHE_KEY);
-
-    if (!rawValue) {
-      return [];
-    }
-
-    const categories = JSON.parse(rawValue) as Partial<CategoryResource>[];
-
-    return Array.isArray(categories) ? categories.filter(isCategoryResource) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function cacheCategories(categories: CategoryResource[]): Promise<void> {
-  try {
-    await AsyncStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(categories));
-  } catch {
-    return;
-  }
-}
-
-function isCategoryResource(value: Partial<CategoryResource>): value is CategoryResource {
-  return typeof value.id === 'string' && value.id.length > 0 && typeof value.name === 'string';
-}
-
-type PrimaryButtonProps = {
-  disabled: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  loading: boolean;
-  onPress: () => void;
-};
-
-type FormHeaderProps = {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-};
-
-function FormHeader({ icon, title, subtitle }: FormHeaderProps) {
-  return (
-    <View style={styles.formHeader}>
-      <View style={styles.formIcon}>
-        <Ionicons name={icon} size={18} color={colors.brandBlue} />
-      </View>
-      <View style={styles.formHeaderCopy}>
-        <Text style={styles.formTitle}>{title}</Text>
-        <Text style={styles.formSubtitle}>{subtitle}</Text>
-      </View>
-    </View>
-  );
-}
-
-function PrimaryButton({ disabled, icon, label, loading, onPress }: PrimaryButtonProps) {
-  return (
-    <Pressable
-      disabled={disabled}
-      style={({ pressed }) => [styles.primaryButton, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}
-      onPress={onPress}
-    >
-      {loading ? (
-        <ActivityIndicator color={colors.surface} />
-      ) : (
-        <>
-          <Ionicons name={icon} size={17} color={colors.surface} />
-          <Text style={styles.primaryButtonText}>{label}</Text>
-        </>
-      )}
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  statusPanel: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.medium,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: 14,
-    ...shadows.card,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  statusIdentity: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statusIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: colors.brandBlueSoft,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  statusTitle: {
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  statusSubtitle: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.medium,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: 11,
-    ...shadows.card,
-  },
-  formHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    marginBottom: 2,
-  },
-  formIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    backgroundColor: colors.brandBlueSoft,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  formHeaderCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  formTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  formSubtitle: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 17,
-    marginTop: 3,
-  },
-  input: {
-    minHeight: 44,
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.line,
-    color: colors.ink,
-    paddingHorizontal: 12,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  textArea: {
-    minHeight: 86,
-    paddingTop: 10,
-    textAlignVertical: 'top',
-  },
-  inlineRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  inlineInput: {
-    flex: 1,
-    minWidth: 120,
-  },
-  fieldBlock: {
-    gap: 8,
-  },
-  fieldLabel: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  fieldHint: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 17,
-  },
-  categoryOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  categoryErrorRow: {
-    gap: 8,
-  },
-  retrySmallButton: {
-    alignSelf: 'flex-start',
-    minHeight: 32,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-  },
-  retrySmallText: {
-    color: colors.brandBlue,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  categoryOption: {
-    minHeight: 36,
-    maxWidth: '100%',
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryOptionActive: {
-    backgroundColor: colors.brandBlueSoft,
-    borderColor: colors.brandBlueLine,
-  },
-  categoryOptionText: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  categoryOptionTextActive: {
-    color: colors.brandBlue,
-  },
-  imagePickerPanel: {
-    borderRadius: radii.medium,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surfaceMuted,
-    padding: 10,
-    gap: 10,
-  },
-  productImagePreview: {
-    width: '100%',
-    aspectRatio: 4 / 3,
-    borderRadius: radii.small,
-    backgroundColor: colors.surface,
-  },
-  productImagePlaceholder: {
-    minHeight: 150,
-    borderRadius: radii.small,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    backgroundColor: colors.brandBlueSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 14,
-  },
-  imageActionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  imageActionButton: {
-    flex: 1,
-    minWidth: 132,
-    minHeight: 38,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-  },
-  imageActionText: {
-    color: colors.brandBlue,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  toggleRow: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  toggleBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  toggleBoxActive: {
-    backgroundColor: colors.brandBlue,
-    borderColor: colors.brandBlue,
-  },
-  toggleText: {
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  primaryButton: {
-    minHeight: 48,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  primaryButtonText: {
-    color: colors.surface,
-    fontWeight: '700',
-  },
-  buttonDisabled: {
-    opacity: 0.72,
-  },
-  buttonPressed: {
-    transform: [{ scale: 0.97 }],
-  },
-  productList: {
-    gap: 10,
-  },
-  productListHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  productRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: radii.medium,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    padding: 12,
-    ...shadows.card,
-  },
-  productIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brandBlueSoft,
-  },
-  productInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  productName: {
-    color: colors.ink,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  productMeta: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  logicList: {
-    gap: 12,
-  },
-  messagePanel: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    borderRadius: radii.medium,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    backgroundColor: colors.brandBlueSoft,
-    padding: 12,
-  },
-  message: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 18,
-    flex: 1,
-    minWidth: 0,
-  },
-});

@@ -15,8 +15,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "nexo necesita acceso a la camara para tomar fotos de tus productos.",
-        "NSPhotoLibraryUsageDescription": "nexo necesita acceso a tus fotos para subir imagenes de productos."
+        "NSCameraUsageDescription": "nexo necesita acceso a la camara para tomar fotos de tiendas y productos.",
+        "NSPhotoLibraryUsageDescription": "nexo necesita acceso a tus fotos para subir imagenes de tiendas y productos."
       }
     },
     "android": {

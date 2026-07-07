@@ -169,6 +169,8 @@ export type StoreResource = {
   name: string;
   slug: string;
   description: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
   status: string;
 };
 
@@ -291,6 +293,8 @@ export async function fetchMyStore(token?: string): Promise<{
   name: string;
   slug: string;
   description: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
   status: string;
 } | null> {
   if (!token) {
@@ -302,6 +306,8 @@ export async function fetchMyStore(token?: string): Promise<{
     name: string;
     slug: string;
     description: string | null;
+    logo_url: string | null;
+    banner_url: string | null;
     status: string;
   }>>('/my-store', { token });
 
