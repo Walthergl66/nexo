@@ -202,6 +202,14 @@ function AppShell() {
     setIsCartOpen(false);
   };
 
+  // Abrir el detalle de un producto desde la pestaña Cuenta (p. ej. Favoritos).
+  const handleOpenProductFromAccount = (product: Product) => {
+    setActiveTab('Inicio');
+    setIsCartOpen(false);
+    setIsNotificationsOpen(false);
+    setSelectedProductId(product.id);
+  };
+
   const handleBackToCatalog = () => {
     setSelectedProductId(null);
     setIsCartOpen(false);
@@ -375,10 +383,14 @@ function AppShell() {
             profile={profile}
             profileError={profileError}
             isProfileLoading={isProfileLoading}
+            catalogProducts={catalog.products}
+            isAuthenticated={hasBusinessProfile}
             onClearStatusMessage={handleClearStatusMessage}
             onConfirmAction={requestConfirmation}
             onStatusMessage={handleStatusMessage}
             onExplore={() => setActiveTab('Inicio')}
+            onAddToCart={cart.addToCart}
+            onOpenProduct={handleOpenProductFromAccount}
             passwordResetKey={passwordResetKey}
             onProfileChange={onProfileChange}
             onRetryProfile={retryProfile}

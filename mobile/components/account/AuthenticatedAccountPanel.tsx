@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
+import { ProductCard } from '../cards/ProductCard';
 import { SellerProductCard } from '../cards/SellerProductCard';
 import { Tag } from '../common/Tag';
+import { useFavorites } from '../../context/FavoritesContext';
 import type { ProfileResource } from '../../services/marketplaceApi';
 import type { Product } from '../../types/marketplace';
 import { colors } from '../../theme/colors';
@@ -12,6 +14,10 @@ type AuthenticatedAccountPanelProps = {
   isLoggingOut: boolean;
   products: Product[];
   profile: ProfileResource;
+  catalogProducts: Product[];
+  isAuthenticated: boolean;
+  onAddToCart: (product: Product) => void | Promise<boolean>;
+  onOpenProduct: (product: Product) => void;
   onLogout: () => void;
   onOpenSettings: () => void;
   onSell: () => void;
@@ -21,6 +27,10 @@ export function AuthenticatedAccountPanel({
   isLoggingOut,
   products,
   profile,
+  catalogProducts,
+  isAuthenticated,
+  onAddToCart,
+  onOpenProduct,
   onLogout,
   onOpenSettings,
   onSell,
@@ -28,9 +38,15 @@ export function AuthenticatedAccountPanel({
   const canRequestSellerVerification = profile.role === 'buyer' && profile.verification_status !== 'suspended';
   const initials = useMemo(() => getInitials(profile), [profile]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
   const roleLabel = getRoleLabel(profile.role);
   const statusLabel = getVerificationLabel(profile.verification_status);
   const publishedProducts = products.filter((product) => product.available);
+  const { isFavorite } = useFavorites();
+  const favoriteProducts = useMemo(
+    () => catalogProducts.filter((product) => isFavorite(product.id)),
+    [catalogProducts, isFavorite],
+  );
 
   const handleOpenSettings = () => {
     setIsProfileMenuOpen(false);
@@ -131,34 +147,68 @@ export function AuthenticatedAccountPanel({
 
         <View style={styles.profileHighlights}>
           <Highlight icon="receipt-outline" label="Pedidos" />
-          <Highlight icon="heart-outline" label="Favoritos" />
+          <Highlight
+            icon={showFavorites ? 'heart' : 'heart-outline'}
+            label="Favoritos"
+            badge={favoriteProducts.length}
+            active={showFavorites}
+            onPress={() => setShowFavorites((current) => !current)}
+          />
         </View>
 
-        <View style={styles.profileTabs}>
-          <View style={styles.profileTabActive}>
-            <Ionicons name="grid" size={22} color={colors.ink} />
-          </View>
-          <View style={styles.profileTab}>
-            <Ionicons name="person-circle-outline" size={24} color={colors.inkSoft} />
-          </View>
-        </View>
-
-        {products.length > 0 ? (
-          <View style={styles.postGrid}>
-            {products.map((product) => (
-              <View key={product.id} style={styles.postCell}>
-                <SellerProductCard product={product} />
-              </View>
-            ))}
-          </View>
+        {showFavorites ? (
+          favoriteProducts.length > 0 ? (
+            <View style={styles.postGrid}>
+              {favoriteProducts.map((product) => (
+                <View key={product.id} style={styles.postCell}>
+                  <ProductCard
+                    product={product}
+                    isAuthenticated={isAuthenticated}
+                    isOwn={Boolean(product.ownerProfileId) && product.ownerProfileId === profile.id}
+                    onAddToCart={() => onAddToCart(product)}
+                    onSelectProduct={() => onOpenProduct(product)}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyPosts}>
+              <Ionicons name="heart-outline" size={28} color={colors.brandBlue} />
+              <Text style={styles.emptyPostsTitle}>Sin favoritos</Text>
+              <Text style={styles.emptyPostsText}>
+                Toca el corazon en cualquier producto del catalogo para guardarlo aqui.
+              </Text>
+            </View>
+          )
         ) : (
-          <View style={styles.emptyPosts}>
-            <Ionicons name="grid-outline" size={28} color={colors.brandBlue} />
-            <Text style={styles.emptyPostsTitle}>Sin publicaciones</Text>
-            <Text style={styles.emptyPostsText}>
-              Los productos publicados apareceran aqui como el catalogo visible del perfil.
-            </Text>
-          </View>
+          <>
+            <View style={styles.profileTabs}>
+              <View style={styles.profileTabActive}>
+                <Ionicons name="grid" size={22} color={colors.ink} />
+              </View>
+              <View style={styles.profileTab}>
+                <Ionicons name="person-circle-outline" size={24} color={colors.inkSoft} />
+              </View>
+            </View>
+
+            {products.length > 0 ? (
+              <View style={styles.postGrid}>
+                {products.map((product) => (
+                  <View key={product.id} style={styles.postCell}>
+                    <SellerProductCard product={product} />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyPosts}>
+                <Ionicons name="grid-outline" size={28} color={colors.brandBlue} />
+                <Text style={styles.emptyPostsTitle}>Sin publicaciones</Text>
+                <Text style={styles.emptyPostsText}>
+                  Los productos publicados apareceran aqui como el catalogo visible del perfil.
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </View>
     </>
@@ -415,14 +465,50 @@ function ImportantInfo({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; 
   );
 }
 
-function Highlight({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
-  return (
-    <View style={styles.highlightItem}>
+function Highlight({
+  icon,
+  label,
+  badge,
+  active = false,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  badge?: number;
+  active?: boolean;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
       <View style={styles.highlightCircle}>
         <Ionicons name={icon} size={20} color={colors.brandBlue} />
+        {badge !== undefined && badge > 0 && (
+          <View style={styles.highlightBadge}>
+            <Text style={styles.highlightBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        )}
       </View>
       <Text numberOfLines={1} style={styles.highlightLabel}>{label}</Text>
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.highlightItem}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={({ pressed }) => [
+        styles.highlightItem,
+        active && styles.highlightItemActive,
+        pressed && styles.buttonPressed,
+      ]}
+      onPress={onPress}
+    >
+      {content}
+    </Pressable>
   );
 }
 

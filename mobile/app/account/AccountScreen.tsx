@@ -29,10 +29,14 @@ type AccountScreenProps = {
   profile: ProfileResource | null;
   profileError: string | null;
   isProfileLoading: boolean;
+  catalogProducts: Product[];
+  isAuthenticated: boolean;
   onClearStatusMessage?: () => void;
   onConfirmAction?: (action: ConfirmActionRequest) => void;
   onStatusMessage?: (message: string, tone: StatusTone) => void;
   onExplore: () => void;
+  onAddToCart: (product: Product) => void | Promise<boolean>;
+  onOpenProduct: (product: Product) => void;
   onProfileChange: (profile: ProfileResource | null) => void;
   passwordResetKey: number;
   onRetryProfile: () => void;
@@ -44,10 +48,14 @@ export function AccountScreen({
   profile,
   profileError,
   isProfileLoading,
+  catalogProducts,
+  isAuthenticated,
   onClearStatusMessage,
   onConfirmAction,
   onStatusMessage,
   onExplore,
+  onAddToCart,
+  onOpenProduct,
   onProfileChange,
   passwordResetKey,
   onRetryProfile,
@@ -504,6 +512,10 @@ export function AccountScreen({
           isLoggingOut={isLoading}
           products={profileProducts}
           profile={profile}
+          catalogProducts={catalogProducts}
+          isAuthenticated={isAuthenticated}
+          onAddToCart={onAddToCart}
+          onOpenProduct={onOpenProduct}
           onLogout={handleLogout}
           onOpenSettings={() => setAccountView('settings')}
           onSell={onSell}

@@ -250,6 +250,10 @@ export const accountStyles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 8,
   },
+  highlightItemActive: {
+    borderColor: colors.brandBlue,
+    backgroundColor: colors.brandBlueSoft,
+  },
   highlightCircle: {
     width: 34,
     height: 34,
@@ -257,6 +261,26 @@ export const accountStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  highlightBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.brandBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+  },
+  highlightBadgeText: {
+    color: colors.surface,
+    fontSize: 9,
+    fontWeight: '700',
   },
   highlightLabel: {
     color: colors.inkMuted,
