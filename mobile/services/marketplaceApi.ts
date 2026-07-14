@@ -120,7 +120,22 @@ async function getApiErrorMessage(response: Response): Promise<string> {
   return 'No pudimos completar la solicitud. Intenta nuevamente.';
 }
 
+// Traducciones de los mensajes de validacion del backend (en ingles) a espanol.
+const TRANSLATED_MESSAGES: Array<{ match: RegExp; text: string }> = [
+  { match: /enough stock/i, text: 'Uno de los productos ya no tiene stock suficiente. Ajusta la cantidad o quitalo del carrito.' },
+  { match: /unavailable products/i, text: 'Tu carrito tiene productos que ya no estan disponibles. Quitalos para continuar.' },
+  { match: /inactive stores/i, text: 'Tu carrito tiene productos de una tienda inactiva. Quitalos para continuar.' },
+  { match: /multiple currencies/i, text: 'No puedes comprar productos en monedas distintas en la misma orden.' },
+  { match: /cart is empty/i, text: 'Tu carrito esta vacio.' },
+];
+
 function toPublicErrorMessage(message: string): string {
+  const translation = TRANSLATED_MESSAGES.find((entry) => entry.match.test(message));
+
+  if (translation) {
+    return translation.text;
+  }
+
   const lowerMessage = message.toLowerCase();
   const technicalWords = [
     'api',

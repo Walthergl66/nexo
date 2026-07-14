@@ -209,8 +209,12 @@ export function useCart({
 
     try {
       order = await createOrderFromCart(accessToken);
-    } catch {
-      onStatusMessage?.('No pudimos crear la orden. Intenta nuevamente.', 'error');
+    } catch (error) {
+      const reason =
+        error instanceof ApiRequestError && error.message.trim().length > 0
+          ? error.message
+          : 'No pudimos crear la orden. Intenta nuevamente.';
+      onStatusMessage?.(reason, 'error');
       return;
     }
 
