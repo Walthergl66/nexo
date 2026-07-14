@@ -109,12 +109,12 @@ export function SellerSalesList({ sales, isLoading = false, advancingId, onAdvan
                       </>
                     )}
                   </PressableScale>
-                ) : (
+                ) : isDelivered ? (
                   <View style={styles.doneChip}>
                     <Ionicons name="checkmark-circle" size={15} color={colors.brandBlue} />
                     <Text style={styles.doneText}>Entregado</Text>
                   </View>
-                )}
+                ) : null}
               </View>
             </View>
           );
