@@ -116,7 +116,7 @@ class CartService
                 ->lockForUpdate()
                 ->findOrFail($product->id);
 
-            $this->ensureProductCanBePurchased($product, $quantity);
+            $this->ensureProductCanBePurchased($product, $quantity, $profile);
 
             /** @var CartItem|null $cartItem */
             $cartItem = CartItem::query()
@@ -148,13 +148,13 @@ class CartService
             abort(404);
         }
 
-        return DB::transaction(function () use ($cartItem, $quantity): CartItem {
+        return DB::transaction(function () use ($cartItem, $quantity, $profile): CartItem {
             $cartItem = CartItem::query()
                 ->with('product.store')
                 ->lockForUpdate()
                 ->findOrFail($cartItem->id);
 
-            $this->ensureProductCanBePurchased($cartItem->product, $quantity);
+            $this->ensureProductCanBePurchased($cartItem->product, $quantity, $profile);
 
             $cartItem->forceFill(['quantity' => $quantity])->save();
 
@@ -176,8 +176,14 @@ class CartService
         $profile->cartItems()->delete();
     }
 
-    private function ensureProductCanBePurchased(Product $product, int $quantity): void
+    private function ensureProductCanBePurchased(Product $product, int $quantity, Profile $buyer): void
     {
+        if ($product->store instanceof Store && $product->store->profile_id === $buyer->id) {
+            throw ValidationException::withMessages([
+                'product_id' => 'No puedes comprar tu propio producto.',
+            ]);
+        }
+
         if (! $product->isActive()) {
             throw ValidationException::withMessages([
                 'product_id' => 'Only active products can be added to cart.',

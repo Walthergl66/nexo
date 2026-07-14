@@ -14,8 +14,10 @@ use App\Modules\Notifications\Http\Controllers\MarkNotificationReadController;
 use App\Modules\Notifications\Http\Controllers\RegisterPushTokenController;
 use App\Modules\Orders\Http\Controllers\CreateOrderFromCartController;
 use App\Modules\Orders\Http\Controllers\ListOrdersController;
+use App\Modules\Orders\Http\Controllers\ListSellerSalesController;
 use App\Modules\Orders\Http\Controllers\PayOrderController;
 use App\Modules\Orders\Http\Controllers\ShowOrderController;
+use App\Modules\Orders\Http\Controllers\UpdateSaleStatusController;
 use App\Modules\Products\Http\Controllers\CreateProductController;
 use App\Modules\Products\Http\Controllers\ListMyProductsController;
 use App\Modules\Products\Http\Controllers\ListProductsController;
@@ -67,6 +69,9 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::patch('/cart/items/{cartItem}', UpdateCartItemController::class);
     Route::delete('/cart/items/{cartItem}', RemoveCartItemController::class);
     Route::delete('/cart', ClearCartController::class);
+
+    Route::get('/seller/sales', ListSellerSalesController::class);
+    Route::patch('/seller/sales/{orderItem}', UpdateSaleStatusController::class);
 
     Route::get('/orders', ListOrdersController::class);
     Route::post('/orders/from-cart', CreateOrderFromCartController::class);

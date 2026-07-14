@@ -33,6 +33,7 @@ class OrderResource extends JsonResource
                 'store_slug' => $item->store_slug,
                 'unit_price_cents' => $item->unit_price_cents,
                 'quantity' => $item->quantity,
+                'fulfillment_status' => $item->fulfillment_status,
                 'subtotal_cents' => $item->subtotal_cents,
                 'currency' => $item->currency,
             ])->values()),

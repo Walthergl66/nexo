@@ -1,9 +1,19 @@
-import type { AppNotification, CartItem, CartSummary, NotificationType, Order, Product } from '../types/marketplace';
+import type {
+  AppNotification,
+  CartItem,
+  CartSummary,
+  ItemFulfillmentStatus,
+  NotificationType,
+  Order,
+  Product,
+  Sale,
+} from '../types/marketplace';
 import {
   mapApiCartItemsToCartItems,
   mapApiCartSummary,
   mapApiOrderToOrder,
   mapApiProductToProduct,
+  mapApiSale,
 } from './marketplaceMapper';
 
 type ApiCollection<T> = {
@@ -386,6 +396,30 @@ export async function fetchOrders(token?: string): Promise<Order[]> {
   const response = await request<ApiCollection<unknown>>('/orders', { token });
 
   return response.data.map(mapApiOrderToOrder);
+}
+
+export async function fetchSellerSales(token?: string): Promise<Sale[]> {
+  if (!token) {
+    return [];
+  }
+
+  const response = await request<ApiCollection<unknown>>('/seller/sales', { token });
+
+  return (response.data ?? []).map(mapApiSale);
+}
+
+export async function advanceSaleStatus(
+  saleId: string,
+  status: ItemFulfillmentStatus,
+  token?: string,
+): Promise<Sale> {
+  const response = await request<ApiDocument<unknown>>(`/seller/sales/${saleId}`, {
+    method: 'PATCH',
+    token,
+    body: { status },
+  });
+
+  return mapApiSale(response.data);
 }
 
 export async function fetchProfile(token?: string): Promise<ProfileResource | null> {

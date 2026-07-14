@@ -16,6 +16,7 @@ export type Product = {
   stock: number;
   available: boolean;
   seller: string;
+  ownerProfileId: string | null;
   imageUrl: string | null;
   visualTone: 'light' | 'dark' | 'cool' | 'warm';
 };
@@ -30,13 +31,36 @@ export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | '
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
+export type ItemFulfillmentStatus =
+  | 'pending'
+  | 'processing'
+  | 'packed'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled';
+
 export type OrderItem = {
   id: string;
   productName: string;
   storeName: string;
   unitPrice: number;
   quantity: number;
+  fulfillmentStatus: ItemFulfillmentStatus;
   subtotal: number;
+};
+
+export type Sale = {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  productName: string;
+  quantity: number;
+  subtotal: number;
+  currency: string;
+  fulfillmentStatus: ItemFulfillmentStatus;
+  nextStatus: ItemFulfillmentStatus | null;
+  buyerName: string | null;
+  createdAt: string | null;
 };
 
 export type Order = {

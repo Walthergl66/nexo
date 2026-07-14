@@ -40,6 +40,12 @@ function mapApiProductToProduct(product) {
     stock,
     available: product?.status === 'active' && stock > 0,
     seller,
+    ownerProfileId:
+      product?.owner_profile_id != null
+        ? String(product.owner_profile_id)
+        : product?.store?.profile_id != null
+          ? String(product.store.profile_id)
+          : null,
     imageUrl: pickPrimaryImageUrl(product?.images),
     visualTone: pickTone(product?.id),
   };
@@ -67,6 +73,12 @@ function normalizePaymentStatus(status) {
   return PAYMENT_STATUSES.includes(status) ? status : 'pending';
 }
 
+const FULFILLMENT_STATUSES = ['pending', 'processing', 'packed', 'shipped', 'delivered', 'cancelled'];
+
+function normalizeFulfillmentStatus(status) {
+  return FULFILLMENT_STATUSES.includes(status) ? status : 'pending';
+}
+
 function mapApiOrderItem(item) {
   return {
     id: String(item?.id ?? ''),
@@ -74,7 +86,26 @@ function mapApiOrderItem(item) {
     storeName: String(item?.store_name ?? ''),
     unitPrice: centsToAmount(item?.unit_price_cents),
     quantity: Number(item?.quantity ?? 0),
+    fulfillmentStatus: normalizeFulfillmentStatus(item?.fulfillment_status),
     subtotal: centsToAmount(item?.subtotal_cents),
+  };
+}
+
+function mapApiSale(sale) {
+  const next = sale?.next_status;
+
+  return {
+    id: String(sale?.id ?? ''),
+    orderId: String(sale?.order_id ?? ''),
+    orderNumber: String(sale?.order_number ?? ''),
+    productName: String(sale?.product_name ?? 'Producto'),
+    quantity: Number(sale?.quantity ?? 0),
+    subtotal: centsToAmount(sale?.subtotal_cents),
+    currency: String(sale?.currency ?? 'USD'),
+    fulfillmentStatus: normalizeFulfillmentStatus(sale?.fulfillment_status),
+    nextStatus: FULFILLMENT_STATUSES.includes(next) ? next : null,
+    buyerName: typeof sale?.buyer_name === 'string' && sale.buyer_name.length > 0 ? sale.buyer_name : null,
+    createdAt: typeof sale?.created_at === 'string' ? sale.created_at : null,
   };
 }
 
@@ -112,6 +143,7 @@ module.exports = {
   mapApiCartSummary,
   mapApiOrderToOrder,
   mapApiProductToProduct,
+  mapApiSale,
   pickPrimaryImageUrl,
   pickTone,
 };

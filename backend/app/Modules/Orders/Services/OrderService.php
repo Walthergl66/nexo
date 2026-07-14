@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Services;
 use App\Models\CartItem;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Profile;
 use App\Models\Store;
@@ -47,7 +48,7 @@ class OrderService
                 ->get()
                 ->keyBy('id');
 
-            $this->validateCartItems($cartItems, $products);
+            $this->validateCartItems($cartItems, $products, $profile);
             $currency = $this->resolveCurrency($cartItems);
             $subtotalCents = $cartItems->sum(
                 fn (CartItem $item): int => $item->product->price_cents * $item->quantity,
@@ -138,6 +139,9 @@ class OrderService
             'status' => Order::STATUS_PROCESSING,
         ])->save();
 
+        // El pago habilita la gestion del vendedor: cada item entra en preparacion.
+        $order->items()->update(['fulfillment_status' => OrderItem::FULFILLMENT_PROCESSING]);
+
         $order = $order->refresh()->load(['items', 'profile']);
         $buyer = $order->profile;
 
@@ -167,8 +171,9 @@ class OrderService
     /**
      * @param  iterable<CartItem>  $cartItems
      * @param  Collection<string, Product>  $lockedProducts
+     * @param  Profile  $buyer  The profile placing the order (cannot buy its own products).
      */
-    private function validateCartItems(iterable $cartItems, Collection $lockedProducts): void
+    private function validateCartItems(iterable $cartItems, Collection $lockedProducts, Profile $buyer): void
     {
         foreach ($cartItems as $cartItem) {
             $product = $cartItem->product;
@@ -176,6 +181,12 @@ class OrderService
             if (! $product instanceof Product || ! $product->isActive()) {
                 throw ValidationException::withMessages([
                     'cart' => 'Cart contains unavailable products.',
+                ]);
+            }
+
+            if ($product->store instanceof Store && $product->store->profile_id === $buyer->id) {
+                throw ValidationException::withMessages([
+                    'cart' => 'No puedes comprar tu propio producto.',
                 ]);
             }
 
