@@ -8,6 +8,12 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $repoRoot "mobile/.env.local"
 $backendEnvPath = Join-Path $repoRoot "backend/.env"
 $adminExamplePath = Join-Path $repoRoot "admin/.env.example"
+$adminDir = Join-Path $repoRoot "admin"
+$mobileDir = Join-Path $repoRoot "mobile"
+
+# ---------------------------------------------------------------------------
+# 1) Actualizar IPs (mobile, admin y CORS del backend)
+# ---------------------------------------------------------------------------
 
 if (-not (Test-Path $envPath)) {
     $examplePath = Join-Path $repoRoot "mobile/.env.example"
@@ -139,4 +145,33 @@ if (Test-Path $backendEnvPath) {
     Write-Host "Backend CORS actualizado:"
     Write-Host $corsReplacement
     Write-Host "Si Docker ya esta levantado, ejecuta: docker compose exec backend php artisan config:clear"
+}
+
+# ---------------------------------------------------------------------------
+# 2) Levantar admin y mobile a la vez
+# ---------------------------------------------------------------------------
+
+$procs = @()
+
+try {
+    Write-Host ""
+    Write-Host "Levantando admin (Next.js)..."
+    $procs += Start-Process -FilePath "npm" -ArgumentList "run", "dev" -WorkingDirectory $adminDir -NoNewWindow -PassThru
+
+    Write-Host "Levantando mobile (Expo)..."
+    $procs += Start-Process -FilePath "npm" -ArgumentList "run", "start" -WorkingDirectory $mobileDir -NoNewWindow -PassThru
+
+    Write-Host ""
+    Write-Host "Admin y mobile levantados. Ctrl+C para detener ambos."
+
+    Wait-Process -Id ($procs | ForEach-Object { $_.Id })
+}
+finally {
+    Write-Host ""
+    Write-Host "Deteniendo procesos..."
+    foreach ($proc in $procs) {
+        if ($proc -and -not $proc.HasExited) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
