@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
+import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { StatusToast } from './components/common/StatusToast';
@@ -29,7 +30,7 @@ import type { Product, TabKey } from './types/marketplace';
 import type { ConfirmActionRequest, StatusMessage, StatusTone } from './types/status';
 import { formatPrice } from './utils/format';
 
-export default function App() {
+function AppShell() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -459,6 +460,14 @@ export default function App() {
         />
       </View>
     </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <FavoritesProvider>
+      <AppShell />
+    </FavoritesProvider>
   );
 }
 
