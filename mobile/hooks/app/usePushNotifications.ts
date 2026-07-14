@@ -1,8 +1,49 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
+import Constants, { AppOwnership, ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { registerPushToken } from '../../services/marketplaceApi';
+
+// Desde el SDK 53 expo-notifications ya no soporta push en Expo Go. El paquete
+// tiene un side-effect (DevicePushTokenAutoRegistration.fx) que registra un push
+// token listener con solo importarlo, lo que en Android + Expo Go lanza y muestra
+// la pantalla roja. Por eso NO importamos 'expo-notifications' de forma estatica:
+// lo cargamos con import() dinamico unicamente cuando NO estamos en Expo Go.
+const isRunningInExpoGo =
+  Constants.appOwnership === AppOwnership.Expo ||
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+type NotificationsModule = typeof import('expo-notifications');
+
+let notificationsModulePromise: Promise<NotificationsModule> | null = null;
+let didConfigureHandler = false;
+
+async function loadNotifications(): Promise<NotificationsModule | null> {
+  if (isRunningInExpoGo || Platform.OS === 'web') {
+    return null;
+  }
+
+  if (!notificationsModulePromise) {
+    notificationsModulePromise = import('expo-notifications');
+  }
+
+  const Notifications = await notificationsModulePromise;
+
+  if (!didConfigureHandler) {
+    didConfigureHandler = true;
+    // Mostrar el aviso aunque la app este en primer plano.
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  }
+
+  return Notifications;
+}
 
 type UsePushNotificationsParams = {
   accessToken: string | null;
@@ -12,18 +53,8 @@ type UsePushNotificationsParams = {
   onNotificationReceived: () => void;
 };
 
-// Mostrar el aviso aunque la app este en primer plano.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-async function resolveExpoPushToken(): Promise<string | null> {
-  if (Platform.OS === 'web' || !Device.isDevice) {
+async function resolveExpoPushToken(Notifications: NotificationsModule): Promise<string | null> {
+  if (!Device.isDevice) {
     return null;
   }
 
@@ -49,38 +80,53 @@ async function resolveExpoPushToken(): Promise<string | null> {
 /**
  * Registers this device's Expo push token with the backend and refreshes the
  * in-app center whenever a push is received or tapped. Push is best-effort:
- * it silently no-ops on web, simulators, or when permission is denied.
+ * it silently no-ops on web, Expo Go, simulators, or when permission is denied.
  */
 export function usePushNotifications({ accessToken, isEnabled, onNotificationReceived }: UsePushNotificationsParams) {
   const onReceivedRef = useRef(onNotificationReceived);
   onReceivedRef.current = onNotificationReceived;
 
   useEffect(() => {
-    if (!accessToken || !isEnabled) {
+    if (!accessToken || !isEnabled || isRunningInExpoGo || Platform.OS === 'web') {
       return;
     }
 
     let isActive = true;
+    let cleanup: (() => void) | undefined;
 
-    resolveExpoPushToken()
-      .then((pushToken) => {
-        if (isActive && pushToken) {
-          return registerPushToken(pushToken, accessToken);
+    loadNotifications()
+      .then((Notifications) => {
+        if (!isActive || !Notifications) {
+          return;
         }
 
-        return undefined;
+        resolveExpoPushToken(Notifications)
+          .then((pushToken) => {
+            if (isActive && pushToken) {
+              return registerPushToken(pushToken, accessToken);
+            }
+
+            return undefined;
+          })
+          .catch(() => {
+            // best-effort: si falla el registro, el centro in-app sigue funcionando.
+          });
+
+        const receivedSub = Notifications.addNotificationReceivedListener(() => onReceivedRef.current());
+        const responseSub = Notifications.addNotificationResponseReceivedListener(() => onReceivedRef.current());
+
+        cleanup = () => {
+          receivedSub.remove();
+          responseSub.remove();
+        };
       })
       .catch(() => {
-        // best-effort: si falla el registro, el centro in-app sigue funcionando.
+        // best-effort: si el modulo no carga, el centro in-app sigue funcionando.
       });
-
-    const receivedSub = Notifications.addNotificationReceivedListener(() => onReceivedRef.current());
-    const responseSub = Notifications.addNotificationResponseReceivedListener(() => onReceivedRef.current());
 
     return () => {
       isActive = false;
-      receivedSub.remove();
-      responseSub.remove();
+      cleanup?.();
     };
   }, [accessToken, isEnabled]);
 }

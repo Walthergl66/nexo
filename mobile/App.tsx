@@ -178,7 +178,7 @@ export default function App() {
 
   const isProductPresentation = activeTab === 'Inicio';
   const screenTransitionKey = `${activeTab}-${isNotificationsOpen ? 'notificaciones' : isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen && !selectedProduct;
+  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen;
 
   const nav = useBottomNavAnimations({ activeTab, visibleActiveIndex, tabCount: visibleTabs.length });
   const header = useHeaderVisibility(shouldShowHeader);
