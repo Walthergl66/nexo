@@ -160,30 +160,6 @@ export function HomeScreen({
 
   return (
     <>
-      <View style={styles.introRow}>
-        <View style={styles.introOrbLarge} />
-        <View style={styles.introOrbSmall} />
-        <View style={styles.introCopy}>
-          <Text style={styles.introEyebrow}>NEXO MARKET</Text>
-          <Text style={styles.introTitle}>Encuentra algo único.</Text>
-          <View style={styles.trustPill}>
-            <View style={styles.trustDot} />
-            <Text style={styles.trustText}>Marketplace verificado</Text>
-          </View>
-        </View>
-        <Pressable
-          accessibilityLabel="Actualizar catálogo"
-          style={({ pressed }) => [styles.refreshButton, pressed && styles.pressFeedback]}
-          onPress={onRefreshCatalog}
-        >
-          {isRefreshing ? (
-            <ActivityIndicator size="small" color={colors.ink} />
-          ) : (
-            <Ionicons name="refresh-outline" size={18} color={colors.ink} />
-          )}
-        </Pressable>
-      </View>
-
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={18} color={colors.inkMuted} />
         <TextInput
@@ -193,7 +169,17 @@ export function HomeScreen({
           value={search}
           onChangeText={onChangeSearch}
         />
-        <Ionicons name="options-outline" size={18} color={colors.inkMuted} />
+        <Pressable
+          accessibilityLabel="Actualizar catálogo"
+          style={({ pressed }) => pressed && styles.pressFeedback}
+          onPress={onRefreshCatalog}
+        >
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color={colors.inkMuted} />
+          ) : (
+            <Ionicons name="refresh-outline" size={18} color={colors.inkMuted} />
+          )}
+        </Pressable>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -290,89 +276,6 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  introRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 132,
-    borderRadius: 24,
-    padding: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    overflow: 'hidden',
-    ...shadows.card,
-  },
-  introCopy: {
-    flex: 1,
-    zIndex: 2,
-  },
-  introOrbLarge: {
-    position: 'absolute',
-    width: 152,
-    height: 152,
-    borderRadius: 76,
-    right: -74,
-    top: -70,
-    backgroundColor: colors.brandBlueSoft,
-  },
-  introOrbSmall: {
-    position: 'absolute',
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    right: -18,
-    bottom: -42,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-  },
-  introEyebrow: {
-    color: colors.brandAccent,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-  },
-  introTitle: {
-    color: colors.ink,
-    fontSize: 26,
-    fontWeight: '600',
-    letterSpacing: -1.1,
-    marginTop: 4,
-  },
-  trustPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlueSoft,
-  },
-  trustDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.brandAccent,
-  },
-  trustText: {
-    color: colors.brandBlue,
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  refreshButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.card,
-    zIndex: 2,
-  },
   pressFeedback: {
     transform: [{ scale: 0.96 }],
   },
