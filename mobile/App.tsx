@@ -10,10 +10,13 @@ import { tabs } from './constants/navigation';
 import { AccountScreen } from './app/account/AccountScreen';
 import { CartScreen } from './app/cart/CartScreen';
 import { HomeScreen } from './app/home/HomeScreen';
+import { NotificationsScreen } from './app/notifications/NotificationsScreen';
 import { OrdersScreen } from './app/orders/OrdersScreen';
 import { SellScreen } from './app/sell/SellScreen';
 import { useAuthSession } from './hooks/app/useAuthSession';
 import { useCart } from './hooks/app/useCart';
+import { useNotifications } from './hooks/app/useNotifications';
+import { usePushNotifications } from './hooks/app/usePushNotifications';
 import { useCatalog } from './hooks/app/useCatalog';
 import { useProfile } from './hooks/app/useProfile';
 import { usePasswordRecoveryDeepLink } from './hooks/app/usePasswordRecoveryDeepLink';
@@ -29,6 +32,7 @@ import { formatPrice } from './utils/format';
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmActionRequest | null>(null);
   const [isConfirmResolving, setIsConfirmResolving] = useState(false);
@@ -39,6 +43,7 @@ export default function App() {
   const handleTokenChange = useCallback(() => {
     setSelectedProductId(null);
     setIsCartOpen(false);
+    setIsNotificationsOpen(false);
   }, []);
 
   const { accessToken, isSessionReady, setAccessToken } = useAuthSession(handleTokenChange);
@@ -90,6 +95,17 @@ export default function App() {
     onRequireAccount: goToAccount,
     onOrderPlaced: goToOrders,
     onStatusMessage: handleStatusMessage,
+  });
+
+  const notificationsState = useNotifications({
+    accessToken,
+    isEnabled: hasBusinessProfile,
+  });
+
+  usePushNotifications({
+    accessToken,
+    isEnabled: hasBusinessProfile,
+    onNotificationReceived: notificationsState.refresh,
   });
 
   const handlePasswordRecovery = useCallback(
@@ -161,8 +177,8 @@ export default function App() {
   );
 
   const isProductPresentation = activeTab === 'Inicio';
-  const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !selectedProduct;
+  const screenTransitionKey = `${activeTab}-${isNotificationsOpen ? 'notificaciones' : isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
+  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen && !selectedProduct;
 
   const nav = useBottomNavAnimations({ activeTab, visibleActiveIndex, tabCount: visibleTabs.length });
   const header = useHeaderVisibility(shouldShowHeader);
@@ -200,7 +216,20 @@ export default function App() {
 
     setActiveTab('Inicio');
     setSelectedProductId(null);
+    setIsNotificationsOpen(false);
     setIsCartOpen(true);
+  };
+
+  const handleOpenNotifications = () => {
+    setActiveTab('Inicio');
+    setSelectedProductId(null);
+    setIsCartOpen(false);
+    setIsNotificationsOpen(true);
+    notificationsState.refresh();
+  };
+
+  const handleCloseNotifications = () => {
+    setIsNotificationsOpen(false);
   };
 
   const handleRefreshCatalog = () => {
@@ -251,6 +280,8 @@ export default function App() {
   };
 
   const handleSelectTab = (tab: TabKey) => {
+    setIsNotificationsOpen(false);
+
     if (!hasBusinessProfile && (tab === 'Vender' || tab === 'Pedidos')) {
       setActiveTab('Cuenta');
       setIsCartOpen(false);
@@ -268,6 +299,18 @@ export default function App() {
   };
 
   const renderActiveScreen = () => {
+    if (isNotificationsOpen) {
+      return (
+        <NotificationsScreen
+          notifications={notificationsState.notifications}
+          unreadCount={notificationsState.unreadCount}
+          onBack={handleCloseNotifications}
+          onMarkRead={notificationsState.markRead}
+          onMarkAllRead={notificationsState.markAllRead}
+        />
+      );
+    }
+
     if (isCartOpen) {
       return (
         <CartScreen
@@ -356,6 +399,9 @@ export default function App() {
             headerTranslateY={header.headerTranslateY}
             showCart={hasBusinessProfile}
             onOpenCart={handleOpenCart}
+            showNotifications={hasBusinessProfile}
+            unreadCount={notificationsState.unreadCount}
+            onOpenNotifications={handleOpenNotifications}
           />
         )}
 

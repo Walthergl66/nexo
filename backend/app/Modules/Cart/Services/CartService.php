@@ -3,9 +3,11 @@
 namespace App\Modules\Cart\Services;
 
 use App\Models\CartItem;
+use App\Models\Notification;
 use App\Models\Product;
 use App\Models\Profile;
 use App\Models\Store;
+use App\Modules\Notifications\Services\NotificationService;
 use App\Modules\Orders\Services\ShippingCalculator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +15,65 @@ use Illuminate\Validation\ValidationException;
 
 class CartService
 {
-    public function __construct(private readonly ShippingCalculator $shipping) {}
+    public function __construct(
+        private readonly ShippingCalculator $shipping,
+        private readonly NotificationService $notifications,
+    ) {}
+
+    /**
+     * Align the cart with current stock: clamp quantities to what is available
+     * and drop products that ran out or became unavailable, notifying the buyer
+     * of every adjustment. Returns true when something changed.
+     */
+    public function reconcile(Profile $profile): bool
+    {
+        $items = $profile->cartItems()->with(['product.store'])->get();
+        $changed = false;
+
+        foreach ($items as $item) {
+            $product = $item->product;
+            $isUnavailable = ! $product instanceof Product
+                || ! $product->isActive()
+                || ! ($product->store instanceof Store && $product->store->isActive());
+            $available = $product?->stock ?? 0;
+
+            if ($isUnavailable || $available <= 0) {
+                $name = $product?->name ?? 'Un producto';
+                $item->delete();
+                $changed = true;
+
+                $this->notifications->notify(
+                    $profile,
+                    Notification::TYPE_CART_STOCK,
+                    'Producto sin stock',
+                    sprintf('%s se agoto y lo quitamos de tu carrito.', $name),
+                    ['product_id' => $product?->id],
+                );
+
+                continue;
+            }
+
+            if ($item->quantity > $available) {
+                $item->forceFill(['quantity' => $available])->save();
+                $changed = true;
+
+                $this->notifications->notify(
+                    $profile,
+                    Notification::TYPE_CART_STOCK,
+                    'Carrito actualizado',
+                    sprintf(
+                        'Ajustamos %s a %d %s por disponibilidad.',
+                        $product->name,
+                        $available,
+                        $available === 1 ? 'unidad' : 'unidades',
+                    ),
+                    ['product_id' => $product->id, 'quantity' => $available],
+                );
+            }
+        }
+
+        return $changed;
+    }
 
     /**
      * @return Collection<int, CartItem>

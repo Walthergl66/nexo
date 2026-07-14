@@ -11,6 +11,9 @@ type AppHeaderProps = {
   headerTranslateY: Animated.AnimatedInterpolation<number>;
   showCart: boolean;
   onOpenCart: () => void;
+  showNotifications?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
 };
 
 export function AppHeader({
@@ -20,6 +23,9 @@ export function AppHeader({
   headerTranslateY,
   showCart,
   onOpenCart,
+  showNotifications = false,
+  unreadCount = 0,
+  onOpenNotifications,
 }: AppHeaderProps) {
   return (
     <Animated.View
@@ -38,22 +44,38 @@ export function AppHeader({
           <Text style={styles.headerTitle}>NEXO</Text>
         </View>
       </View>
-      {showCart && (
-        <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
+      <View style={styles.headerActions}>
+        {showNotifications && onOpenNotifications && (
           <Pressable
-            accessibilityLabel="Abrir carrito"
+            accessibilityLabel="Abrir notificaciones"
             style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
-            onPress={onOpenCart}
+            onPress={onOpenNotifications}
           >
-            <Ionicons name="bag-handle-outline" size={19} color={colors.surface} />
-            {cartCount > 0 && (
+            <Ionicons name="notifications-outline" size={19} color={colors.surface} />
+            {unreadCount > 0 && (
               <View style={styles.cartCountBubble}>
-                <Text style={styles.cartCountText}>{cartCount}</Text>
+                <Text style={styles.cartCountText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
               </View>
             )}
           </Pressable>
-        </Animated.View>
-      )}
+        )}
+        {showCart && (
+          <Animated.View style={{ transform: [{ scale: cartPulse }] }}>
+            <Pressable
+              accessibilityLabel="Abrir carrito"
+              style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
+              onPress={onOpenCart}
+            >
+              <Ionicons name="bag-handle-outline" size={19} color={colors.surface} />
+              {cartCount > 0 && (
+                <View style={styles.cartCountBubble}>
+                  <Text style={styles.cartCountText}>{cartCount}</Text>
+                </View>
+              )}
+            </Pressable>
+          </Animated.View>
+        )}
+      </View>
     </Animated.View>
   );
 }

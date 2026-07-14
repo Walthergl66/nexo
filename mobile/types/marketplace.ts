@@ -61,4 +61,16 @@ export type CartSummary = {
   itemCount: number;
 };
 
+export type NotificationType = 'sale' | 'payment_confirmed' | 'order_status' | 'cart_stock';
+
+export type AppNotification = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  data: Record<string, unknown>;
+  readAt: string | null;
+  createdAt: string | null;
+};
+
 export type Tone = 'default' | 'success' | 'warning';

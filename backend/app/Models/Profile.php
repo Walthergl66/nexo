@@ -42,6 +42,7 @@ class Profile extends Model
         'gender',
         'address',
         'phone',
+        'push_token',
         'role',
         'verification_status',
         'metadata',
@@ -102,5 +103,13 @@ class Profile extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /**
+     * @return HasMany<Notification, $this>
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
     }
 }

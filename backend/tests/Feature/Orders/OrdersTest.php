@@ -69,7 +69,7 @@ class OrdersTest extends TestCase
         $this->assertDatabaseCount('cart_items', 0);
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
-            'stock' => 5,
+            'stock' => 3,
         ]);
     }
 

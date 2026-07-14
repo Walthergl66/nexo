@@ -18,6 +18,7 @@ class ListCartController extends Controller
         /** @var Profile $profile */
         $profile = $request->attributes->get('profile');
 
+        $this->service->reconcile($profile);
         $items = $this->service->items($profile);
 
         return CartItemResource::collection($items)

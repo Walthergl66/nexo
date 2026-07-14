@@ -32,6 +32,11 @@ export const navigationStyles = StyleSheet.create({
     gap: 10,
     maxWidth: Platform.OS === 'web' ? 320 : 260,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   headerTitle: {
     color: colors.brandBlue,
     fontSize: 20,

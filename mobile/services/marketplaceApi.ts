@@ -1,4 +1,4 @@
-import type { CartItem, CartSummary, Order, Product } from '../types/marketplace';
+import type { AppNotification, CartItem, CartSummary, NotificationType, Order, Product } from '../types/marketplace';
 import {
   mapApiCartItemsToCartItems,
   mapApiCartSummary,
@@ -298,6 +298,69 @@ export async function payOrder(orderId: string, token?: string): Promise<Order> 
   });
 
   return mapApiOrderToOrder(response.data);
+}
+
+export type NotificationsSnapshot = {
+  notifications: AppNotification[];
+  unreadCount: number;
+};
+
+const NOTIFICATION_TYPES: NotificationType[] = ['sale', 'payment_confirmed', 'order_status', 'cart_stock'];
+
+function mapApiNotification(raw: unknown): AppNotification {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  const type = value.type as NotificationType;
+
+  return {
+    id: String(value.id ?? ''),
+    type: NOTIFICATION_TYPES.includes(type) ? type : 'order_status',
+    title: String(value.title ?? ''),
+    body: String(value.body ?? ''),
+    data: value.data && typeof value.data === 'object' ? (value.data as Record<string, unknown>) : {},
+    readAt: typeof value.read_at === 'string' ? value.read_at : null,
+    createdAt: typeof value.created_at === 'string' ? value.created_at : null,
+  };
+}
+
+export async function fetchNotifications(token?: string): Promise<NotificationsSnapshot> {
+  if (!token) {
+    return { notifications: [], unreadCount: 0 };
+  }
+
+  const response = await request<ApiCollection<unknown> & { unread_count?: unknown }>('/notifications', { token });
+
+  return {
+    notifications: (response.data ?? []).map(mapApiNotification),
+    unreadCount: Number(response.unread_count ?? 0),
+  };
+}
+
+export async function markNotificationRead(notificationId: string, token?: string): Promise<void> {
+  if (!token) {
+    return;
+  }
+
+  await request<ApiDocument<unknown>>(`/notifications/${notificationId}/read`, { method: 'POST', token });
+}
+
+export async function markAllNotificationsRead(token?: string): Promise<void> {
+  if (!token) {
+    return;
+  }
+
+  await request<ApiDocument<unknown>>('/notifications/read-all', { method: 'POST', token });
+}
+
+export async function registerPushToken(pushToken: string | null, token?: string): Promise<void> {
+  if (!token) {
+    return;
+  }
+
+  await request<ApiDocument<unknown>>('/me/push-token', {
+    method: 'POST',
+    token,
+    body: { push_token: pushToken },
+  });
 }
 
 export async function fetchOrders(token?: string): Promise<Order[]> {
