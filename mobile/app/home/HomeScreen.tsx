@@ -31,6 +31,7 @@ type HomeScreenProps = {
   productsCount: number;
   search: string;
   selectedProduct: Product | null;
+  myProfileId?: string | null;
   onAddToCart: (product: Product) => void | Promise<boolean>;
   onBackToCatalog: () => void;
   onChangeFilter: (filter: string) => void;
@@ -43,12 +44,14 @@ function AnimatedProductCell({
   index,
   product,
   isAuthenticated,
+  isOwn,
   onAddToCart,
   onSelectProduct,
 }: {
   index: number;
   product: Product;
   isAuthenticated: boolean;
+  isOwn: boolean;
   onAddToCart: () => void | Promise<boolean>;
   onSelectProduct: () => void;
 }) {
@@ -81,6 +84,7 @@ function AnimatedProductCell({
       <ProductCard
         product={product}
         isAuthenticated={isAuthenticated}
+        isOwn={isOwn}
         onAddToCart={onAddToCart}
         onSelectProduct={onSelectProduct}
       />
@@ -163,6 +167,7 @@ export function HomeScreen({
   productsCount,
   search,
   selectedProduct,
+  myProfileId,
   onAddToCart,
   onBackToCatalog,
   onChangeFilter,
@@ -170,11 +175,15 @@ export function HomeScreen({
   onRefreshCatalog,
   onSelectProduct,
 }: HomeScreenProps) {
+  const isOwnProduct = (product: Product) =>
+    Boolean(myProfileId) && product.ownerProfileId === myProfileId;
+
   if (selectedProduct) {
     return (
       <ProductDetailCard
         product={selectedProduct}
         isAuthenticated={isAuthenticated}
+        isOwn={isOwnProduct(selectedProduct)}
         onAddToCart={() => onAddToCart(selectedProduct)}
         onBack={onBackToCatalog}
       />
@@ -253,7 +262,14 @@ export function HomeScreen({
               <Text numberOfLines={1} style={styles.featuredSeller}>{featuredProduct.seller}</Text>
             </View>
             <Text style={styles.featuredPrice}>{formatPrice(featuredProduct.price)}</Text>
-            <FeaturedBuyButton onBuy={() => onAddToCart(featuredProduct)} />
+            {isOwnProduct(featuredProduct) ? (
+              <View style={styles.featuredOwnTag}>
+                <Ionicons name="storefront" size={13} color={colors.surface} />
+                <Text style={styles.featuredOwnTagText}>Tu producto</Text>
+              </View>
+            ) : (
+              <FeaturedBuyButton onBuy={() => onAddToCart(featuredProduct)} />
+            )}
           </View>
           <FeaturedVisual product={featuredProduct} />
         </Pressable>
@@ -278,6 +294,7 @@ export function HomeScreen({
               key={product.id}
               index={index}
               isAuthenticated={isAuthenticated}
+              isOwn={isOwnProduct(product)}
               product={product}
               onAddToCart={() => onAddToCart(product)}
               onSelectProduct={() => onSelectProduct(product)}
@@ -448,6 +465,23 @@ const styles = StyleSheet.create({
   },
   featuredButtonSuccess: {
     backgroundColor: colors.brandBlueSoft,
+  },
+  featuredOwnTag: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginTop: 18,
+  },
+  featuredOwnTagText: {
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: '700',
   },
   featuredButtonSuccessLayer: {
     ...StyleSheet.absoluteFillObject,

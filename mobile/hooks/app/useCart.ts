@@ -102,6 +102,11 @@ export function useCart({
         return false;
       }
 
+      if (product.ownerProfileId && profile && product.ownerProfileId === profile.id) {
+        onStatusMessage?.('No puedes comprar tu propio producto.', 'warning');
+        return false;
+      }
+
       if (!hasBusinessProfile || isProfileLoading) {
         onStatusMessage?.('Inicia sesion para agregar productos al carrito.', 'info');
         onRequireAccount();
@@ -147,7 +152,7 @@ export function useCart({
 
       return true;
     },
-    [accessToken, cartItems, cartPulse, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage],
+    [accessToken, cartItems, cartPulse, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage, profile],
   );
 
   const changeQuantity = useCallback(

@@ -11,6 +11,7 @@ import { formatPrice } from '../../utils/format';
 type ProductDetailCardProps = {
   product: Product;
   isAuthenticated: boolean;
+  isOwn?: boolean;
   onAddToCart: () => void | Promise<boolean>;
   onBack: () => void;
 };
@@ -18,6 +19,7 @@ type ProductDetailCardProps = {
 export function ProductDetailCard({
   product,
   isAuthenticated,
+  isOwn = false,
   onAddToCart,
   onBack,
 }: ProductDetailCardProps) {
@@ -96,33 +98,40 @@ export function ProductDetailCard({
         <Text style={styles.description}>{product.description}</Text>
       </View>
 
-      <View style={styles.bottomActions}>
-        <View style={styles.protection}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
-          <Text style={styles.protectionText}>Compra protegida</Text>
+      {isOwn ? (
+        <View style={styles.ownBanner}>
+          <Ionicons name="storefront-outline" size={18} color={colors.brandBlue} />
+          <Text style={styles.ownBannerText}>Este es tu producto. Gestiona sus ventas desde la pestana Vender.</Text>
         </View>
-        <PressableScale
-          disabled={!product.available}
-          style={[
-            styles.addCartButton,
-            !product.available && styles.addCartButtonDisabled,
-            isAdded && styles.addCartButtonSuccess,
-          ]}
-          onPress={() => void run()}
-        >
-          <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
-            <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
-            <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
-          </Animated.View>
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+      ) : (
+        <View style={styles.bottomActions}>
+          <View style={styles.protection}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
+            <Text style={styles.protectionText}>Compra protegida</Text>
+          </View>
+          <PressableScale
+            disabled={!product.available}
+            style={[
+              styles.addCartButton,
+              !product.available && styles.addCartButtonDisabled,
+              isAdded && styles.addCartButtonSuccess,
+            ]}
+            onPress={() => void run()}
           >
-            <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
-            <Text style={styles.addCartText}>Agregado</Text>
-          </Animated.View>
-        </PressableScale>
-      </View>
+            <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+              <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
+              <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
+            </Animated.View>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+            >
+              <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
+              <Text style={styles.addCartText}>Agregado</Text>
+            </Animated.View>
+          </PressableScale>
+        </View>
+      )}
     </View>
   );
 }
@@ -323,6 +332,23 @@ const styles = StyleSheet.create({
   },
   addCartText: {
     color: colors.surface,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  ownBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  ownBannerText: {
+    flex: 1,
+    color: colors.brandBlue,
     fontSize: 11,
     fontWeight: '700',
   },

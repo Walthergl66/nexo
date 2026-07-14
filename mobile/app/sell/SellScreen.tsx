@@ -7,6 +7,7 @@ import { CreateStoreForm } from '../../components/sell/CreateStoreForm';
 import { ProductCreateForm } from '../../components/sell/ProductCreateForm';
 import { ProductSuccessDialog } from '../../components/sell/ProductSuccessDialog';
 import { SellerProductList } from '../../components/sell/SellerProductList';
+import { SellerSalesList } from '../../components/sell/SellerSalesList';
 import {
   createProduct,
   createStore,

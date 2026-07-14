@@ -339,6 +339,7 @@ export default function App() {
             search={catalog.search}
             selectedProduct={selectedProduct}
             isAuthenticated={hasBusinessProfile}
+            myProfileId={profile?.id ?? null}
             onAddToCart={cart.addToCart}
             onBackToCatalog={handleBackToCatalog}
             onChangeFilter={catalog.setActiveFilter}

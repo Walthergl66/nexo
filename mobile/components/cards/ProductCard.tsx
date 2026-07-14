@@ -10,11 +10,12 @@ import { formatPrice } from '../../utils/format';
 type ProductCardProps = {
   product: Product;
   isAuthenticated: boolean;
+  isOwn?: boolean;
   onAddToCart: () => void | Promise<boolean>;
   onSelectProduct: () => void;
 };
 
-export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectProduct }: ProductCardProps) {
+export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCart, onSelectProduct }: ProductCardProps) {
   const addLabel = isAuthenticated ? `Agregar ${product.title} al carrito` : `Iniciar sesion para comprar ${product.title}`;
   const { isAdded, progress, run } = useAddToCartFeedback(onAddToCart);
 
@@ -44,30 +45,37 @@ export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectPro
           <Text style={styles.price}>{formatPrice(product.price)}</Text>
           <Text style={styles.priceHint}>{product.stock} disponibles</Text>
         </View>
-        <PressableScale
-          accessibilityLabel={addLabel}
-          disabled={!product.available}
-          style={[
-            styles.addButton,
-            !product.available && styles.addButtonDisabled,
-            isAdded && styles.addButtonSuccess,
-          ]}
-          onPress={(event) => {
-            event.stopPropagation();
-            void run();
-          }}
-        >
-          <Animated.Text style={[styles.addButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
-            {isAuthenticated ? 'Comprar' : 'Entrar'}
-          </Animated.Text>
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.addButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+        {isOwn ? (
+          <View style={styles.ownTag}>
+            <Ionicons name="storefront" size={11} color={colors.brandBlue} />
+            <Text style={styles.ownTagText}>Tu producto</Text>
+          </View>
+        ) : (
+          <PressableScale
+            accessibilityLabel={addLabel}
+            disabled={!product.available}
+            style={[
+              styles.addButton,
+              !product.available && styles.addButtonDisabled,
+              isAdded && styles.addButtonSuccess,
+            ]}
+            onPress={(event) => {
+              event.stopPropagation();
+              void run();
+            }}
           >
-            <Ionicons name="checkmark" size={13} color={colors.surface} />
-            <Text style={styles.addButtonSuccessText}>Listo</Text>
-          </Animated.View>
-        </PressableScale>
+            <Animated.Text style={[styles.addButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+              {isAuthenticated ? 'Comprar' : 'Entrar'}
+            </Animated.Text>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.addButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+            >
+              <Ionicons name="checkmark" size={13} color={colors.surface} />
+              <Text style={styles.addButtonSuccessText}>Listo</Text>
+            </Animated.View>
+          </PressableScale>
+        )}
       </View>
     </Pressable>
   );
@@ -152,6 +160,22 @@ const styles = StyleSheet.create({
   },
   addButtonSuccessText: {
     color: colors.surface,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  ownTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 30,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
+    paddingHorizontal: 10,
+  },
+  ownTagText: {
+    color: colors.brandBlue,
     fontSize: 9,
     fontWeight: '700',
   },
