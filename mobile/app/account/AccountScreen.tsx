@@ -514,8 +514,10 @@ export function AccountScreen({
           profile={profile}
           catalogProducts={catalogProducts}
           isAuthenticated={isAuthenticated}
+          accessToken={accessToken}
           onAddToCart={onAddToCart}
           onOpenProduct={onOpenProduct}
+          onStatusMessage={onStatusMessage}
           onLogout={handleLogout}
           onOpenSettings={() => setAccountView('settings')}
           onSell={onSell}

@@ -235,40 +235,12 @@ export const accountStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  profileHighlights: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  highlightItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 7,
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: 11,
-    paddingHorizontal: 8,
-  },
-  highlightItemActive: {
-    borderColor: colors.brandBlue,
-    backgroundColor: colors.brandBlueSoft,
-  },
-  highlightCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
   highlightBadge: {
     position: 'absolute',
-    top: -4,
-    right: -6,
-    minWidth: 18,
-    height: 18,
+    top: -6,
+    right: -10,
+    minWidth: 17,
+    height: 17,
     borderRadius: 9,
     backgroundColor: colors.brandBlue,
     alignItems: 'center',
@@ -282,28 +254,37 @@ export const accountStyles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
   },
-  highlightLabel: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '500',
-  },
   profileTabs: {
-    height: 42,
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderColor: colors.line,
   },
-  profileTabActive: {
+  sectionTab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 9,
     borderBottomWidth: 2,
+    borderColor: 'transparent',
+  },
+  sectionTabActive: {
     borderColor: colors.ink,
   },
-  profileTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  sectionTabIcon: {
+    position: 'relative',
+  },
+  sectionTabLabel: {
+    color: colors.inkSoft,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  sectionTabLabelActive: {
+    color: colors.ink,
+    fontWeight: '700',
+  },
+  profileSectionEmbed: {
+    gap: 12,
   },
   postGrid: {
     flexDirection: 'row',
