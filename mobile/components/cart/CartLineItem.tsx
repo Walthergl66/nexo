@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { RemoteImage } from '../common/RemoteImage';
 import { colors } from '../../theme/colors';
 import type { CartItem } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -16,6 +17,8 @@ type CartLineItemProps = {
 export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: CartLineItemProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(10)).current;
+  const [hasImageError, setHasImageError] = useState(false);
+  const showRealImage = Boolean(item.product.imageUrl) && !hasImageError;
 
   useEffect(() => {
     Animated.parallel([
@@ -39,7 +42,17 @@ export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: Ca
   return (
     <Animated.View style={[styles.itemCard, { opacity, transform: [{ translateY }] }]}>
       <View style={styles.itemIcon}>
-        <Ionicons name="bag-handle" size={26} color={colors.brandBlue} />
+        {showRealImage ? (
+          <RemoteImage
+            accessibilityLabel={`Imagen de ${item.product.title}`}
+            uri={item.product.imageUrl as string}
+            width={120}
+            style={styles.itemImage}
+            onFinalError={() => setHasImageError(true)}
+          />
+        ) : (
+          <Ionicons name="bag-handle" size={26} color={colors.brandBlue} />
+        )}
       </View>
       <View style={styles.itemContent}>
         <Text numberOfLines={2} style={styles.itemTitle}>
