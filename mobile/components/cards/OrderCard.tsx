@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FULFILLMENT_LABELS, FULFILLMENT_STEPS, fulfillmentStepIndex } from '../../constants/fulfillment';
 import { colors, radii, shadows } from '../../theme/colors';
-import type { Order, OrderStatus, PaymentStatus, Tone } from '../../types/marketplace';
+import type { Order, OrderItem, OrderStatus, PaymentStatus, Tone } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
 import { Tag } from '../common/Tag';
 
@@ -84,6 +85,15 @@ export function OrderCard({ order, isPaying = false, onPay }: OrderCardProps) {
         </View>
       </View>
 
+      {order.paymentStatus === 'paid' && !isCancelled && order.items.length > 0 && (
+        <View style={styles.items}>
+          <Text style={styles.itemsTitle}>Seguimiento por producto</Text>
+          {order.items.map((item) => (
+            <OrderItemStatus key={item.id} item={item} />
+          ))}
+        </View>
+      )}
+
       {canPay && onPay && (
         <Pressable
           style={({ pressed }) => [
@@ -98,6 +108,32 @@ export function OrderCard({ order, isPaying = false, onPay }: OrderCardProps) {
           <Text style={styles.payButtonText}>{isPaying ? 'Procesando...' : 'Pagar ahora'}</Text>
         </Pressable>
       )}
+    </View>
+  );
+}
+
+function OrderItemStatus({ item }: { item: OrderItem }) {
+  const stepIndex = fulfillmentStepIndex(item.fulfillmentStatus);
+
+  return (
+    <View style={styles.itemRow}>
+      <View style={styles.itemTop}>
+        <Text numberOfLines={1} style={styles.itemName}>
+          {item.productName}
+        </Text>
+        <Text style={styles.itemStatus}>{FULFILLMENT_LABELS[item.fulfillmentStatus]}</Text>
+      </View>
+      <View style={styles.itemSteps}>
+        {FULFILLMENT_STEPS.map((step, index) => {
+          const reached = stepIndex >= index;
+          return (
+            <View key={step} style={styles.itemStepSeg}>
+              {index > 0 && <View style={[styles.itemBar, reached && styles.itemBarOn]} />}
+              <View style={[styles.itemDot, reached && styles.itemDotOn]} />
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -234,5 +270,68 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 14,
     fontWeight: '700',
+  },
+  items: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    gap: 12,
+  },
+  itemsTitle: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  itemRow: {
+    gap: 7,
+  },
+  itemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  itemName: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  itemStatus: {
+    color: colors.brandBlue,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  itemSteps: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemStepSeg: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemBar: {
+    flex: 1,
+    height: 2,
+    backgroundColor: colors.line,
+  },
+  itemBarOn: {
+    backgroundColor: colors.brandAccent,
+  },
+  itemDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+  },
+  itemDotOn: {
+    backgroundColor: colors.brandBlue,
+    borderColor: colors.brandBlue,
   },
 });

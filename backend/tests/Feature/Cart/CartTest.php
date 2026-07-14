@@ -199,6 +199,44 @@ class CartTest extends TestCase
         $this->assertDatabaseCount('cart_items', 0);
     }
 
+    public function test_seller_cannot_add_its_own_product_to_cart(): void
+    {
+        $seller = $this->profile([
+            'supabase_user_id' => '018f1d4c-40a5-7fd2-9a5a-000000000099',
+            'email' => 'owner@example.com',
+            'role' => Profile::ROLE_SELLER,
+            'verification_status' => Profile::VERIFICATION_APPROVED,
+        ]);
+        $store = Store::query()->create([
+            'profile_id' => $seller->id,
+            'name' => 'Owner Store',
+            'slug' => 'owner-store',
+            'status' => Store::STATUS_ACTIVE,
+        ]);
+        $product = Product::query()->create([
+            'store_id' => $store->id,
+            'name' => 'Producto propio',
+            'slug' => 'producto-propio',
+            'price_cents' => 1000,
+            'currency' => 'USD',
+            'stock' => 5,
+            'status' => Product::STATUS_ACTIVE,
+        ]);
+
+        $this->withToken($this->tokenFor($seller))
+            ->postJson('/api/cart/items', [
+                'product_id' => $product->id,
+                'quantity' => 1,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.product_id.0', 'No puedes comprar tu propio producto.');
+
+        $this->assertDatabaseMissing('cart_items', [
+            'profile_id' => $seller->id,
+            'product_id' => $product->id,
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>  $productOverrides
      * @param  array<string, mixed>  $storeOverrides
