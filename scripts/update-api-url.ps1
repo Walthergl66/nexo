@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $repoRoot "mobile/.env.local"
 $backendEnvPath = Join-Path $repoRoot "backend/.env"
+$adminExamplePath = Join-Path $repoRoot "admin/.env.example"
 
 if (-not (Test-Path $envPath)) {
     $examplePath = Join-Path $repoRoot "mobile/.env.example"
@@ -61,6 +62,31 @@ Set-Content -Path $envPath -Value $lines
 
 Write-Host "Mobile API URL actualizada:"
 Write-Host $replacement
+
+if (Test-Path $adminExamplePath) {
+    $adminLines = Get-Content $adminExamplePath
+    $adminKey = "NEXT_PUBLIC_API_BASE_URL"
+    $adminReplacement = "$adminKey=$apiUrl"
+    $adminUpdated = $false
+
+    $adminLines = $adminLines | ForEach-Object {
+        if ($_ -match "^$adminKey=") {
+            $adminUpdated = $true
+            $adminReplacement
+        } else {
+            $_
+        }
+    }
+
+    if (-not $adminUpdated) {
+        $adminLines += $adminReplacement
+    }
+
+    Set-Content -Path $adminExamplePath -Value $adminLines
+
+    Write-Host "Admin API URL actualizada:"
+    Write-Host $adminReplacement
+}
 
 $phpServers = Get-CimInstance Win32_Process -Filter "Name = 'php.exe'" |
     Where-Object { $_.CommandLine -match "-S\s+0\.0\.0\.0:$Port|-S\s+127\.0\.0\.1:$Port|-S\s+localhost:$Port" }
