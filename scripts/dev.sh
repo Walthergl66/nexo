@@ -7,6 +7,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MOBILE_ENV="$REPO_ROOT/mobile/.env.local"
 MOBILE_EXAMPLE="$REPO_ROOT/mobile/.env.example"
 BACKEND_ENV="$REPO_ROOT/backend/.env"
+ADMIN_ENV="$REPO_ROOT/admin/.env.local"
 ADMIN_EXAMPLE="$REPO_ROOT/admin/.env.example"
 ADMIN_DIR="$REPO_ROOT/admin"
 MOBILE_DIR="$REPO_ROOT/mobile"
@@ -42,15 +43,22 @@ grep -q "^EXPO_PUBLIC_API_BASE_URL=" "$MOBILE_ENV" \
 echo "Mobile API URL actualizada:"
 echo "EXPO_PUBLIC_API_BASE_URL=$API_URL"
 
-# Actualizar Admin API URL
-if [ -f "$ADMIN_EXAMPLE" ]; then
-    grep -q "^NEXT_PUBLIC_API_BASE_URL=" "$ADMIN_EXAMPLE" \
-        && sed -i "s|^NEXT_PUBLIC_API_BASE_URL=.*|NEXT_PUBLIC_API_BASE_URL=$API_URL|" "$ADMIN_EXAMPLE" \
-        || echo "NEXT_PUBLIC_API_BASE_URL=$API_URL" >> "$ADMIN_EXAMPLE"
-
-    echo "Admin API URL actualizada:"
-    echo "NEXT_PUBLIC_API_BASE_URL=$API_URL"
+# Crear admin/.env.local si no existe
+if [ ! -f "$ADMIN_ENV" ]; then
+    if [ -f "$ADMIN_EXAMPLE" ]; then
+        cp "$ADMIN_EXAMPLE" "$ADMIN_ENV"
+    else
+        touch "$ADMIN_ENV"
+    fi
 fi
+
+# Actualizar Admin API URL
+grep -q "^NEXT_PUBLIC_API_BASE_URL=" "$ADMIN_ENV" \
+    && sed -i "s|^NEXT_PUBLIC_API_BASE_URL=.*|NEXT_PUBLIC_API_BASE_URL=$API_URL|" "$ADMIN_ENV" \
+    || echo "NEXT_PUBLIC_API_BASE_URL=$API_URL" >> "$ADMIN_ENV"
+
+echo "Admin API URL actualizada:"
+echo "NEXT_PUBLIC_API_BASE_URL=$API_URL"
 
 # Actualizar CORS
 if [ -f "$BACKEND_ENV" ]; then
