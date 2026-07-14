@@ -3,6 +3,7 @@ const test = require('node:test');
 const {
   centsToAmount,
   mapApiCartItemsToCartItems,
+  mapApiCartSummary,
   mapApiOrderToOrder,
   mapApiProductToProduct,
 } = require('../services/marketplaceMapper');
@@ -47,18 +48,55 @@ test('maps cart item resources using the nested product snapshot', () => {
   assert.equal(items[0].product.price, 5.5);
 });
 
-test('maps order resources to the existing order card model', () => {
+test('maps order resources with real totals, statuses and items', () => {
   const order = mapApiOrderToOrder({
     id: 'order-1',
     order_number: 'NEXO-0001',
     status: 'shipped',
     payment_status: 'paid',
-    items: [{ product_name: 'Agenda' }, { product_name: 'Lapiz' }],
+    currency: 'USD',
+    subtotal_cents: 2500,
+    shipping_cents: 499,
+    total_cents: 2999,
+    created_at: '2026-07-13T10:00:00.000Z',
+    items: [
+      { id: 'item-1', product_name: 'Agenda', store_name: 'Tienda Centro', unit_price_cents: 1250, quantity: 2, subtotal_cents: 2500 },
+    ],
   });
 
-  assert.equal(order.title, 'Agenda +1');
-  assert.equal(order.status, 'En camino');
-  assert.equal(order.eta, 'Pago confirmado');
+  assert.equal(order.orderNumber, 'NEXO-0001');
+  assert.equal(order.status, 'shipped');
+  assert.equal(order.paymentStatus, 'paid');
+  assert.equal(order.subtotal, 25);
+  assert.equal(order.shipping, 4.99);
+  assert.equal(order.total, 29.99);
+  assert.equal(order.itemCount, 2);
+  assert.equal(order.items[0].productName, 'Agenda');
+  assert.equal(order.items[0].unitPrice, 12.5);
+});
+
+test('falls back to safe defaults for unknown order and payment statuses', () => {
+  const order = mapApiOrderToOrder({ id: 'order-2', status: 'weird', payment_status: 'mystery' });
+
+  assert.equal(order.status, 'pending');
+  assert.equal(order.paymentStatus, 'pending');
+  assert.equal(order.itemCount, 0);
+  assert.deepEqual(order.items, []);
+});
+
+test('maps the cart summary meta block', () => {
+  const summary = mapApiCartSummary({
+    subtotal_cents: 2500,
+    shipping_cents: 499,
+    total_cents: 2999,
+    currency: 'USD',
+    item_count: 3,
+  });
+
+  assert.equal(summary.subtotal, 25);
+  assert.equal(summary.shipping, 4.99);
+  assert.equal(summary.total, 29.99);
+  assert.equal(summary.itemCount, 3);
 });
 
 test('converts integer cents to display amounts', () => {

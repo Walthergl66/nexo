@@ -5,13 +5,13 @@ import { CartLineItem } from '../../components/cart/CartLineItem';
 import { cartStyles as styles } from '../../components/cart/cartStyles';
 import { InfoRow } from '../../components/common/InfoRow';
 import { colors } from '../../theme/colors';
-import type { CartItem } from '../../types/marketplace';
+import type { CartItem, CartSummary } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
 
 type CartScreenProps = {
   isAuthenticated: boolean;
   items: CartItem[];
-  shipping: number;
+  summary: CartSummary;
   onBackToCatalog: () => void;
   onChangeQuantity: (productId: string, quantity: number) => void;
   onCheckout: () => void;
@@ -21,15 +21,12 @@ type CartScreenProps = {
 export function CartScreen({
   isAuthenticated,
   items,
-  shipping,
+  summary,
   onBackToCatalog,
   onChangeQuantity,
   onCheckout,
   onRemoveItem,
 }: CartScreenProps) {
-  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const total = subtotal + (items.length > 0 ? shipping : 0);
-
   if (items.length === 0) {
     return <CartEmptyState isAuthenticated={isAuthenticated} onBackToCatalog={onBackToCatalog} />;
   }
@@ -60,11 +57,10 @@ export function CartScreen({
 
       <View style={styles.summary}>
         <Text style={styles.summaryTitle}>Resumen</Text>
-        <InfoRow label="Subtotal" value={formatPrice(subtotal)} />
-        <InfoRow label="Envio" value={formatPrice(shipping)} />
-        <InfoRow label="Proteccion" value="Incluida" />
+        <InfoRow label="Subtotal" value={formatPrice(summary.subtotal)} />
+        <InfoRow label="Envio" value={summary.shipping > 0 ? formatPrice(summary.shipping) : 'Gratis'} />
         <View style={styles.divider} />
-        <InfoRow label="Total" value={formatPrice(total)} emphasize />
+        <InfoRow label="Total" value={formatPrice(summary.total)} emphasize />
       </View>
 
       <Pressable style={({ pressed }) => [styles.checkoutButton, pressed && styles.checkoutButtonPressed]} onPress={onCheckout}>

@@ -3,13 +3,17 @@ import { Animated, Easing } from 'react-native';
 import {
   addProductToCart,
   createOrderFromCart,
+  emptyCartSnapshot,
   fetchCart,
+  payOrder,
   removeCartItem,
   updateCartItemQuantity,
   type ProfileResource,
 } from '../../services/marketplaceApi';
-import type { CartItem, Product } from '../../types/marketplace';
+import type { CartItem, CartSummary, Product } from '../../types/marketplace';
 import type { StatusTone } from '../../types/status';
+
+const EMPTY_SUMMARY = emptyCartSnapshot().summary;
 
 type UseCartParams = {
   accessToken: string | null;
@@ -37,6 +41,7 @@ export function useCart({
   onStatusMessage,
 }: UseCartParams) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartSummary, setCartSummary] = useState<CartSummary>(EMPTY_SUMMARY);
   const cartPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -44,20 +49,23 @@ export function useCart({
 
     if (!accessToken || !profile) {
       setCartItems([]);
+      setCartSummary(EMPTY_SUMMARY);
       return () => {
         isMounted = false;
       };
     }
 
     fetchCart(accessToken)
-      .then((items) => {
+      .then((snapshot) => {
         if (isMounted) {
-          setCartItems(items);
+          setCartItems(snapshot.items);
+          setCartSummary(snapshot.summary);
         }
       })
       .catch(() => {
         if (isMounted) {
           setCartItems([]);
+          setCartSummary(EMPTY_SUMMARY);
         }
       });
 
@@ -82,8 +90,9 @@ export function useCart({
       }
 
       try {
-        const nextItems = await addProductToCart(product.id, 1, accessToken ?? undefined);
-        setCartItems(nextItems);
+        const snapshot = await addProductToCart(product.id, 1, accessToken ?? undefined);
+        setCartItems(snapshot.items);
+        setCartSummary(snapshot.summary);
         onStatusMessage?.(`${product.title} agregado al carrito.`, 'success');
       } catch {
         onStatusMessage?.('No pudimos agregar el producto al carrito.', 'error');
@@ -125,12 +134,13 @@ export function useCart({
 
       try {
         const isRemoving = quantity <= 0;
-        const nextItems =
+        const snapshot =
           isRemoving
             ? await removeCartItem(currentItem.id, accessToken ?? undefined)
             : await updateCartItemQuantity(currentItem.id, quantity, accessToken ?? undefined);
 
-        setCartItems(nextItems);
+        setCartItems(snapshot.items);
+        setCartSummary(snapshot.summary);
         onStatusMessage?.(
           isRemoving ? 'Producto eliminado del carrito.' : 'Cantidad actualizada.',
           'success',
@@ -155,19 +165,35 @@ export function useCart({
       return;
     }
 
+    let order;
+
     try {
-      await createOrderFromCart(accessToken);
-      setCartItems([]);
-      onStatusMessage?.('Orden creada correctamente.', 'success');
-      onOrderPlaced();
+      order = await createOrderFromCart(accessToken);
     } catch {
       onStatusMessage?.('No pudimos crear la orden. Intenta nuevamente.', 'error');
       return;
     }
+
+    // La orden ya vació el carrito en el backend.
+    setCartItems([]);
+    setCartSummary(EMPTY_SUMMARY);
+
+    try {
+      await payOrder(order.id, accessToken);
+      onStatusMessage?.('Compra realizada. Tu pago fue confirmado.', 'success');
+    } catch {
+      onStatusMessage?.(
+        'Orden creada, pero el pago quedo pendiente. Puedes reintentarlo desde Pedidos.',
+        'warning',
+      );
+    }
+
+    onOrderPlaced();
   }, [accessToken, cartItems.length, onOrderPlaced, onRequireAccount, onStatusMessage]);
 
   return {
     cartItems,
+    cartSummary,
     cartCount,
     cartPulse,
     addToCart,

@@ -1,13 +1,33 @@
-import type { CartItem, Order, Product } from '../types/marketplace';
+import type { CartItem, CartSummary, Order, Product } from '../types/marketplace';
 import {
   mapApiCartItemsToCartItems,
+  mapApiCartSummary,
   mapApiOrderToOrder,
   mapApiProductToProduct,
 } from './marketplaceMapper';
 
 type ApiCollection<T> = {
   data: T[];
+  meta?: unknown;
 };
+
+export type CartSnapshot = {
+  items: CartItem[];
+  summary: CartSummary;
+};
+
+const EMPTY_CART_SUMMARY: CartSummary = {
+  subtotal: 0,
+  shipping: 0,
+  total: 0,
+  currency: 'USD',
+  itemCount: 0,
+};
+
+export const emptyCartSnapshot = (): CartSnapshot => ({
+  items: [],
+  summary: { ...EMPTY_CART_SUMMARY },
+});
 
 type ApiDocument<T> = {
   data: T;
@@ -208,19 +228,22 @@ export type SellerCenterResource = {
   store: StoreResource | null;
 };
 
-export async function fetchCart(token?: string): Promise<CartItem[]> {
+export async function fetchCart(token?: string): Promise<CartSnapshot> {
   if (!token) {
-    return [];
+    return emptyCartSnapshot();
   }
 
   const response = await request<ApiCollection<unknown>>('/cart', { token });
 
-  return mapApiCartItemsToCartItems(response.data);
+  return {
+    items: mapApiCartItemsToCartItems(response.data),
+    summary: mapApiCartSummary(response.meta),
+  };
 }
 
-export async function addProductToCart(productId: string, quantity = 1, token?: string): Promise<CartItem[]> {
+export async function addProductToCart(productId: string, quantity = 1, token?: string): Promise<CartSnapshot> {
   if (!token) {
-    return [];
+    return emptyCartSnapshot();
   }
 
   await request<ApiDocument<unknown>>('/cart/items', {
@@ -232,9 +255,9 @@ export async function addProductToCart(productId: string, quantity = 1, token?: 
   return fetchCart(token);
 }
 
-export async function updateCartItemQuantity(cartItemId: string, quantity: number, token?: string): Promise<CartItem[]> {
+export async function updateCartItemQuantity(cartItemId: string, quantity: number, token?: string): Promise<CartSnapshot> {
   if (!token) {
-    return [];
+    return emptyCartSnapshot();
   }
 
   await request<ApiDocument<unknown>>(`/cart/items/${cartItemId}`, {
@@ -246,9 +269,9 @@ export async function updateCartItemQuantity(cartItemId: string, quantity: numbe
   return fetchCart(token);
 }
 
-export async function removeCartItem(cartItemId: string, token?: string): Promise<CartItem[]> {
+export async function removeCartItem(cartItemId: string, token?: string): Promise<CartSnapshot> {
   if (!token) {
-    return [];
+    return emptyCartSnapshot();
   }
 
   await request<void>(`/cart/items/${cartItemId}`, {
@@ -261,6 +284,15 @@ export async function removeCartItem(cartItemId: string, token?: string): Promis
 
 export async function createOrderFromCart(token?: string): Promise<Order> {
   const response = await request<ApiDocument<unknown>>('/orders/from-cart', {
+    method: 'POST',
+    token,
+  });
+
+  return mapApiOrderToOrder(response.data);
+}
+
+export async function payOrder(orderId: string, token?: string): Promise<Order> {
+  const response = await request<ApiDocument<unknown>>(`/orders/${orderId}/pay`, {
     method: 'POST',
     token,
   });

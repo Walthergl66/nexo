@@ -18,6 +18,9 @@ class ListCartController extends Controller
         /** @var Profile $profile */
         $profile = $request->attributes->get('profile');
 
-        return CartItemResource::collection($this->service->items($profile));
+        $items = $this->service->items($profile);
+
+        return CartItemResource::collection($items)
+            ->additional(['meta' => $this->service->summarize($items)]);
     }
 }

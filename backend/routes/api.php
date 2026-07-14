@@ -10,6 +10,7 @@ use App\Modules\Categories\Http\Controllers\ListCategoriesController;
 use App\Modules\Categories\Http\Controllers\UpdateCategoryController;
 use App\Modules\Orders\Http\Controllers\CreateOrderFromCartController;
 use App\Modules\Orders\Http\Controllers\ListOrdersController;
+use App\Modules\Orders\Http\Controllers\PayOrderController;
 use App\Modules\Orders\Http\Controllers\ShowOrderController;
 use App\Modules\Products\Http\Controllers\CreateProductController;
 use App\Modules\Products\Http\Controllers\ListMyProductsController;
@@ -65,6 +66,7 @@ Route::middleware('supabase.jwt')->group(function (): void {
 
     Route::get('/orders', ListOrdersController::class);
     Route::post('/orders/from-cart', CreateOrderFromCartController::class);
+    Route::post('/orders/{order}/pay', PayOrderController::class);
     Route::get('/orders/{order}', ShowOrderController::class);
 
     Route::get('/admin/seller-verification-requests', ListSellerVerificationRequestsController::class);

@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
+    public function __construct(private readonly ShippingCalculator $shipping) {}
+
     public function createFromCart(Profile $profile): Order
     {
         return DB::transaction(function () use ($profile): Order {
@@ -30,9 +32,10 @@ class OrderService
 
             $this->validateCartItems($cartItems);
             $currency = $this->resolveCurrency($cartItems);
-            $totalCents = $cartItems->sum(
+            $subtotalCents = $cartItems->sum(
                 fn (CartItem $item): int => $item->product->price_cents * $item->quantity,
             );
+            $shippingCents = $this->shipping->quote($subtotalCents);
 
             $order = Order::query()->create([
                 'profile_id' => $profile->id,
@@ -40,8 +43,9 @@ class OrderService
                 'status' => Order::STATUS_PENDING,
                 'payment_status' => Order::PAYMENT_PENDING,
                 'currency' => $currency,
-                'subtotal_cents' => $totalCents,
-                'total_cents' => $totalCents,
+                'subtotal_cents' => $subtotalCents,
+                'shipping_cents' => $shippingCents,
+                'total_cents' => $subtotalCents + $shippingCents,
                 'metadata' => [],
             ]);
 
@@ -68,6 +72,31 @@ class OrderService
 
             return $order->refresh()->load(['items.product', 'items.store']);
         });
+    }
+
+    /**
+     * Confirm payment for an order, moving it into fulfilment.
+     */
+    public function markAsPaid(Order $order): Order
+    {
+        if ($order->payment_status === Order::PAYMENT_PAID) {
+            throw ValidationException::withMessages([
+                'payment' => 'Order is already paid.',
+            ]);
+        }
+
+        if ($order->status === Order::STATUS_CANCELLED) {
+            throw ValidationException::withMessages([
+                'payment' => 'Cancelled orders cannot be paid.',
+            ]);
+        }
+
+        $order->forceFill([
+            'payment_status' => Order::PAYMENT_PAID,
+            'status' => Order::STATUS_PROCESSING,
+        ])->save();
+
+        return $order->refresh()->load('items');
     }
 
     /**

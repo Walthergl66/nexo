@@ -19,6 +19,7 @@ class OrderResource extends JsonResource
             'payment_status' => $this->payment_status,
             'currency' => $this->currency,
             'subtotal_cents' => $this->subtotal_cents,
+            'shipping_cents' => $this->shipping_cents,
             'total_cents' => $this->total_cents,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

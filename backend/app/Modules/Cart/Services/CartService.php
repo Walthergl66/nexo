@@ -6,12 +6,15 @@ use App\Models\CartItem;
 use App\Models\Product;
 use App\Models\Profile;
 use App\Models\Store;
+use App\Modules\Orders\Services\ShippingCalculator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CartService
 {
+    public function __construct(private readonly ShippingCalculator $shipping) {}
+
     /**
      * @return Collection<int, CartItem>
      */
@@ -21,6 +24,28 @@ class CartService
             ->with(['product.store', 'product.category', 'product.images'])
             ->latest()
             ->get();
+    }
+
+    /**
+     * Totals for the given cart items, including the shipping quote.
+     *
+     * @param  Collection<int, CartItem>  $items
+     * @return array<string, int|string>
+     */
+    public function summarize(Collection $items): array
+    {
+        $subtotal = $items->sum(
+            fn (CartItem $item): int => ($item->product?->price_cents ?? 0) * $item->quantity,
+        );
+        $shipping = $this->shipping->quote($subtotal);
+
+        return [
+            'subtotal_cents' => $subtotal,
+            'shipping_cents' => $shipping,
+            'total_cents' => $subtotal + $shipping,
+            'currency' => $items->first()?->product?->currency ?? 'USD',
+            'item_count' => (int) $items->sum('quantity'),
+        ];
     }
 
     public function add(Profile $profile, Product $product, int $quantity): CartItem

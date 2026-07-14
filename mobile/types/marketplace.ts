@@ -26,11 +26,39 @@ export type CartItem = {
   quantity: number;
 };
 
+export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+
+export type OrderItem = {
+  id: string;
+  productName: string;
+  storeName: string;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+};
+
 export type Order = {
   id: string;
-  title: string;
-  status: 'Pagado' | 'Empacado' | 'En camino' | 'Entregado';
-  eta: string;
+  orderNumber: string;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  currency: string;
+  subtotal: number;
+  shipping: number;
+  total: number;
+  itemCount: number;
+  createdAt: string | null;
+  items: OrderItem[];
+};
+
+export type CartSummary = {
+  subtotal: number;
+  shipping: number;
+  total: number;
+  currency: string;
+  itemCount: number;
 };
 
 export type Tone = 'default' | 'success' | 'warning';

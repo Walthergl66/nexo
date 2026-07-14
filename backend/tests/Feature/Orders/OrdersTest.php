@@ -45,7 +45,8 @@ class OrdersTest extends TestCase
             ->assertJsonPath('data.payment_status', Order::PAYMENT_PENDING)
             ->assertJsonPath('data.currency', 'USD')
             ->assertJsonPath('data.subtotal_cents', 2500)
-            ->assertJsonPath('data.total_cents', 2500)
+            ->assertJsonPath('data.shipping_cents', 499)
+            ->assertJsonPath('data.total_cents', 2999)
             ->assertJsonPath('data.items.0.product_name', 'Producto activo')
             ->assertJsonPath('data.items.0.unit_price_cents', 1250)
             ->assertJsonPath('data.items.0.quantity', 2);
@@ -55,7 +56,8 @@ class OrdersTest extends TestCase
             'status' => Order::STATUS_PENDING,
             'payment_status' => Order::PAYMENT_PENDING,
             'subtotal_cents' => 2500,
-            'total_cents' => 2500,
+            'shipping_cents' => 499,
+            'total_cents' => 2999,
         ]);
         $this->assertDatabaseHas('order_items', [
             'product_id' => $product->id,
@@ -68,6 +70,102 @@ class OrdersTest extends TestCase
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
             'stock' => 5,
+        ]);
+    }
+
+    public function test_order_qualifies_for_free_shipping_over_threshold(): void
+    {
+        $buyer = $this->profile();
+        $product = $this->activeProduct([
+            'price_cents' => 6000,
+            'stock' => 5,
+        ]);
+        CartItem::query()->create([
+            'profile_id' => $buyer->id,
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/from-cart')
+            ->assertCreated()
+            ->assertJsonPath('data.subtotal_cents', 6000)
+            ->assertJsonPath('data.shipping_cents', 0)
+            ->assertJsonPath('data.total_cents', 6000);
+    }
+
+    public function test_buyer_can_pay_a_pending_order(): void
+    {
+        $buyer = $this->profile();
+        $order = Order::query()->create([
+            'profile_id' => $buyer->id,
+            'order_number' => 'NX-TEST-PAY1',
+            'status' => Order::STATUS_PENDING,
+            'payment_status' => Order::PAYMENT_PENDING,
+            'currency' => 'USD',
+            'subtotal_cents' => 1000,
+            'shipping_cents' => 499,
+            'total_cents' => 1499,
+        ]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/'.$order->id.'/pay')
+            ->assertOk()
+            ->assertJsonPath('data.status', Order::STATUS_PROCESSING)
+            ->assertJsonPath('data.payment_status', Order::PAYMENT_PAID);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => Order::STATUS_PROCESSING,
+            'payment_status' => Order::PAYMENT_PAID,
+        ]);
+    }
+
+    public function test_paying_an_already_paid_order_is_rejected(): void
+    {
+        $buyer = $this->profile();
+        $order = Order::query()->create([
+            'profile_id' => $buyer->id,
+            'order_number' => 'NX-TEST-PAY2',
+            'status' => Order::STATUS_PROCESSING,
+            'payment_status' => Order::PAYMENT_PAID,
+            'currency' => 'USD',
+            'subtotal_cents' => 1000,
+            'shipping_cents' => 0,
+            'total_cents' => 1000,
+        ]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/'.$order->id.'/pay')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('payment');
+    }
+
+    public function test_buyer_cannot_pay_another_buyers_order(): void
+    {
+        $buyer = $this->profile();
+        $otherBuyer = $this->profile([
+            'supabase_user_id' => '018f1d4c-40a5-7fd2-9a5a-000000000003',
+            'email' => 'third@example.com',
+        ]);
+        $order = Order::query()->create([
+            'profile_id' => $otherBuyer->id,
+            'order_number' => 'NX-TEST-PAY3',
+            'status' => Order::STATUS_PENDING,
+            'payment_status' => Order::PAYMENT_PENDING,
+            'currency' => 'USD',
+            'subtotal_cents' => 1000,
+            'shipping_cents' => 0,
+            'total_cents' => 1000,
+        ]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/'.$order->id.'/pay')
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'payment_status' => Order::PAYMENT_PENDING,
         ]);
     }
 

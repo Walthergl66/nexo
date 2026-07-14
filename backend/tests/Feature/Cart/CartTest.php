@@ -139,7 +139,11 @@ class CartTest extends TestCase
             ->getJson('/api/cart')
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $cartItem->id);
+            ->assertJsonPath('data.0.id', $cartItem->id)
+            ->assertJsonPath('meta.subtotal_cents', 1000)
+            ->assertJsonPath('meta.shipping_cents', 499)
+            ->assertJsonPath('meta.total_cents', 1499)
+            ->assertJsonPath('meta.item_count', 1);
 
         $this->withToken($this->tokenFor($buyer))
             ->patchJson('/api/cart/items/'.$cartItem->id, [

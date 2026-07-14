@@ -56,36 +56,60 @@ function mapApiCartItemsToCartItems(items) {
     .filter((item) => item.quantity > 0);
 }
 
-function mapApiOrderToOrder(order) {
-  const firstItem = Array.isArray(order?.items) ? order.items[0] : null;
-  const title = firstItem?.product_name
-    ? `${firstItem.product_name}${order.items.length > 1 ? ` +${order.items.length - 1}` : ''}`
-    : `Orden ${order?.order_number ?? order?.id ?? ''}`;
+const ORDER_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
 
+function normalizeOrderStatus(status) {
+  return ORDER_STATUSES.includes(status) ? status : 'pending';
+}
+
+function normalizePaymentStatus(status) {
+  return PAYMENT_STATUSES.includes(status) ? status : 'pending';
+}
+
+function mapApiOrderItem(item) {
   return {
-    id: String(order?.id ?? order?.order_number ?? ''),
-    title,
-    status: mapOrderStatus(order?.status),
-    eta: order?.payment_status === 'paid' ? 'Pago confirmado' : 'Pago pendiente',
+    id: String(item?.id ?? ''),
+    productName: String(item?.product_name ?? 'Producto'),
+    storeName: String(item?.store_name ?? ''),
+    unitPrice: centsToAmount(item?.unit_price_cents),
+    quantity: Number(item?.quantity ?? 0),
+    subtotal: centsToAmount(item?.subtotal_cents),
   };
 }
 
-function mapOrderStatus(status) {
-  switch (status) {
-    case 'processing':
-      return 'Empacado';
-    case 'shipped':
-      return 'En camino';
-    case 'delivered':
-      return 'Entregado';
-    default:
-      return 'Pagado';
-  }
+function mapApiOrderToOrder(order) {
+  const items = Array.isArray(order?.items) ? order.items.map(mapApiOrderItem) : [];
+
+  return {
+    id: String(order?.id ?? order?.order_number ?? ''),
+    orderNumber: String(order?.order_number ?? ''),
+    status: normalizeOrderStatus(order?.status),
+    paymentStatus: normalizePaymentStatus(order?.payment_status),
+    currency: String(order?.currency ?? 'USD'),
+    subtotal: centsToAmount(order?.subtotal_cents),
+    shipping: centsToAmount(order?.shipping_cents),
+    total: centsToAmount(order?.total_cents),
+    itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
+    createdAt: typeof order?.created_at === 'string' ? order.created_at : null,
+    items,
+  };
+}
+
+function mapApiCartSummary(meta) {
+  return {
+    subtotal: centsToAmount(meta?.subtotal_cents),
+    shipping: centsToAmount(meta?.shipping_cents),
+    total: centsToAmount(meta?.total_cents),
+    currency: String(meta?.currency ?? 'USD'),
+    itemCount: Number(meta?.item_count ?? 0),
+  };
 }
 
 module.exports = {
   centsToAmount,
   mapApiCartItemsToCartItems,
+  mapApiCartSummary,
   mapApiOrderToOrder,
   mapApiProductToProduct,
   pickPrimaryImageUrl,

@@ -24,6 +24,7 @@ import { signOut } from './services/authService';
 import { colors } from './theme/colors';
 import type { Product, TabKey } from './types/marketplace';
 import type { ConfirmActionRequest, StatusMessage, StatusTone } from './types/status';
+import { formatPrice } from './utils/format';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
@@ -223,6 +224,20 @@ export default function App() {
     });
   };
 
+  const handleCheckout = () => {
+    if (cart.cartItems.length === 0) {
+      return;
+    }
+
+    requestConfirmation({
+      title: 'Confirmar compra',
+      description: `Se creara tu orden por ${formatPrice(cart.cartSummary.total)} (envio incluido) y confirmaremos el pago. Deseas continuar?`,
+      confirmLabel: 'Pagar',
+      cancelLabel: 'Cancelar',
+      onConfirm: () => cart.checkout(),
+    });
+  };
+
   const handleRemoveCartItem = (productId: string) => {
     const item = cart.cartItems.find((cartItem) => cartItem.product.id === productId);
     requestConfirmation({
@@ -258,10 +273,10 @@ export default function App() {
         <CartScreen
           isAuthenticated={hasBusinessProfile}
           items={cart.cartItems}
-          shipping={4.99}
+          summary={cart.cartSummary}
           onBackToCatalog={handleBackToCatalog}
           onChangeQuantity={handleChangeCartQuantity}
-          onCheckout={cart.checkout}
+          onCheckout={handleCheckout}
           onRemoveItem={handleRemoveCartItem}
         />
       );
@@ -302,7 +317,12 @@ export default function App() {
           />
         );
       case 'Pedidos':
-        return <OrdersScreen accessToken={hasBusinessProfile ? accessToken : null} />;
+        return (
+          <OrdersScreen
+            accessToken={hasBusinessProfile ? accessToken : null}
+            onStatusMessage={handleStatusMessage}
+          />
+        );
       case 'Cuenta':
         return (
           <AccountScreen
