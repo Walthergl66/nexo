@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 import {
   addProductToCart,
+  ApiRequestError,
   createOrderFromCart,
   emptyCartSnapshot,
   fetchCart,
@@ -14,6 +15,24 @@ import type { CartItem, CartSummary, Product } from '../../types/marketplace';
 import type { StatusTone } from '../../types/status';
 
 const EMPTY_SUMMARY = emptyCartSnapshot().summary;
+
+/** True when the failure is the backend rejecting the request for lack of stock. */
+function isStockError(error: unknown): boolean {
+  return error instanceof ApiRequestError && /stock/i.test(error.message);
+}
+
+/** Friendly message when the requested amount reaches the product's stock. */
+function outOfStockMessage(stock: number): string {
+  if (stock <= 0) {
+    return 'Este producto se quedo sin stock.';
+  }
+
+  if (stock === 1) {
+    return 'Ya tienes en el carrito la unica unidad disponible.';
+  }
+
+  return `Ya agregaste las ${stock} unidades disponibles.`;
+}
 
 type UseCartParams = {
   accessToken: string | null;
@@ -89,13 +108,24 @@ export function useCart({
         return;
       }
 
+      const currentQuantity = cartItems.find((item) => item.product.id === product.id)?.quantity ?? 0;
+
+      if (currentQuantity + 1 > product.stock) {
+        onStatusMessage?.(outOfStockMessage(product.stock), 'warning');
+        return;
+      }
+
       try {
         const snapshot = await addProductToCart(product.id, 1, accessToken ?? undefined);
         setCartItems(snapshot.items);
         setCartSummary(snapshot.summary);
         onStatusMessage?.(`${product.title} agregado al carrito.`, 'success');
-      } catch {
-        onStatusMessage?.('No pudimos agregar el producto al carrito.', 'error');
+      } catch (error) {
+        if (isStockError(error)) {
+          onStatusMessage?.(outOfStockMessage(product.stock), 'warning');
+        } else {
+          onStatusMessage?.('No pudimos agregar el producto al carrito.', 'error');
+        }
         return;
       }
 
@@ -115,7 +145,7 @@ export function useCart({
         }),
       ]).start();
     },
-    [accessToken, cartPulse, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage],
+    [accessToken, cartItems, cartPulse, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage],
   );
 
   const changeQuantity = useCallback(
@@ -132,8 +162,14 @@ export function useCart({
         return;
       }
 
+      const isRemoving = quantity <= 0;
+
+      if (!isRemoving && quantity > currentItem.product.stock) {
+        onStatusMessage?.(outOfStockMessage(currentItem.product.stock), 'warning');
+        return;
+      }
+
       try {
-        const isRemoving = quantity <= 0;
         const snapshot =
           isRemoving
             ? await removeCartItem(currentItem.id, accessToken ?? undefined)
@@ -145,8 +181,12 @@ export function useCart({
           isRemoving ? 'Producto eliminado del carrito.' : 'Cantidad actualizada.',
           'success',
         );
-      } catch {
-        onStatusMessage?.('No pudimos actualizar el carrito.', 'error');
+      } catch (error) {
+        if (isStockError(error)) {
+          onStatusMessage?.(outOfStockMessage(currentItem.product.stock), 'warning');
+        } else {
+          onStatusMessage?.('No pudimos actualizar el carrito.', 'error');
+        }
         return;
       }
     },
