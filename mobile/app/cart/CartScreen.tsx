@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { PressableScale } from '../../components/common/PressableScale';
 import { CartEmptyState } from '../../components/cart/CartEmptyState';
 import { CartLineItem } from '../../components/cart/CartLineItem';
 import { cartStyles as styles } from '../../components/cart/cartStyles';
@@ -63,10 +64,10 @@ export function CartScreen({
         <InfoRow label="Total" value={formatPrice(summary.total)} emphasize />
       </View>
 
-      <Pressable style={({ pressed }) => [styles.checkoutButton, pressed && styles.checkoutButtonPressed]} onPress={onCheckout}>
+      <PressableScale style={styles.checkoutButton} onPress={onCheckout}>
         <Ionicons name="lock-closed" size={16} color={colors.surface} />
         <Text style={styles.checkoutText}>Continuar compra</Text>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }

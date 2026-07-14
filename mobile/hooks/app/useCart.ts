@@ -96,23 +96,23 @@ export function useCart({
   const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems]);
 
   const addToCart = useCallback(
-    async (product: Product) => {
+    async (product: Product): Promise<boolean> => {
       if (!product.available || product.stock <= 0) {
         onStatusMessage?.('Este producto no esta disponible.', 'warning');
-        return;
+        return false;
       }
 
       if (!hasBusinessProfile || isProfileLoading) {
         onStatusMessage?.('Inicia sesion para agregar productos al carrito.', 'info');
         onRequireAccount();
-        return;
+        return false;
       }
 
       const currentQuantity = cartItems.find((item) => item.product.id === product.id)?.quantity ?? 0;
 
       if (currentQuantity + 1 > product.stock) {
         onStatusMessage?.(outOfStockMessage(product.stock), 'warning');
-        return;
+        return false;
       }
 
       try {
@@ -126,7 +126,7 @@ export function useCart({
         } else {
           onStatusMessage?.('No pudimos agregar el producto al carrito.', 'error');
         }
-        return;
+        return false;
       }
 
       cartPulse.setValue(0.92);
@@ -144,6 +144,8 @@ export function useCart({
           useNativeDriver: true,
         }),
       ]).start();
+
+      return true;
     },
     [accessToken, cartItems, cartPulse, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage],
   );

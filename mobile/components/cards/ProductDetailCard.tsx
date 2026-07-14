@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '../common/RemoteImage';
+import { PressableScale } from '../common/PressableScale';
+import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -9,7 +11,7 @@ import { formatPrice } from '../../utils/format';
 type ProductDetailCardProps = {
   product: Product;
   isAuthenticated: boolean;
-  onAddToCart: () => void;
+  onAddToCart: () => void | Promise<boolean>;
   onBack: () => void;
 };
 
@@ -22,6 +24,11 @@ export function ProductDetailCard({
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(product.imageUrl) && !hasImageError;
   const stockLabel = product.stock === 1 ? '1 disponible' : `${product.stock} disponibles`;
+  const { isAdded, progress, run } = useAddToCartFeedback(onAddToCart);
+
+  const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
+  const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
+  const successOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
 
   return (
     <View style={styles.container}>
@@ -94,18 +101,27 @@ export function ProductDetailCard({
           <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
           <Text style={styles.protectionText}>Compra protegida</Text>
         </View>
-        <Pressable
+        <PressableScale
           disabled={!product.available}
-          style={({ pressed }) => [
+          style={[
             styles.addCartButton,
             !product.available && styles.addCartButtonDisabled,
-            pressed && styles.pressed,
+            isAdded && styles.addCartButtonSuccess,
           ]}
-          onPress={onAddToCart}
+          onPress={() => void run()}
         >
-          <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
-          <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
-        </Pressable>
+          <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+            <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
+            <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+          >
+            <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
+            <Text style={styles.addCartText}>Agregado</Text>
+          </Animated.View>
+        </PressableScale>
       </View>
     </View>
   );
@@ -289,6 +305,18 @@ const styles = StyleSheet.create({
   },
   addCartButtonDisabled: {
     backgroundColor: colors.inkSoft,
+  },
+  addCartButtonSuccess: {
+    backgroundColor: colors.brandAccent,
+  },
+  addCartInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  addCartSuccessLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
   pressed: {
     transform: [{ scale: 0.97 }],

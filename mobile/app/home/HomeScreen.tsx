@@ -12,8 +12,10 @@ import {
   View,
 } from 'react-native';
 import { RemoteImage } from '../../components/common/RemoteImage';
+import { PressableScale } from '../../components/common/PressableScale';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
+import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -29,7 +31,7 @@ type HomeScreenProps = {
   productsCount: number;
   search: string;
   selectedProduct: Product | null;
-  onAddToCart: (product: Product) => void;
+  onAddToCart: (product: Product) => void | Promise<boolean>;
   onBackToCatalog: () => void;
   onChangeFilter: (filter: string) => void;
   onChangeSearch: (value: string) => void;
@@ -47,7 +49,7 @@ function AnimatedProductCell({
   index: number;
   product: Product;
   isAuthenticated: boolean;
-  onAddToCart: () => void;
+  onAddToCart: () => void | Promise<boolean>;
   onSelectProduct: () => void;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -83,6 +85,34 @@ function AnimatedProductCell({
         onSelectProduct={onSelectProduct}
       />
     </Animated.View>
+  );
+}
+
+function FeaturedBuyButton({ onBuy }: { onBuy: () => void | Promise<boolean> }) {
+  const { isAdded, progress, run } = useAddToCartFeedback(onBuy);
+  const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
+  const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
+  const successOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
+
+  return (
+    <PressableScale
+      style={[styles.featuredButton, isAdded && styles.featuredButtonSuccess]}
+      onPress={(event) => {
+        event.stopPropagation();
+        void run();
+      }}
+    >
+      <Animated.Text style={[styles.featuredButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+        Comprar ahora
+      </Animated.Text>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.featuredButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+      >
+        <Ionicons name="checkmark-circle" size={15} color={colors.brandBlue} />
+        <Text style={styles.featuredButtonText}>Agregado</Text>
+      </Animated.View>
+    </PressableScale>
   );
 }
 
@@ -223,15 +253,7 @@ export function HomeScreen({
               <Text numberOfLines={1} style={styles.featuredSeller}>{featuredProduct.seller}</Text>
             </View>
             <Text style={styles.featuredPrice}>{formatPrice(featuredProduct.price)}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.featuredButton, pressed && styles.pressFeedback]}
-              onPress={(event) => {
-                event.stopPropagation();
-                onAddToCart(featuredProduct);
-              }}
-            >
-              <Text style={styles.featuredButtonText}>Comprar ahora</Text>
-            </Pressable>
+            <FeaturedBuyButton onBuy={() => onAddToCart(featuredProduct)} />
           </View>
           <FeaturedVisual product={featuredProduct} />
         </Pressable>
@@ -423,6 +445,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginTop: 18,
+  },
+  featuredButtonSuccess: {
+    backgroundColor: colors.brandBlueSoft,
+  },
+  featuredButtonSuccessLayer: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
   },
   featuredButtonText: {
     color: colors.brandBlue,

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { BrandLogo } from '../common/BrandLogo';
 import { colors } from '../../theme/colors';
@@ -27,6 +28,22 @@ export function AppHeader({
   unreadCount = 0,
   onOpenNotifications,
 }: AppHeaderProps) {
+  const bubbleScale = useRef(new Animated.Value(1)).current;
+  const prevCount = useRef(cartCount);
+
+  useEffect(() => {
+    if (cartCount > prevCount.current) {
+      bubbleScale.setValue(0.6);
+      Animated.spring(bubbleScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 18,
+        bounciness: 14,
+      }).start();
+    }
+    prevCount.current = cartCount;
+  }, [bubbleScale, cartCount]);
+
   return (
     <Animated.View
       pointerEvents="box-none"
@@ -68,9 +85,9 @@ export function AppHeader({
             >
               <Ionicons name="bag-handle-outline" size={19} color={colors.surface} />
               {cartCount > 0 && (
-                <View style={styles.cartCountBubble}>
+                <Animated.View style={[styles.cartCountBubble, { transform: [{ scale: bubbleScale }] }]}>
                   <Text style={styles.cartCountText}>{cartCount}</Text>
-                </View>
+                </Animated.View>
               )}
             </Pressable>
           </Animated.View>

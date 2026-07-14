@@ -10,7 +10,7 @@ type ExploreScreenProps = {
   filteredProducts: Product[];
   isAuthenticated?: boolean;
   search: string;
-  onAddToCart: (product: Product) => void;
+  onAddToCart: (product: Product) => void | Promise<boolean>;
   onChangeFilter: (filter: string) => void;
   onChangeSearch: (value: string) => void;
   onSelectProduct?: (product: Product) => void;

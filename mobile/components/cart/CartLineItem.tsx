@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, Text, View } from 'react-native';
+import { PressableScale } from '../common/PressableScale';
 import { RemoteImage } from '../common/RemoteImage';
 import { colors } from '../../theme/colors';
 import type { CartItem } from '../../types/marketplace';
@@ -64,28 +65,31 @@ export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: Ca
         <Text style={styles.itemPrice}>{formatPrice(item.product.price)}</Text>
       </View>
       <View style={styles.itemActions}>
-        <Pressable
+        <PressableScale
           accessibilityLabel={`Quitar una unidad de ${item.product.title}`}
-          style={({ pressed }) => [styles.quantityButton, pressed && styles.quantityButtonPressed]}
+          activeScale={0.88}
+          style={styles.quantityButton}
           onPress={() => onChangeQuantity(item.product.id, item.quantity - 1)}
         >
           <Ionicons name="remove" size={14} color={colors.brandBlue} />
-        </Pressable>
+        </PressableScale>
         <Text style={styles.quantity}>{item.quantity}</Text>
-        <Pressable
+        <PressableScale
           accessibilityLabel={`Agregar una unidad de ${item.product.title}`}
-          style={({ pressed }) => [styles.quantityButton, pressed && styles.quantityButtonPressed]}
+          activeScale={0.88}
+          style={styles.quantityButton}
           onPress={() => onChangeQuantity(item.product.id, item.quantity + 1)}
         >
           <Ionicons name="add" size={14} color={colors.brandBlue} />
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           accessibilityLabel={`Eliminar ${item.product.title}`}
-          style={({ pressed }) => [styles.removeButton, pressed && styles.removeButtonPressed]}
+          activeScale={0.88}
+          style={styles.removeButton}
           onPress={() => onRemoveItem(item.product.id)}
         >
           <Ionicons name="trash-outline" size={16} color={colors.inkMuted} />
-        </Pressable>
+        </PressableScale>
       </View>
     </Animated.View>
   );
