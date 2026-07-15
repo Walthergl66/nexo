@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
 import { ProductCard } from '../cards/ProductCard';
 import { SellerProductCard } from '../cards/SellerProductCard';
+import { Skeleton } from '../common/Skeleton';
 import { Tag } from '../common/Tag';
 import { OrdersScreen } from '../../app/orders/OrdersScreen';
 import { useFavorites } from '../../context/FavoritesContext';
@@ -17,6 +18,7 @@ type ProfileSection = 'posts' | 'favorites' | 'orders';
 type AuthenticatedAccountPanelProps = {
   isLoggingOut: boolean;
   products: Product[];
+  isLoadingProducts: boolean;
   profile: ProfileResource;
   catalogProducts: Product[];
   isAuthenticated: boolean;
@@ -33,6 +35,7 @@ type AuthenticatedAccountPanelProps = {
 export function AuthenticatedAccountPanel({
   isLoggingOut,
   products,
+  isLoadingProducts,
   profile,
   catalogProducts,
   isAuthenticated,
@@ -190,6 +193,16 @@ export function AuthenticatedAccountPanel({
               {products.map((product) => (
                 <View key={product.id} style={styles.postCell}>
                   <SellerProductCard product={product} />
+                </View>
+              ))}
+            </View>
+          ) : isLoadingProducts ? (
+            // Mientras carga mostramos skeletons en vez del estado "vacío": así no
+            // parece que no hay productos cuando en realidad aún están llegando.
+            <View style={styles.postGrid}>
+              {[0, 1, 2, 3].map((placeholder) => (
+                <View key={placeholder} style={styles.postCell}>
+                  <Skeleton style={styles.postSkeleton} />
                 </View>
               ))}
             </View>

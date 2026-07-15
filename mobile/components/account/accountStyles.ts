@@ -285,6 +285,10 @@ export const accountStyles = StyleSheet.create({
   postCell: {
     width: '48.7%',
   },
+  postSkeleton: {
+    height: 172,
+    borderRadius: 16,
+  },
   emptyPosts: {
     minHeight: 150,
     alignItems: 'center',

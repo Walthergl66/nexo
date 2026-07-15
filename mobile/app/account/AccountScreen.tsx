@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AccountModeSwitch } from '../../components/account/AccountModeSwitch';
 import { accountStyles as styles } from '../../components/account/accountStyles';
 import { AccountUnavailablePanel, ProfileLoadingPanel, ProfileSyncErrorPanel } from '../../components/account/AccountStatusPanels';
@@ -80,7 +81,9 @@ export function AccountScreen({
   const [isResetConfirmPasswordVisible, setIsResetConfirmPasswordVisible] = useState(false);
   const [accountView, setAccountView] = useState<'profile' | 'settings'>('profile');
   const [profileProducts, setProfileProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const hasLoadedProfileProducts = useRef(false);
 
   const isGuest = accessToken === null;
   const passwordError = useMemo(() => validatePassword(registerForm.password), [registerForm.password]);
@@ -105,21 +108,53 @@ export function AccountScreen({
     let isMounted = true;
 
     if (!accessToken || !profile || profile.role !== 'seller') {
+      hasLoadedProfileProducts.current = false;
       setProfileProducts([]);
+      setIsLoadingProducts(false);
       return () => {
         isMounted = false;
       };
     }
 
-    fetchMyProducts(accessToken)
-      .then((products) => {
-        if (isMounted) {
-          setProfileProducts(products);
+    const cacheKey = `nexo.profile.products.${profile.id}.v1`;
+    hasLoadedProfileProducts.current = false;
+    setIsLoadingProducts(true);
+
+    // Pintado instantáneo desde caché mientras la red revalida (stale-while-revalidate).
+    AsyncStorage.getItem(cacheKey)
+      .then((raw) => {
+        if (!isMounted || !raw || hasLoadedProfileProducts.current) {
+          return;
+        }
+        try {
+          const cached = JSON.parse(raw) as Product[];
+          if (Array.isArray(cached) && cached.length > 0) {
+            setProfileProducts(cached);
+          }
+        } catch {
+          // Caché corrupta: se ignora.
         }
       })
+      .catch(() => {});
+
+    fetchMyProducts(accessToken)
+      .then((products) => {
+        if (!isMounted) {
+          return;
+        }
+        setProfileProducts(products);
+        hasLoadedProfileProducts.current = true;
+        AsyncStorage.setItem(cacheKey, JSON.stringify(products)).catch(() => {});
+      })
       .catch(() => {
-        if (isMounted) {
+        // Un fallo puntual no borra lo ya cargado (o lo hidratado de caché).
+        if (isMounted && !hasLoadedProfileProducts.current) {
           setProfileProducts([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingProducts(false);
         }
       });
 
@@ -513,6 +548,7 @@ export function AccountScreen({
         <AuthenticatedAccountPanel
           isLoggingOut={isLoading}
           products={profileProducts}
+          isLoadingProducts={isLoadingProducts}
           profile={profile}
           catalogProducts={catalogProducts}
           isAuthenticated={isAuthenticated}
