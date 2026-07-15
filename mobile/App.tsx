@@ -410,6 +410,7 @@ function AppShell() {
             cartPulse={cart.cartPulse}
             headerOpacity={header.headerVisibility}
             headerTranslateY={header.headerTranslateY}
+            userName={profile?.first_name ?? profile?.display_name ?? null}
             showCart={hasBusinessProfile}
             onOpenCart={handleOpenCart}
             showNotifications={hasBusinessProfile}

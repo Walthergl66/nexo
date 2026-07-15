@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { RemoteImage } from '../../components/common/RemoteImage';
@@ -114,32 +115,82 @@ function FeaturedBuyButton({ onBuy }: { onBuy: () => void | Promise<boolean> }) 
         pointerEvents="none"
         style={[styles.featuredButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
       >
-        <Ionicons name="checkmark-circle" size={15} color={colors.brandBlue} />
+        <Ionicons name="checkmark-circle" size={15} color={colors.surface} />
         <Text style={styles.featuredButtonText}>Agregado</Text>
       </Animated.View>
     </PressableScale>
   );
 }
 
-function FeaturedVisual({ product }: { product: Product }) {
+// Fondos pastel suaves que rotan por tarjeta (estilo carrusel ecommerce). Usan
+// tokens existentes: cada uno es una tinta clara sobre la que el texto oscuro
+// contrasta bien, sin introducir colores nuevos a la paleta.
+const FEATURED_BACKGROUNDS = [
+  colors.brandBlueSoft,
+  colors.success,
+  colors.accentSoft,
+  colors.warning,
+];
+
+function FeaturedCard({
+  product,
+  index,
+  width,
+  isOwn,
+  onAddToCart,
+  onSelectProduct,
+}: {
+  product: Product;
+  index: number;
+  width: number;
+  isOwn: boolean;
+  onAddToCart: () => void | Promise<boolean>;
+  onSelectProduct: () => void;
+}) {
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(product.imageUrl) && !hasImageError;
+  const background = FEATURED_BACKGROUNDS[index % FEATURED_BACKGROUNDS.length];
 
   return (
-    <View style={styles.featuredVisual}>
-      <View style={styles.featuredHalo} />
-      {showRealImage ? (
-        <RemoteImage
-          accessibilityLabel={`Imagen de ${product.title}`}
-          uri={product.imageUrl as string}
-          width={320}
-          style={styles.featuredImage}
-          onFinalError={() => setHasImageError(true)}
-        />
-      ) : (
-        <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
-      )}
-    </View>
+    <PressableScale
+      accessibilityLabel={`Ver detalle de ${product.title}`}
+      activeScale={0.985}
+      style={[styles.featuredCard, { width, backgroundColor: background }]}
+      onPress={onSelectProduct}
+    >
+      <View style={styles.featuredCopy}>
+        <Text style={styles.featuredCategory}>{product.category}</Text>
+        <Text numberOfLines={2} style={styles.featuredTitle}>{product.title}</Text>
+        <View style={styles.featuredSellerRow}>
+          <Ionicons name="storefront-outline" size={12} color={colors.inkMuted} />
+          <Text numberOfLines={1} style={styles.featuredSeller}>{product.seller}</Text>
+        </View>
+        <Text style={styles.featuredPrice}>{formatPrice(product.price)}</Text>
+        {isOwn ? (
+          <View style={styles.featuredOwnTag}>
+            <Ionicons name="storefront" size={13} color={colors.ink} />
+            <Text style={styles.featuredOwnTagText}>Tu producto</Text>
+          </View>
+        ) : (
+          <FeaturedBuyButton onBuy={onAddToCart} />
+        )}
+      </View>
+      <View style={styles.featuredImageWrap}>
+        {showRealImage ? (
+          <RemoteImage
+            accessibilityLabel={`Imagen de ${product.title}`}
+            uri={product.imageUrl as string}
+            width={520}
+            style={styles.featuredImage}
+            onFinalError={() => setHasImageError(true)}
+          />
+        ) : (
+          <View style={styles.featuredImageFallback}>
+            <Ionicons name="bag-handle-outline" size={56} color={colors.inkSoft} />
+          </View>
+        )}
+      </View>
+    </PressableScale>
   );
 }
 
@@ -176,6 +227,7 @@ export function HomeScreen({
   onRefreshCatalog,
   onSelectProduct,
 }: HomeScreenProps) {
+  const { width: screenWidth } = useWindowDimensions();
   const isOwnProduct = (product: Product) =>
     Boolean(myProfileId) && product.ownerProfileId === myProfileId;
 
@@ -192,8 +244,13 @@ export function HomeScreen({
   }
 
   const availableProducts = filteredProducts.filter((product) => product.available).length;
-  const featuredProduct = filteredProducts[0] ?? null;
-  const catalogProducts = featuredProduct ? filteredProducts.slice(1) : filteredProducts;
+  // Destacados en carrusel: 4 si hay catálogo amplio, 1 si es medio, ninguno si
+  // hay muy pocos (para no dejar la parrilla "Recomendados" vacía).
+  const featuredCount = filteredProducts.length >= 6 ? 4 : filteredProducts.length >= 3 ? 1 : 0;
+  const featuredProducts = isLoading ? [] : filteredProducts.slice(0, featuredCount);
+  const catalogProducts = filteredProducts.slice(featuredProducts.length);
+  // Ancho de tarjeta con un "peek" de la siguiente para invitar al swipe.
+  const featuredCardWidth = Math.round(screenWidth - 72);
   const syncLabel = lastSyncAt
     ? `Actualizado ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Conectando';
@@ -246,34 +303,27 @@ export function HomeScreen({
         })}
       </ScrollView>
 
-      {featuredProduct && !isLoading && (
-        <Pressable
-          accessibilityLabel={`Ver detalle de ${featuredProduct.title}`}
-          style={({ pressed }) => [styles.featuredCard, pressed && styles.featuredCardPressed]}
-          onPress={() => onSelectProduct(featuredProduct)}
+      {featuredProducts.length > 0 && !isLoading && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={featuredCardWidth + 12}
+          snapToAlignment="start"
+          contentContainerStyle={styles.featuredRow}
         >
-          <View style={styles.featuredOrbitLarge} />
-          <View style={styles.featuredOrbitSmall} />
-          <View style={styles.featuredSpark} />
-          <View style={styles.featuredCopy}>
-            <Text style={styles.featuredCategory}>{featuredProduct.category}</Text>
-            <Text numberOfLines={3} style={styles.featuredTitle}>{featuredProduct.title}</Text>
-            <View style={styles.featuredSellerRow}>
-              <Ionicons name="storefront-outline" size={12} color={colors.surface} />
-              <Text numberOfLines={1} style={styles.featuredSeller}>{featuredProduct.seller}</Text>
-            </View>
-            <Text style={styles.featuredPrice}>{formatPrice(featuredProduct.price)}</Text>
-            {isOwnProduct(featuredProduct) ? (
-              <View style={styles.featuredOwnTag}>
-                <Ionicons name="storefront" size={13} color={colors.surface} />
-                <Text style={styles.featuredOwnTagText}>Tu producto</Text>
-              </View>
-            ) : (
-              <FeaturedBuyButton onBuy={() => onAddToCart(featuredProduct)} />
-            )}
-          </View>
-          <FeaturedVisual product={featuredProduct} />
-        </Pressable>
+          {featuredProducts.map((product, index) => (
+            <FeaturedCard
+              key={product.id}
+              product={product}
+              index={index}
+              width={featuredCardWidth}
+              isOwn={isOwnProduct(product)}
+              onAddToCart={() => onAddToCart(product)}
+              onSelectProduct={() => onSelectProduct(product)}
+            />
+          ))}
+        </ScrollView>
       )}
 
       <View style={styles.resultsHeader}>
@@ -372,102 +422,68 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '600',
   },
+  featuredRow: {
+    gap: 12,
+    paddingVertical: 2,
+    paddingRight: 4,
+  },
   featuredCard: {
-    minHeight: 214,
+    height: 196,
     borderRadius: 24,
-    backgroundColor: colors.primarySoft,
-    padding: 20,
     overflow: 'hidden',
     flexDirection: 'row',
-    ...shadows.floating,
-  },
-  featuredOrbitLarge: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    right: -92,
-    top: -80,
-    borderWidth: 1,
-    borderColor: colors.brandBlueMuted,
-    opacity: 0.42,
-  },
-  featuredOrbitSmall: {
-    position: 'absolute',
-    width: 148,
-    height: 148,
-    borderRadius: 74,
-    right: -32,
-    bottom: -70,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    opacity: 0.32,
-  },
-  featuredSpark: {
-    position: 'absolute',
-    width: 46,
-    height: 5,
-    borderRadius: 3,
-    right: 32,
-    top: 28,
-    backgroundColor: colors.brandAccent,
-    opacity: 0.65,
-    transform: [{ rotate: '-42deg' }],
-  },
-  featuredCardPressed: {
-    transform: [{ scale: 0.985 }],
+    alignItems: 'stretch',
+    ...shadows.card,
   },
   featuredCopy: {
     flex: 1,
-    zIndex: 2,
+    minWidth: 0,
+    padding: 20,
     justifyContent: 'center',
   },
   featuredCategory: {
-    color: colors.accent,
+    color: colors.inkMuted,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   featuredTitle: {
-    color: colors.surface,
-    fontSize: 24,
-    lineHeight: 27,
-    fontWeight: '600',
-    letterSpacing: -0.8,
+    color: colors.ink,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: '700',
+    letterSpacing: -0.6,
     marginTop: 8,
-    maxWidth: 190,
   },
   featuredSellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     marginTop: 8,
-    maxWidth: 190,
   },
   featuredSeller: {
     flex: 1,
-    color: colors.surface,
+    color: colors.inkMuted,
     fontSize: 11,
     fontWeight: '600',
-    opacity: 0.9,
   },
   featuredPrice: {
-    color: colors.surface,
-    fontSize: 18,
-    fontWeight: '600',
+    color: colors.ink,
+    fontSize: 19,
+    fontWeight: '700',
     marginTop: 8,
   },
   featuredButton: {
     alignSelf: 'flex-start',
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginTop: 18,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    marginTop: 16,
   },
   featuredButtonSuccess: {
-    backgroundColor: colors.brandBlueSoft,
+    backgroundColor: colors.brandBlue,
   },
   featuredOwnTag: {
     alignSelf: 'flex-start',
@@ -476,13 +492,14 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.surface,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    marginTop: 18,
+    marginTop: 16,
   },
   featuredOwnTagText: {
-    color: colors.surface,
+    color: colors.ink,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -494,28 +511,23 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   featuredButtonText: {
-    color: colors.brandBlue,
+    color: colors.surface,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  featuredVisual: {
-    width: 122,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featuredHalo: {
-    position: 'absolute',
-    width: 116,
-    height: 116,
-    borderRadius: 58,
-    backgroundColor: colors.brandBlue,
+  featuredImageWrap: {
+    width: 148,
+    alignSelf: 'stretch',
   },
   featuredImage: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 2,
-    borderColor: colors.surface,
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  featuredImageFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resultsHeader: {
     flexDirection: 'row',

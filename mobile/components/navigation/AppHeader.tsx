@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
-import { BrandLogo } from '../common/BrandLogo';
 import { colors } from '../../theme/colors';
 import { navigationStyles as styles } from './navigationStyles';
 
@@ -10,6 +9,7 @@ type AppHeaderProps = {
   cartPulse: Animated.Value;
   headerOpacity: Animated.Value;
   headerTranslateY: Animated.AnimatedInterpolation<number>;
+  userName?: string | null;
   showCart: boolean;
   onOpenCart: () => void;
   showNotifications?: boolean;
@@ -22,6 +22,7 @@ export function AppHeader({
   cartPulse,
   headerOpacity,
   headerTranslateY,
+  userName,
   showCart,
   onOpenCart,
   showNotifications = false,
@@ -55,11 +56,11 @@ export function AppHeader({
         },
       ]}
     >
-      <View style={styles.headerBrand}>
-        <BrandLogo />
-        <View>
-          <Text style={styles.headerTitle}>NEXO</Text>
-        </View>
+      <View style={styles.headerGreeting}>
+        <Text style={styles.headerGreetingLabel}>{userName ? 'Bienvenido de nuevo,' : 'Hola,'}</Text>
+        <Text numberOfLines={1} style={styles.headerGreetingName}>
+          {userName ? userName.toLowerCase() : 'bienvenido a nexo'}
+        </Text>
       </View>
       <View style={styles.headerActions}>
         {showNotifications && onOpenNotifications && (
@@ -68,7 +69,7 @@ export function AppHeader({
             style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
             onPress={onOpenNotifications}
           >
-            <Ionicons name="notifications-outline" size={19} color={colors.surface} />
+            <Ionicons name="notifications-outline" size={19} color={colors.ink} />
             {unreadCount > 0 && (
               <View style={styles.cartCountBubble}>
                 <Text style={styles.cartCountText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
@@ -83,7 +84,7 @@ export function AppHeader({
               style={({ pressed }) => [styles.cartBadge, pressed && styles.cartBadgePressed]}
               onPress={onOpenCart}
             >
-              <Ionicons name="bag-handle-outline" size={19} color={colors.surface} />
+              <Ionicons name="bag-handle-outline" size={19} color={colors.ink} />
               {cartCount > 0 && (
                 <Animated.View style={[styles.cartCountBubble, { transform: [{ scale: bubbleScale }] }]}>
                   <Text style={styles.cartCountText}>{cartCount}</Text>
