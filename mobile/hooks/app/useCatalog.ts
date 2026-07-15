@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchCategoryNames, fetchProducts, type ProfileResource } from '../../services/marketplaceApi';
+import { isSupabaseConfigured, supabase } from '../../services/supabaseClient';
 import type { Product, TabKey } from '../../types/marketplace';
 import { CATALOG_AUTO_REFRESH_MS, REFRESH_THROTTLE_MS } from '../../constants/app';
 
@@ -54,6 +55,7 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
   const [catalogRequestKey, setCatalogRequestKey] = useState(0);
   const hasLoadedCatalog = useRef(false);
   const lastCatalogRefreshRequestAt = useRef(0);
+  const realtimeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshCatalog = useCallback(() => {
     const now = Date.now();
@@ -199,6 +201,41 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
   useEffect(() => {
     setFilteredProducts(applyCatalogFilters(products, activeFilter, search));
   }, [activeFilter, products, search]);
+
+  // Realtime: en vez de esperar al siguiente poll, escuchamos los cambios de la
+  // tabla de productos (y sus imágenes) y refrescamos al instante. Si Supabase no
+  // está configurado o la tabla no está en la publicación realtime, no llega nada
+  // y el polling de abajo sigue actuando como red de seguridad. Sin riesgo.
+  useEffect(() => {
+    if (!isSupabaseConfigured || activeTab !== 'Inicio' || !isSessionReady) {
+      return undefined;
+    }
+
+    const scheduleSync = () => {
+      if (realtimeDebounce.current) {
+        clearTimeout(realtimeDebounce.current);
+      }
+      // Pequeño debounce: agrupa ráfagas de cambios en un solo refresh y evita
+      // el throttle de refreshCatalog (esto es un evento en vivo, no un poll).
+      realtimeDebounce.current = setTimeout(() => {
+        setCatalogRequestKey((current) => current + 1);
+      }, 400);
+    };
+
+    const channel = supabase
+      .channel('catalog-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, scheduleSync)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images' }, scheduleSync)
+      .subscribe();
+
+    return () => {
+      if (realtimeDebounce.current) {
+        clearTimeout(realtimeDebounce.current);
+        realtimeDebounce.current = null;
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [activeTab, isSessionReady]);
 
   useEffect(() => {
     if (activeTab !== 'Inicio' || !isSessionReady) {

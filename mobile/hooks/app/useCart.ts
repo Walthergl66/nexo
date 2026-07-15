@@ -16,6 +16,18 @@ import type { StatusTone } from '../../types/status';
 
 const EMPTY_SUMMARY = emptyCartSnapshot().summary;
 
+/**
+ * Recalcula el resumen a partir de los items para pintar cambios al instante
+ * (UI optimista). El envío exacto lo fija el backend; aquí lo conservamos y el
+ * servidor reconcilia al responder.
+ */
+function optimisticSummary(items: CartItem[], base: CartSummary): CartSummary {
+  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  return { ...base, subtotal, itemCount, total: subtotal + base.shipping };
+}
+
 /** True when the failure is the backend rejecting the request for lack of stock. */
 function isStockError(error: unknown): boolean {
   return error instanceof ApiRequestError && /stock/i.test(error.message);
@@ -62,11 +74,14 @@ export function useCart({
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartSummary, setCartSummary] = useState<CartSummary>(EMPTY_SUMMARY);
   const cartPulse = useRef(new Animated.Value(1)).current;
+  const hasLoadedCart = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
 
+    // Sin sesión no hay carrito: aquí sí vaciamos (es el estado correcto).
     if (!accessToken || !profile) {
+      hasLoadedCart.current = false;
       setCartItems([]);
       setCartSummary(EMPTY_SUMMARY);
       return () => {
@@ -79,10 +94,12 @@ export function useCart({
         if (isMounted) {
           setCartItems(snapshot.items);
           setCartSummary(snapshot.summary);
+          hasLoadedCart.current = true;
         }
       })
       .catch(() => {
-        if (isMounted) {
+        // Un fallo puntual al recargar NO debe vaciar el carrito ya cargado.
+        if (isMounted && !hasLoadedCart.current) {
           setCartItems([]);
           setCartSummary(EMPTY_SUMMARY);
         }
@@ -120,19 +137,19 @@ export function useCart({
         return false;
       }
 
-      try {
-        const snapshot = await addProductToCart(product.id, 1, accessToken ?? undefined);
-        setCartItems(snapshot.items);
-        setCartSummary(snapshot.summary);
-        onStatusMessage?.(`${product.title} agregado al carrito.`, 'success');
-      } catch (error) {
-        if (isStockError(error)) {
-          onStatusMessage?.(outOfStockMessage(product.stock), 'warning');
-        } else {
-          onStatusMessage?.('No pudimos agregar el producto al carrito.', 'error');
-        }
-        return false;
-      }
+      // UI optimista: reflejamos el cambio de inmediato y guardamos el estado
+      // previo para revertir si el backend rechaza la operación.
+      const prevItems = cartItems;
+      const prevSummary = cartSummary;
+      const existing = cartItems.find((item) => item.product.id === product.id);
+      const nextItems = existing
+        ? cartItems.map((item) =>
+            item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
+          )
+        : [...cartItems, { product, quantity: 1 }];
+
+      setCartItems(nextItems);
+      setCartSummary(optimisticSummary(nextItems, prevSummary));
 
       cartPulse.setValue(0.92);
       Animated.sequence([
@@ -150,9 +167,27 @@ export function useCart({
         }),
       ]).start();
 
+      try {
+        const snapshot = await addProductToCart(product.id, 1, accessToken ?? undefined);
+        // Reconciliamos con la verdad del servidor (ids reales, envío, etc.).
+        setCartItems(snapshot.items);
+        setCartSummary(snapshot.summary);
+        onStatusMessage?.(`${product.title} agregado al carrito.`, 'success');
+      } catch (error) {
+        // Revertimos el cambio optimista.
+        setCartItems(prevItems);
+        setCartSummary(prevSummary);
+        if (isStockError(error)) {
+          onStatusMessage?.(outOfStockMessage(product.stock), 'warning');
+        } else {
+          onStatusMessage?.('No pudimos agregar el producto al carrito.', 'error');
+        }
+        return false;
+      }
+
       return true;
     },
-    [accessToken, cartItems, cartPulse, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage, profile],
+    [accessToken, cartItems, cartSummary, cartPulse, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage, profile],
   );
 
   const changeQuantity = useCallback(
@@ -176,6 +211,18 @@ export function useCart({
         return;
       }
 
+      // UI optimista: aplicamos la nueva cantidad (o quitamos el item) al vuelo.
+      const prevItems = cartItems;
+      const prevSummary = cartSummary;
+      const nextItems = isRemoving
+        ? cartItems.filter((item) => item.product.id !== productId)
+        : cartItems.map((item) =>
+            item.product.id === productId ? { ...item, quantity } : item,
+          );
+
+      setCartItems(nextItems);
+      setCartSummary(optimisticSummary(nextItems, prevSummary));
+
       try {
         const snapshot =
           isRemoving
@@ -189,6 +236,9 @@ export function useCart({
           'success',
         );
       } catch (error) {
+        // Revertimos si el backend rechaza el cambio.
+        setCartItems(prevItems);
+        setCartSummary(prevSummary);
         if (isStockError(error)) {
           onStatusMessage?.(outOfStockMessage(currentItem.product.stock), 'warning');
         } else {
@@ -197,7 +247,7 @@ export function useCart({
         return;
       }
     },
-    [accessToken, cartItems, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage],
+    [accessToken, cartItems, cartSummary, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage],
   );
 
   const removeItem = useCallback((productId: string) => changeQuantity(productId, 0), [changeQuantity]);

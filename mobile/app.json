@@ -35,7 +35,8 @@
     },
     "plugins": [
       "expo-font",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-image"
     ]
   }
 }

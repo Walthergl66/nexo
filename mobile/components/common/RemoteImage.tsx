@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Image, StyleProp, ImageStyle } from 'react-native';
+import type { StyleProp } from 'react-native';
+import { Image, type ImageContentFit, type ImageStyle } from 'expo-image';
 import { buildSupabaseThumbnailUrl } from '../../utils/image';
 
 type RemoteImageProps = {
@@ -14,10 +15,21 @@ type RemoteImageProps = {
   onFinalError?: () => void;
 };
 
+const CONTENT_FIT: Record<NonNullable<RemoteImageProps['resizeMode']>, ImageContentFit> = {
+  cover: 'cover',
+  contain: 'contain',
+  center: 'none',
+  stretch: 'fill',
+};
+
 /**
  * Loads a Supabase-hosted image as a resized thumbnail, falling back to the
  * original URL if the transformation endpoint is unavailable, and finally
  * signalling `onFinalError` so callers can render their own placeholder.
+ *
+ * Rendimiento: usa expo-image con caché en memoria+disco, así que una imagen ya
+ * vista se pinta al instante sin volver a descargarse; el `transition` añade un
+ * fundido suave que disimula la latencia de la primera carga.
  */
 export function RemoteImage({
   uri,
@@ -37,14 +49,17 @@ export function RemoteImage({
   }
 
   const showOriginal = state.useOriginal || thumbnailUri === null;
-  const source = { uri: showOriginal ? uri : thumbnailUri };
+  const source = showOriginal ? uri : (thumbnailUri as string);
 
   return (
     <Image
       accessibilityLabel={accessibilityLabel}
       source={source}
       style={style}
-      resizeMode={resizeMode}
+      contentFit={CONTENT_FIT[resizeMode]}
+      transition={180}
+      cachePolicy="memory-disk"
+      recyclingKey={uri}
       onError={() => {
         if (!showOriginal) {
           setState({ uri, useOriginal: true });
