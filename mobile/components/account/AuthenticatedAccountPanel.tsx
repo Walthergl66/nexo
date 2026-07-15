@@ -99,8 +99,8 @@ export function AuthenticatedAccountPanel({
 
           <View style={styles.socialStats}>
             <ProfileStat label="Productos" value={String(products.length)} />
-            <ProfileStat label="activos" value={String(publishedProducts.length)} />
-            <ProfileStat label="ventas" value="0" />
+            <ProfileStat label="Activos" value={String(publishedProducts.length)} />
+            <ProfileStat label="Ventas" value="0" />
           </View>
 
           <View style={styles.profileHeaderActions}>
@@ -164,7 +164,9 @@ export function AuthenticatedAccountPanel({
             </Pressable>
           )}
         </View>
+      </View>
 
+      <View style={styles.profileContentCard}>
         <View style={styles.profileTabs}>
           <SectionTab
             icon="grid"

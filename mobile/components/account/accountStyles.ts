@@ -73,7 +73,16 @@ export const accountStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.large,
     padding: 16,
-    gap: 18,
+    gap: 16,
+    ...shadows.card,
+  },
+  // Segunda tarjeta: separa visualmente el perfil de sus publicaciones.
+  profileContentCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.large,
+    padding: 16,
+    gap: 14,
+    marginTop: 14,
     ...shadows.card,
   },
   socialHeader: {

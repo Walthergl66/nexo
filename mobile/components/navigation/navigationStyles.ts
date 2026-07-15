@@ -11,8 +11,10 @@ export const navigationStyles = StyleSheet.create({
     right: 0,
     top: 0,
     zIndex: 10,
-    // Mismo fondo que la app: el header se funde con el lienzo (sin barra de color).
-    backgroundColor: colors.background,
+    // Transparente: deja ver el mismo lienzo/AmbientBackground que hay detrás, así
+    // el header comparte exactamente el tono del fondo de la app (un color opaco
+    // tapaba los glows y se veía más plano/blanco que el cuerpo).
+    backgroundColor: 'transparent',
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 14,
