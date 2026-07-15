@@ -74,6 +74,7 @@ export const accountStyles = StyleSheet.create({
     borderRadius: radii.large,
     padding: 16,
     gap: 16,
+    marginTop: 30,
     ...shadows.card,
   },
   // Segunda tarjeta: separa visualmente el perfil de sus publicaciones.
