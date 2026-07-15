@@ -31,6 +31,7 @@ type AccountScreenProps = {
   isProfileLoading: boolean;
   catalogProducts: Product[];
   isAuthenticated: boolean;
+  ordersFocusSignal: number;
   onClearStatusMessage?: () => void;
   onConfirmAction?: (action: ConfirmActionRequest) => void;
   onStatusMessage?: (message: string, tone: StatusTone) => void;
@@ -50,6 +51,7 @@ export function AccountScreen({
   isProfileLoading,
   catalogProducts,
   isAuthenticated,
+  ordersFocusSignal,
   onClearStatusMessage,
   onConfirmAction,
   onStatusMessage,
@@ -514,6 +516,7 @@ export function AccountScreen({
           profile={profile}
           catalogProducts={catalogProducts}
           isAuthenticated={isAuthenticated}
+          ordersFocusSignal={ordersFocusSignal}
           accessToken={accessToken}
           onAddToCart={onAddToCart}
           onOpenProduct={onOpenProduct}

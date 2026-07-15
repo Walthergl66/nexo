@@ -21,6 +21,7 @@ type AuthenticatedAccountPanelProps = {
   catalogProducts: Product[];
   isAuthenticated: boolean;
   accessToken: string | null;
+  ordersFocusSignal: number;
   onAddToCart: (product: Product) => void | Promise<boolean>;
   onOpenProduct: (product: Product) => void;
   onStatusMessage?: (message: string, tone: StatusTone) => void;
@@ -36,6 +37,7 @@ export function AuthenticatedAccountPanel({
   catalogProducts,
   isAuthenticated,
   accessToken,
+  ordersFocusSignal,
   onAddToCart,
   onOpenProduct,
   onStatusMessage,
@@ -55,6 +57,13 @@ export function AuthenticatedAccountPanel({
     () => catalogProducts.filter((product) => isFavorite(product.id)),
     [catalogProducts, isFavorite],
   );
+
+  // Al crear una orden, App incrementa la senal para abrir aqui los pedidos.
+  useEffect(() => {
+    if (ordersFocusSignal > 0) {
+      setSection('orders');
+    }
+  }, [ordersFocusSignal]);
 
   const handleOpenSettings = () => {
     setIsProfileMenuOpen(false);

@@ -12,7 +12,6 @@ import { AccountScreen } from './app/account/AccountScreen';
 import { CartScreen } from './app/cart/CartScreen';
 import { HomeScreen } from './app/home/HomeScreen';
 import { NotificationsScreen } from './app/notifications/NotificationsScreen';
-import { OrdersScreen } from './app/orders/OrdersScreen';
 import { SellScreen } from './app/sell/SellScreen';
 import { useAuthSession } from './hooks/app/useAuthSession';
 import { useCart } from './hooks/app/useCart';
@@ -35,6 +34,7 @@ function AppShell() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [ordersFocusSignal, setOrdersFocusSignal] = useState(0);
   const [confirmAction, setConfirmAction] = useState<ConfirmActionRequest | null>(null);
   const [isConfirmResolving, setIsConfirmResolving] = useState(false);
   const [statusToast, setStatusToast] = useState<StatusMessage | null>(null);
@@ -79,9 +79,13 @@ function AppShell() {
     setActiveTab('Cuenta');
   }, []);
 
+  // Los pedidos viven dentro de la pestaña Cuenta: al crear una orden llevamos
+  // al usuario a su perfil y activamos la seccion de pedidos con esta senal.
   const goToOrders = useCallback(() => {
     setIsCartOpen(false);
-    setActiveTab('Pedidos');
+    setSelectedProductId(null);
+    setActiveTab('Cuenta');
+    setOrdersFocusSignal((current) => current + 1);
   }, []);
 
   const handleStatusMessage = useCallback((text: string, tone: StatusTone) => {
@@ -190,7 +194,7 @@ function AppShell() {
   });
 
   useEffect(() => {
-    if (!hasBusinessProfile && (activeTab === 'Vender' || activeTab === 'Pedidos')) {
+    if (!hasBusinessProfile && activeTab === 'Vender') {
       setActiveTab('Cuenta');
       setIsCartOpen(false);
       setSelectedProductId(null);
@@ -291,7 +295,7 @@ function AppShell() {
   const handleSelectTab = (tab: TabKey) => {
     setIsNotificationsOpen(false);
 
-    if (!hasBusinessProfile && (tab === 'Vender' || tab === 'Pedidos')) {
+    if (!hasBusinessProfile && tab === 'Vender') {
       setActiveTab('Cuenta');
       setIsCartOpen(false);
       setSelectedProductId(null);
@@ -369,13 +373,6 @@ function AppShell() {
             onStatusMessage={handleStatusMessage}
           />
         );
-      case 'Pedidos':
-        return (
-          <OrdersScreen
-            accessToken={hasBusinessProfile ? accessToken : null}
-            onStatusMessage={handleStatusMessage}
-          />
-        );
       case 'Cuenta':
         return (
           <AccountScreen
@@ -385,6 +382,7 @@ function AppShell() {
             isProfileLoading={isProfileLoading}
             catalogProducts={catalog.products}
             isAuthenticated={hasBusinessProfile}
+            ordersFocusSignal={ordersFocusSignal}
             onClearStatusMessage={handleClearStatusMessage}
             onConfirmAction={requestConfirmation}
             onStatusMessage={handleStatusMessage}
