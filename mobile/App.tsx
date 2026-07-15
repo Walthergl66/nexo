@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
@@ -475,9 +476,11 @@ function AppShell() {
 
 export default function App() {
   return (
-    <FavoritesProvider>
-      <AppShell />
-    </FavoritesProvider>
+    <SafeAreaProvider>
+      <FavoritesProvider>
+        <AppShell />
+      </FavoritesProvider>
+    </SafeAreaProvider>
   );
 }
 
