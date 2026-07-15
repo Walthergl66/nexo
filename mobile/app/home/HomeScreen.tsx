@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { RemoteImage } from '../../components/common/RemoteImage';
 import { PressableScale } from '../../components/common/PressableScale';
+import { Skeleton } from '../../components/common/Skeleton';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
 import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
@@ -147,9 +148,9 @@ function ProductSkeletonGrid() {
     <View style={styles.productGrid}>
       {[0, 1, 2, 3].map((item) => (
         <View key={item} style={[styles.productCell, styles.skeletonCard]}>
-          <View style={styles.skeletonVisual} />
-          <View style={styles.skeletonLineLarge} />
-          <View style={styles.skeletonLineSmall} />
+          <Skeleton style={styles.skeletonVisual} />
+          <Skeleton style={styles.skeletonLineLarge} />
+          <Skeleton style={styles.skeletonLineSmall} />
         </View>
       ))}
     </View>
@@ -305,7 +306,9 @@ export function HomeScreen({
 
       {!isLoading && filteredProducts.length === 0 && (
         <View style={styles.emptyState}>
-          <Ionicons name="search-outline" size={24} color={colors.inkMuted} />
+          <View style={styles.emptyIcon}>
+            <Ionicons name="search-outline" size={26} color={colors.brandBlue} />
+          </View>
           <Text style={styles.emptyTitle}>No encontramos productos</Text>
           <Text style={styles.emptyText}>Prueba otra categoría o una búsqueda más corta.</Text>
         </View>
@@ -322,17 +325,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: 16,
-    ...shadows.card,
   },
   searchInput: {
     flex: 1,
-    height: 48,
+    height: 50,
     color: colors.ink,
+    fontSize: 14,
     fontWeight: '500',
   },
   filterRow: {
@@ -348,7 +351,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
@@ -522,15 +525,15 @@ const styles = StyleSheet.create({
   },
   resultsTitle: {
     color: colors.ink,
-    fontSize: 19,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     letterSpacing: -0.5,
   },
   resultsSubtitle: {
     color: colors.inkMuted,
     fontSize: 12,
     fontWeight: '500',
-    marginTop: 3,
+    marginTop: 4,
   },
   syncLabel: {
     color: colors.inkSoft,
@@ -540,18 +543,17 @@ const styles = StyleSheet.create({
   productGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 14,
   },
   productCell: {
-    width: '48%',
+    width: '47.5%',
   },
   skeletonCard: {
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.line,
     backgroundColor: colors.surface,
-    padding: 10,
+    padding: 12,
     gap: 10,
+    ...shadows.card,
   },
   skeletonVisual: {
     height: 126,
@@ -572,12 +574,21 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     borderRadius: 20,
-    padding: 24,
+    padding: 28,
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    gap: 7,
+    gap: 9,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandBlueSoft,
+    marginBottom: 4,
   },
   emptyTitle: {
     color: colors.ink,

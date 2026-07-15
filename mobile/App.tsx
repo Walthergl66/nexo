@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingTop: 2,
     paddingBottom: 142,
   },
@@ -513,6 +513,6 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   screenTransition: {
-    gap: 14,
+    gap: 18,
   },
 });

@@ -20,6 +20,7 @@ export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: Ca
   const translateY = useRef(new Animated.Value(10)).current;
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(item.product.imageUrl) && !hasImageError;
+  const lineTotal = item.product.price * item.quantity;
 
   useEffect(() => {
     Animated.parallel([
@@ -47,49 +48,56 @@ export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: Ca
           <RemoteImage
             accessibilityLabel={`Imagen de ${item.product.title}`}
             uri={item.product.imageUrl as string}
-            width={120}
+            width={160}
             style={styles.itemImage}
             onFinalError={() => setHasImageError(true)}
           />
         ) : (
-          <Ionicons name="bag-handle" size={26} color={colors.brandBlue} />
+          <Ionicons name="bag-handle" size={28} color={colors.brandBlue} />
         )}
       </View>
+
       <View style={styles.itemContent}>
-        <Text numberOfLines={2} style={styles.itemTitle}>
-          {item.product.title}
+        <View style={styles.itemTitleRow}>
+          <Text numberOfLines={2} style={styles.itemTitle}>
+            {item.product.title}
+          </Text>
+          <PressableScale
+            accessibilityLabel={`Eliminar ${item.product.title}`}
+            activeScale={0.88}
+            style={styles.removeButton}
+            onPress={() => onRemoveItem(item.product.id)}
+          >
+            <Ionicons name="close" size={16} color={colors.inkMuted} />
+          </PressableScale>
+        </View>
+
+        <Text numberOfLines={1} style={styles.itemMeta}>
+          {item.product.seller} · {formatPrice(item.product.price)} c/u
         </Text>
-        <Text style={styles.itemMeta}>
-          {item.product.category} / {item.product.seller}
-        </Text>
-        <Text style={styles.itemPrice}>{formatPrice(item.product.price)}</Text>
-      </View>
-      <View style={styles.itemActions}>
-        <PressableScale
-          accessibilityLabel={`Quitar una unidad de ${item.product.title}`}
-          activeScale={0.88}
-          style={styles.quantityButton}
-          onPress={() => onChangeQuantity(item.product.id, item.quantity - 1)}
-        >
-          <Ionicons name="remove" size={14} color={colors.brandBlue} />
-        </PressableScale>
-        <Text style={styles.quantity}>{item.quantity}</Text>
-        <PressableScale
-          accessibilityLabel={`Agregar una unidad de ${item.product.title}`}
-          activeScale={0.88}
-          style={styles.quantityButton}
-          onPress={() => onChangeQuantity(item.product.id, item.quantity + 1)}
-        >
-          <Ionicons name="add" size={14} color={colors.brandBlue} />
-        </PressableScale>
-        <PressableScale
-          accessibilityLabel={`Eliminar ${item.product.title}`}
-          activeScale={0.88}
-          style={styles.removeButton}
-          onPress={() => onRemoveItem(item.product.id)}
-        >
-          <Ionicons name="trash-outline" size={16} color={colors.inkMuted} />
-        </PressableScale>
+
+        <View style={styles.itemFooterRow}>
+          <View style={styles.stepper}>
+            <PressableScale
+              accessibilityLabel={`Quitar una unidad de ${item.product.title}`}
+              activeScale={0.9}
+              style={styles.stepperButton}
+              onPress={() => onChangeQuantity(item.product.id, item.quantity - 1)}
+            >
+              <Ionicons name="remove" size={16} color={colors.brandBlue} />
+            </PressableScale>
+            <Text style={styles.stepperValue}>{item.quantity}</Text>
+            <PressableScale
+              accessibilityLabel={`Agregar una unidad de ${item.product.title}`}
+              activeScale={0.9}
+              style={styles.stepperButton}
+              onPress={() => onChangeQuantity(item.product.id, item.quantity + 1)}
+            >
+              <Ionicons name="add" size={16} color={colors.brandBlue} />
+            </PressableScale>
+          </View>
+          <Text style={styles.itemLineTotal}>{formatPrice(lineTotal)}</Text>
+        </View>
       </View>
     </Animated.View>
   );

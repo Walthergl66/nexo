@@ -43,7 +43,12 @@ export function ProductDetailCard({
           <Ionicons name="chevron-back" size={18} color={colors.ink} />
           <Text style={styles.backText}>Volver</Text>
         </Pressable>
-        <Text style={styles.statusText}>{product.available ? 'Disponible' : 'Agotado'}</Text>
+        <View style={[styles.statusPill, !product.available && styles.statusPillOff]}>
+          <View style={[styles.statusDot, !product.available && styles.statusDotOff]} />
+          <Text style={[styles.statusText, !product.available && styles.statusTextOff]}>
+            {product.available ? 'Disponible' : 'Agotado'}
+          </Text>
+        </View>
       </View>
 
       <Text style={styles.title}>{product.title}</Text>
@@ -85,10 +90,10 @@ export function ProductDetailCard({
           </View>
         </View>
         <View style={styles.infoItem}>
-          <Ionicons name="pricetag-outline" size={16} color={colors.brandBlue} />
+          <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
           <View style={styles.infoCopy}>
-            <Text style={styles.infoLabel}>Categoria</Text>
-            <Text numberOfLines={1} style={styles.infoValue}>{product.category}</Text>
+            <Text style={styles.infoLabel}>Envio</Text>
+            <Text numberOfLines={1} style={styles.infoValue}>Gratis y protegido</Text>
           </View>
         </View>
       </View>
@@ -139,11 +144,9 @@ export function ProductDetailCard({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: 26,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: 14,
+    borderRadius: 24,
+    padding: 18,
+    gap: 18,
     ...shadows.card,
   },
   topRow: {
@@ -162,10 +165,36 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandBlueSoft,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  statusPillOff: {
+    backgroundColor: colors.surfaceSoft,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.brandBlue,
+  },
+  statusDotOff: {
+    backgroundColor: colors.inkSoft,
+  },
   statusText: {
-    color: colors.ink,
+    color: colors.brandBlue,
     fontSize: 10,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  statusTextOff: {
+    color: colors.inkMuted,
   },
   title: {
     color: colors.ink,
@@ -238,16 +267,14 @@ const styles = StyleSheet.create({
   infoItem: {
     flex: 1,
     minWidth: 138,
-    minHeight: 56,
+    minHeight: 58,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.line,
     backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
   },
   infoCopy: {
     flex: 1,

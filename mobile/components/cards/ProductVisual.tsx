@@ -119,15 +119,13 @@ export function ProductVisual({ product, showFavorite = false, imageWidth = 500 
 
 const styles = StyleSheet.create({
   visual: {
-    height: 138,
+    height: 140,
     borderRadius: 14,
     backgroundColor: colors.silverSoft,
-    marginBottom: 10,
+    marginBottom: 12,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: colors.line,
   },
   productImage: {
     ...StyleSheet.absoluteFillObject,

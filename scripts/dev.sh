@@ -97,7 +97,7 @@ echo "Levantando admin (Next.js)..."
 PIDS+=($!)
 
 echo "Levantando mobile (Expo)..."
-(cd "$MOBILE_DIR" && npm run start) &
+(cd "$MOBILE_DIR" && npx expo start --clear) &
 PIDS+=($!)
 
 echo ""

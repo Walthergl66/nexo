@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { ProductVisual } from './ProductVisual';
 import { PressableScale } from '../common/PressableScale';
 import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
@@ -19,14 +19,15 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
   const addLabel = isAuthenticated ? `Agregar ${product.title} al carrito` : `Iniciar sesion para comprar ${product.title}`;
   const { isAdded, progress, run } = useAddToCartFeedback(onAddToCart);
 
-  const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.09, 1], extrapolate: 'clamp' });
+  const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
   const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
   const successOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityLabel={`Ver detalle de ${product.title}`}
-      style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}
+      activeScale={0.98}
+      style={styles.container}
       onPress={onSelectProduct}
     >
       <ProductVisual product={product} showFavorite imageWidth={500} />
@@ -77,7 +78,7 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
           </PressableScale>
         )}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -85,14 +86,9 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 10,
+    padding: 12,
     overflow: 'hidden',
     ...shadows.card,
-  },
-  containerPressed: {
-    transform: [{ scale: 0.97 }],
   },
   title: {
     fontSize: 14,
