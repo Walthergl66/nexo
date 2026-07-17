@@ -9,11 +9,15 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { RemoteImage } from '../../components/common/RemoteImage';
+import { PressableScale } from '../../components/common/PressableScale';
+import { Skeleton } from '../../components/common/Skeleton';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
+import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -29,7 +33,8 @@ type HomeScreenProps = {
   productsCount: number;
   search: string;
   selectedProduct: Product | null;
-  onAddToCart: (product: Product) => void;
+  myProfileId?: string | null;
+  onAddToCart: (product: Product) => void | Promise<boolean>;
   onBackToCatalog: () => void;
   onChangeFilter: (filter: string) => void;
   onChangeSearch: (value: string) => void;
@@ -41,13 +46,15 @@ function AnimatedProductCell({
   index,
   product,
   isAuthenticated,
+  isOwn,
   onAddToCart,
   onSelectProduct,
 }: {
   index: number;
   product: Product;
   isAuthenticated: boolean;
-  onAddToCart: () => void;
+  isOwn: boolean;
+  onAddToCart: () => void | Promise<boolean>;
   onSelectProduct: () => void;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -79,6 +86,7 @@ function AnimatedProductCell({
       <ProductCard
         product={product}
         isAuthenticated={isAuthenticated}
+        isOwn={isOwn}
         onAddToCart={onAddToCart}
         onSelectProduct={onSelectProduct}
       />
@@ -86,25 +94,103 @@ function AnimatedProductCell({
   );
 }
 
-function FeaturedVisual({ product }: { product: Product }) {
-  const [hasImageError, setHasImageError] = useState(false);
-  const showRealImage = Boolean(product.imageUrl) && !hasImageError;
+function FeaturedBuyButton({ onBuy }: { onBuy: () => void | Promise<boolean> }) {
+  const { isAdded, progress, run } = useAddToCartFeedback(onBuy);
+  const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
+  const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
+  const successOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
 
   return (
-    <View style={styles.featuredVisual}>
-      <View style={styles.featuredHalo} />
-      {showRealImage ? (
-        <RemoteImage
-          accessibilityLabel={`Imagen de ${product.title}`}
-          uri={product.imageUrl as string}
-          width={320}
-          style={styles.featuredImage}
-          onFinalError={() => setHasImageError(true)}
-        />
-      ) : (
-        <Ionicons name="bag-handle-outline" size={88} color={colors.surface} />
-      )}
-    </View>
+    <PressableScale
+      style={[styles.featuredButton, isAdded && styles.featuredButtonSuccess]}
+      onPress={(event) => {
+        event.stopPropagation();
+        void run();
+      }}
+    >
+      <Animated.Text style={[styles.featuredButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+        Comprar ahora
+      </Animated.Text>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.featuredButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+      >
+        <Ionicons name="checkmark-circle" size={15} color={colors.surface} />
+        <Text style={styles.featuredButtonText}>Agregado</Text>
+      </Animated.View>
+    </PressableScale>
+  );
+}
+
+// Fondos pastel suaves que rotan por tarjeta (estilo carrusel ecommerce). Usan
+// tokens existentes: cada uno es una tinta clara sobre la que el texto oscuro
+// contrasta bien, sin introducir colores nuevos a la paleta.
+const FEATURED_BACKGROUNDS = [
+  colors.brandBlueSoft,
+  colors.success,
+  colors.accentSoft,
+  colors.warning,
+];
+
+function FeaturedCard({
+  product,
+  index,
+  width,
+  isOwn,
+  onAddToCart,
+  onSelectProduct,
+}: {
+  product: Product;
+  index: number;
+  width: number;
+  isOwn: boolean;
+  onAddToCart: () => void | Promise<boolean>;
+  onSelectProduct: () => void;
+}) {
+  const [hasImageError, setHasImageError] = useState(false);
+  const showRealImage = Boolean(product.imageUrl) && !hasImageError;
+  const background = FEATURED_BACKGROUNDS[index % FEATURED_BACKGROUNDS.length];
+
+  return (
+    <PressableScale
+      accessibilityLabel={`Ver detalle de ${product.title}`}
+      activeScale={0.985}
+      style={[styles.featuredCard, { width, backgroundColor: background }]}
+      onPress={onSelectProduct}
+    >
+      <View style={styles.featuredCopy}>
+        <Text style={styles.featuredCategory}>{product.category}</Text>
+        <Text numberOfLines={2} style={styles.featuredTitle}>{product.title}</Text>
+        <View style={styles.featuredSellerRow}>
+          <Ionicons name="storefront-outline" size={12} color={colors.inkMuted} />
+          <Text numberOfLines={1} style={styles.featuredSeller}>{product.seller}</Text>
+        </View>
+        <Text style={styles.featuredPrice}>{formatPrice(product.price)}</Text>
+        {isOwn ? (
+          <View style={styles.featuredOwnTag}>
+            <Ionicons name="storefront" size={13} color={colors.ink} />
+            <Text style={styles.featuredOwnTagText}>Tu producto</Text>
+          </View>
+        ) : (
+          <FeaturedBuyButton onBuy={onAddToCart} />
+        )}
+      </View>
+      <View style={styles.featuredImageWrap}>
+        {showRealImage ? (
+          <RemoteImage
+            accessibilityLabel={`Imagen de ${product.title}`}
+            uri={product.imageUrl as string}
+            width={520}
+            style={styles.featuredImage}
+            onFinalError={() => setHasImageError(true)}
+          />
+        ) : (
+          <View style={styles.featuredImageFallback}>
+            <Ionicons name="bag-handle-outline" size={56} color={colors.inkSoft} />
+          </View>
+        )}
+      </View>
+    </PressableScale>
   );
 }
 
@@ -113,9 +199,9 @@ function ProductSkeletonGrid() {
     <View style={styles.productGrid}>
       {[0, 1, 2, 3].map((item) => (
         <View key={item} style={[styles.productCell, styles.skeletonCard]}>
-          <View style={styles.skeletonVisual} />
-          <View style={styles.skeletonLineLarge} />
-          <View style={styles.skeletonLineSmall} />
+          <Skeleton style={styles.skeletonVisual} />
+          <Skeleton style={styles.skeletonLineLarge} />
+          <Skeleton style={styles.skeletonLineSmall} />
         </View>
       ))}
     </View>
@@ -133,6 +219,7 @@ export function HomeScreen({
   productsCount,
   search,
   selectedProduct,
+  myProfileId,
   onAddToCart,
   onBackToCatalog,
   onChangeFilter,
@@ -140,11 +227,16 @@ export function HomeScreen({
   onRefreshCatalog,
   onSelectProduct,
 }: HomeScreenProps) {
+  const { width: screenWidth } = useWindowDimensions();
+  const isOwnProduct = (product: Product) =>
+    Boolean(myProfileId) && product.ownerProfileId === myProfileId;
+
   if (selectedProduct) {
     return (
       <ProductDetailCard
         product={selectedProduct}
         isAuthenticated={isAuthenticated}
+        isOwn={isOwnProduct(selectedProduct)}
         onAddToCart={() => onAddToCart(selectedProduct)}
         onBack={onBackToCatalog}
       />
@@ -152,38 +244,19 @@ export function HomeScreen({
   }
 
   const availableProducts = filteredProducts.filter((product) => product.available).length;
-  const featuredProduct = filteredProducts[0] ?? null;
-  const catalogProducts = featuredProduct ? filteredProducts.slice(1) : filteredProducts;
+  // Destacados en carrusel: 4 si hay catálogo amplio, 1 si es medio, ninguno si
+  // hay muy pocos (para no dejar la parrilla "Recomendados" vacía).
+  const featuredCount = filteredProducts.length >= 6 ? 4 : filteredProducts.length >= 3 ? 1 : 0;
+  const featuredProducts = isLoading ? [] : filteredProducts.slice(0, featuredCount);
+  const catalogProducts = filteredProducts.slice(featuredProducts.length);
+  // Ancho de tarjeta con un "peek" de la siguiente para invitar al swipe.
+  const featuredCardWidth = Math.round(screenWidth - 72);
   const syncLabel = lastSyncAt
     ? `Actualizado ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Conectando';
 
   return (
     <>
-      <View style={styles.introRow}>
-        <View style={styles.introOrbLarge} />
-        <View style={styles.introOrbSmall} />
-        <View style={styles.introCopy}>
-          <Text style={styles.introEyebrow}>NEXO MARKET</Text>
-          <Text style={styles.introTitle}>Encuentra algo único.</Text>
-          <View style={styles.trustPill}>
-            <View style={styles.trustDot} />
-            <Text style={styles.trustText}>Marketplace verificado</Text>
-          </View>
-        </View>
-        <Pressable
-          accessibilityLabel="Actualizar catálogo"
-          style={({ pressed }) => [styles.refreshButton, pressed && styles.pressFeedback]}
-          onPress={onRefreshCatalog}
-        >
-          {isRefreshing ? (
-            <ActivityIndicator size="small" color={colors.ink} />
-          ) : (
-            <Ionicons name="refresh-outline" size={18} color={colors.ink} />
-          )}
-        </Pressable>
-      </View>
-
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={18} color={colors.inkMuted} />
         <TextInput
@@ -193,7 +266,17 @@ export function HomeScreen({
           value={search}
           onChangeText={onChangeSearch}
         />
-        <Ionicons name="options-outline" size={18} color={colors.inkMuted} />
+        <Pressable
+          accessibilityLabel="Actualizar catálogo"
+          style={({ pressed }) => pressed && styles.pressFeedback}
+          onPress={onRefreshCatalog}
+        >
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color={colors.inkMuted} />
+          ) : (
+            <Ionicons name="refresh-outline" size={18} color={colors.inkMuted} />
+          )}
+        </Pressable>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -220,35 +303,27 @@ export function HomeScreen({
         })}
       </ScrollView>
 
-      {featuredProduct && !isLoading && (
-        <Pressable
-          accessibilityLabel={`Ver detalle de ${featuredProduct.title}`}
-          style={({ pressed }) => [styles.featuredCard, pressed && styles.featuredCardPressed]}
-          onPress={() => onSelectProduct(featuredProduct)}
+      {featuredProducts.length > 0 && !isLoading && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={featuredCardWidth + 12}
+          snapToAlignment="start"
+          contentContainerStyle={styles.featuredRow}
         >
-          <View style={styles.featuredOrbitLarge} />
-          <View style={styles.featuredOrbitSmall} />
-          <View style={styles.featuredSpark} />
-          <View style={styles.featuredCopy}>
-            <Text style={styles.featuredCategory}>{featuredProduct.category}</Text>
-            <Text numberOfLines={3} style={styles.featuredTitle}>{featuredProduct.title}</Text>
-            <View style={styles.featuredSellerRow}>
-              <Ionicons name="storefront-outline" size={12} color={colors.surface} />
-              <Text numberOfLines={1} style={styles.featuredSeller}>{featuredProduct.seller}</Text>
-            </View>
-            <Text style={styles.featuredPrice}>{formatPrice(featuredProduct.price)}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.featuredButton, pressed && styles.pressFeedback]}
-              onPress={(event) => {
-                event.stopPropagation();
-                onAddToCart(featuredProduct);
-              }}
-            >
-              <Text style={styles.featuredButtonText}>Comprar ahora</Text>
-            </Pressable>
-          </View>
-          <FeaturedVisual product={featuredProduct} />
-        </Pressable>
+          {featuredProducts.map((product, index) => (
+            <FeaturedCard
+              key={product.id}
+              product={product}
+              index={index}
+              width={featuredCardWidth}
+              isOwn={isOwnProduct(product)}
+              onAddToCart={() => onAddToCart(product)}
+              onSelectProduct={() => onSelectProduct(product)}
+            />
+          ))}
+        </ScrollView>
       )}
 
       <View style={styles.resultsHeader}>
@@ -270,6 +345,7 @@ export function HomeScreen({
               key={product.id}
               index={index}
               isAuthenticated={isAuthenticated}
+              isOwn={isOwnProduct(product)}
               product={product}
               onAddToCart={() => onAddToCart(product)}
               onSelectProduct={() => onSelectProduct(product)}
@@ -280,7 +356,9 @@ export function HomeScreen({
 
       {!isLoading && filteredProducts.length === 0 && (
         <View style={styles.emptyState}>
-          <Ionicons name="search-outline" size={24} color={colors.inkMuted} />
+          <View style={styles.emptyIcon}>
+            <Ionicons name="search-outline" size={26} color={colors.brandBlue} />
+          </View>
           <Text style={styles.emptyTitle}>No encontramos productos</Text>
           <Text style={styles.emptyText}>Prueba otra categoría o una búsqueda más corta.</Text>
         </View>
@@ -290,89 +368,6 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  introRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 132,
-    borderRadius: 24,
-    padding: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-    overflow: 'hidden',
-    ...shadows.card,
-  },
-  introCopy: {
-    flex: 1,
-    zIndex: 2,
-  },
-  introOrbLarge: {
-    position: 'absolute',
-    width: 152,
-    height: 152,
-    borderRadius: 76,
-    right: -74,
-    top: -70,
-    backgroundColor: colors.brandBlueSoft,
-  },
-  introOrbSmall: {
-    position: 'absolute',
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    right: -18,
-    bottom: -42,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
-  },
-  introEyebrow: {
-    color: colors.brandAccent,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-  },
-  introTitle: {
-    color: colors.ink,
-    fontSize: 26,
-    fontWeight: '600',
-    letterSpacing: -1.1,
-    marginTop: 4,
-  },
-  trustPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlueSoft,
-  },
-  trustDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.brandAccent,
-  },
-  trustText: {
-    color: colors.brandBlue,
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  refreshButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.card,
-    zIndex: 2,
-  },
   pressFeedback: {
     transform: [{ scale: 0.96 }],
   },
@@ -380,17 +375,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: 16,
-    ...shadows.card,
   },
   searchInput: {
     flex: 1,
-    height: 48,
+    height: 50,
     color: colors.ink,
+    fontSize: 14,
     fontWeight: '500',
   },
   filterRow: {
@@ -406,7 +401,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
@@ -427,123 +422,112 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '600',
   },
+  featuredRow: {
+    gap: 12,
+    paddingVertical: 2,
+    paddingRight: 4,
+  },
   featuredCard: {
-    minHeight: 214,
+    height: 196,
     borderRadius: 24,
-    backgroundColor: colors.primarySoft,
-    padding: 20,
     overflow: 'hidden',
     flexDirection: 'row',
-    ...shadows.floating,
-  },
-  featuredOrbitLarge: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    right: -92,
-    top: -80,
-    borderWidth: 1,
-    borderColor: colors.brandBlueMuted,
-    opacity: 0.42,
-  },
-  featuredOrbitSmall: {
-    position: 'absolute',
-    width: 148,
-    height: 148,
-    borderRadius: 74,
-    right: -32,
-    bottom: -70,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    opacity: 0.32,
-  },
-  featuredSpark: {
-    position: 'absolute',
-    width: 46,
-    height: 5,
-    borderRadius: 3,
-    right: 32,
-    top: 28,
-    backgroundColor: colors.brandAccent,
-    opacity: 0.65,
-    transform: [{ rotate: '-42deg' }],
-  },
-  featuredCardPressed: {
-    transform: [{ scale: 0.985 }],
+    alignItems: 'stretch',
+    ...shadows.card,
   },
   featuredCopy: {
     flex: 1,
-    zIndex: 2,
+    minWidth: 0,
+    padding: 20,
     justifyContent: 'center',
   },
   featuredCategory: {
-    color: colors.accent,
+    color: colors.inkMuted,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   featuredTitle: {
-    color: colors.surface,
-    fontSize: 24,
-    lineHeight: 27,
-    fontWeight: '600',
-    letterSpacing: -0.8,
+    color: colors.ink,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: '700',
+    letterSpacing: -0.6,
     marginTop: 8,
-    maxWidth: 190,
   },
   featuredSellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     marginTop: 8,
-    maxWidth: 190,
   },
   featuredSeller: {
     flex: 1,
-    color: colors.surface,
+    color: colors.inkMuted,
     fontSize: 11,
     fontWeight: '600',
-    opacity: 0.9,
   },
   featuredPrice: {
-    color: colors.surface,
-    fontSize: 18,
-    fontWeight: '600',
+    color: colors.ink,
+    fontSize: 19,
+    fontWeight: '700',
     marginTop: 8,
   },
   featuredButton: {
     alignSelf: 'flex-start',
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginTop: 18,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    marginTop: 16,
   },
-  featuredButtonText: {
-    color: colors.brandBlue,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  featuredVisual: {
-    width: 122,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featuredHalo: {
-    position: 'absolute',
-    width: 116,
-    height: 116,
-    borderRadius: 58,
+  featuredButtonSuccess: {
     backgroundColor: colors.brandBlue,
   },
+  featuredOwnTag: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginTop: 16,
+  },
+  featuredOwnTagText: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  featuredButtonSuccessLayer: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  featuredButtonText: {
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  featuredImageWrap: {
+    width: 148,
+    alignSelf: 'stretch',
+  },
   featuredImage: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 2,
-    borderColor: colors.surface,
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  featuredImageFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resultsHeader: {
     flexDirection: 'row',
@@ -553,15 +537,15 @@ const styles = StyleSheet.create({
   },
   resultsTitle: {
     color: colors.ink,
-    fontSize: 19,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     letterSpacing: -0.5,
   },
   resultsSubtitle: {
     color: colors.inkMuted,
     fontSize: 12,
     fontWeight: '500',
-    marginTop: 3,
+    marginTop: 4,
   },
   syncLabel: {
     color: colors.inkSoft,
@@ -571,18 +555,17 @@ const styles = StyleSheet.create({
   productGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 14,
   },
   productCell: {
-    width: '48%',
+    width: '47.5%',
   },
   skeletonCard: {
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.line,
     backgroundColor: colors.surface,
-    padding: 10,
+    padding: 12,
     gap: 10,
+    ...shadows.card,
   },
   skeletonVisual: {
     height: 126,
@@ -603,12 +586,21 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     borderRadius: 20,
-    padding: 24,
+    padding: 28,
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    gap: 7,
+    gap: 9,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandBlueSoft,
+    marginBottom: 4,
   },
   emptyTitle: {
     color: colors.ink,

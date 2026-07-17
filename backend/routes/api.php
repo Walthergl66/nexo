@@ -8,9 +8,16 @@ use App\Modules\Cart\Http\Controllers\UpdateCartItemController;
 use App\Modules\Categories\Http\Controllers\CreateCategoryController;
 use App\Modules\Categories\Http\Controllers\ListCategoriesController;
 use App\Modules\Categories\Http\Controllers\UpdateCategoryController;
+use App\Modules\Notifications\Http\Controllers\ListNotificationsController;
+use App\Modules\Notifications\Http\Controllers\MarkAllNotificationsReadController;
+use App\Modules\Notifications\Http\Controllers\MarkNotificationReadController;
+use App\Modules\Notifications\Http\Controllers\RegisterPushTokenController;
 use App\Modules\Orders\Http\Controllers\CreateOrderFromCartController;
 use App\Modules\Orders\Http\Controllers\ListOrdersController;
+use App\Modules\Orders\Http\Controllers\ListSellerSalesController;
+use App\Modules\Orders\Http\Controllers\PayOrderController;
 use App\Modules\Orders\Http\Controllers\ShowOrderController;
+use App\Modules\Orders\Http\Controllers\UpdateSaleStatusController;
 use App\Modules\Products\Http\Controllers\CreateProductController;
 use App\Modules\Products\Http\Controllers\ListMyProductsController;
 use App\Modules\Products\Http\Controllers\ListProductsController;
@@ -63,9 +70,18 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::delete('/cart/items/{cartItem}', RemoveCartItemController::class);
     Route::delete('/cart', ClearCartController::class);
 
+    Route::get('/seller/sales', ListSellerSalesController::class);
+    Route::patch('/seller/sales/{orderItem}', UpdateSaleStatusController::class);
+
     Route::get('/orders', ListOrdersController::class);
     Route::post('/orders/from-cart', CreateOrderFromCartController::class);
+    Route::post('/orders/{order}/pay', PayOrderController::class);
     Route::get('/orders/{order}', ShowOrderController::class);
+
+    Route::get('/notifications', ListNotificationsController::class);
+    Route::post('/notifications/read-all', MarkAllNotificationsReadController::class);
+    Route::post('/notifications/{notification}/read', MarkNotificationReadController::class);
+    Route::post('/me/push-token', RegisterPushTokenController::class);
 
     Route::get('/admin/seller-verification-requests', ListSellerVerificationRequestsController::class);
     Route::patch('/admin/seller-verification-requests/{sellerVerificationRequest}', ReviewSellerVerificationRequestController::class);

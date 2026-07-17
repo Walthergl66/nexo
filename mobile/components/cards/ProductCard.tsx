@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { ProductVisual } from './ProductVisual';
+import { PressableScale } from '../common/PressableScale';
+import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -8,17 +10,24 @@ import { formatPrice } from '../../utils/format';
 type ProductCardProps = {
   product: Product;
   isAuthenticated: boolean;
-  onAddToCart: () => void;
+  isOwn?: boolean;
+  onAddToCart: () => void | Promise<boolean>;
   onSelectProduct: () => void;
 };
 
-export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectProduct }: ProductCardProps) {
+export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCart, onSelectProduct }: ProductCardProps) {
   const addLabel = isAuthenticated ? `Agregar ${product.title} al carrito` : `Iniciar sesion para comprar ${product.title}`;
+  const { isAdded, progress, run } = useAddToCartFeedback(onAddToCart);
+
+  const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
+  const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
+  const successOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityLabel={`Ver detalle de ${product.title}`}
-      style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}
+      activeScale={0.98}
+      style={styles.container}
       onPress={onSelectProduct}
     >
       <ProductVisual product={product} showFavorite imageWidth={500} />
@@ -37,23 +46,39 @@ export function ProductCard({ product, isAuthenticated, onAddToCart, onSelectPro
           <Text style={styles.price}>{formatPrice(product.price)}</Text>
           <Text style={styles.priceHint}>{product.stock} disponibles</Text>
         </View>
-        <Pressable
-          accessibilityLabel={addLabel}
-          disabled={!product.available}
-          style={({ pressed }) => [
-            styles.addButton,
-            !product.available && styles.addButtonDisabled,
-            pressed && styles.addButtonPressed,
-          ]}
-          onPress={(event) => {
-            event.stopPropagation();
-            onAddToCart();
-          }}
-        >
-          <Text style={styles.addButtonText}>{isAuthenticated ? 'Comprar' : 'Entrar'}</Text>
-        </Pressable>
+        {isOwn ? (
+          <View style={styles.ownTag}>
+            <Ionicons name="storefront" size={11} color={colors.brandBlue} />
+            <Text style={styles.ownTagText}>Tu producto</Text>
+          </View>
+        ) : (
+          <PressableScale
+            accessibilityLabel={addLabel}
+            disabled={!product.available}
+            style={[
+              styles.addButton,
+              !product.available && styles.addButtonDisabled,
+              isAdded && styles.addButtonSuccess,
+            ]}
+            onPress={(event) => {
+              event.stopPropagation();
+              void run();
+            }}
+          >
+            <Animated.Text style={[styles.addButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+              {isAuthenticated ? 'Comprar' : 'Entrar'}
+            </Animated.Text>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.addButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+            >
+              <Ionicons name="checkmark" size={13} color={colors.surface} />
+              <Text style={styles.addButtonSuccessText}>Listo</Text>
+            </Animated.View>
+          </PressableScale>
+        )}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -61,14 +86,9 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 10,
+    padding: 12,
     overflow: 'hidden',
     ...shadows.card,
-  },
-  containerPressed: {
-    transform: [{ scale: 0.97 }],
   },
   title: {
     fontSize: 14,
@@ -119,12 +139,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inkSoft,
     shadowOpacity: 0,
   },
-  addButtonPressed: {
-    transform: [{ scale: 0.96 }],
+  addButtonSuccess: {
+    backgroundColor: colors.brandAccent,
   },
   addButtonText: {
     color: colors.surface,
     fontSize: 9,
     fontWeight: '600',
+  },
+  addButtonSuccessLayer: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  addButtonSuccessText: {
+    color: colors.surface,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  ownTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 30,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
+    paddingHorizontal: 10,
+  },
+  ownTagText: {
+    color: colors.brandBlue,
+    fontSize: 9,
+    fontWeight: '700',
   },
 });

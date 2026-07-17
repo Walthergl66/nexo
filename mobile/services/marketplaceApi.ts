@@ -1,13 +1,43 @@
-import type { CartItem, Order, Product } from '../types/marketplace';
+import type {
+  AppNotification,
+  CartItem,
+  CartSummary,
+  ItemFulfillmentStatus,
+  NotificationType,
+  Order,
+  Product,
+  Sale,
+} from '../types/marketplace';
 import {
   mapApiCartItemsToCartItems,
+  mapApiCartSummary,
   mapApiOrderToOrder,
   mapApiProductToProduct,
+  mapApiSale,
 } from './marketplaceMapper';
 
 type ApiCollection<T> = {
   data: T[];
+  meta?: unknown;
 };
+
+export type CartSnapshot = {
+  items: CartItem[];
+  summary: CartSummary;
+};
+
+const EMPTY_CART_SUMMARY: CartSummary = {
+  subtotal: 0,
+  shipping: 0,
+  total: 0,
+  currency: 'USD',
+  itemCount: 0,
+};
+
+export const emptyCartSnapshot = (): CartSnapshot => ({
+  items: [],
+  summary: { ...EMPTY_CART_SUMMARY },
+});
 
 type ApiDocument<T> = {
   data: T;
@@ -100,7 +130,22 @@ async function getApiErrorMessage(response: Response): Promise<string> {
   return 'No pudimos completar la solicitud. Intenta nuevamente.';
 }
 
+// Traducciones de los mensajes de validacion del backend (en ingles) a espanol.
+const TRANSLATED_MESSAGES: Array<{ match: RegExp; text: string }> = [
+  { match: /enough stock/i, text: 'Uno de los productos ya no tiene stock suficiente. Ajusta la cantidad o quitalo del carrito.' },
+  { match: /unavailable products/i, text: 'Tu carrito tiene productos que ya no estan disponibles. Quitalos para continuar.' },
+  { match: /inactive stores/i, text: 'Tu carrito tiene productos de una tienda inactiva. Quitalos para continuar.' },
+  { match: /multiple currencies/i, text: 'No puedes comprar productos en monedas distintas en la misma orden.' },
+  { match: /cart is empty/i, text: 'Tu carrito esta vacio.' },
+];
+
 function toPublicErrorMessage(message: string): string {
+  const translation = TRANSLATED_MESSAGES.find((entry) => entry.match.test(message));
+
+  if (translation) {
+    return translation.text;
+  }
+
   const lowerMessage = message.toLowerCase();
   const technicalWords = [
     'api',
@@ -208,19 +253,22 @@ export type SellerCenterResource = {
   store: StoreResource | null;
 };
 
-export async function fetchCart(token?: string): Promise<CartItem[]> {
+export async function fetchCart(token?: string): Promise<CartSnapshot> {
   if (!token) {
-    return [];
+    return emptyCartSnapshot();
   }
 
   const response = await request<ApiCollection<unknown>>('/cart', { token });
 
-  return mapApiCartItemsToCartItems(response.data);
+  return {
+    items: mapApiCartItemsToCartItems(response.data),
+    summary: mapApiCartSummary(response.meta),
+  };
 }
 
-export async function addProductToCart(productId: string, quantity = 1, token?: string): Promise<CartItem[]> {
+export async function addProductToCart(productId: string, quantity = 1, token?: string): Promise<CartSnapshot> {
   if (!token) {
-    return [];
+    return emptyCartSnapshot();
   }
 
   await request<ApiDocument<unknown>>('/cart/items', {
@@ -232,9 +280,9 @@ export async function addProductToCart(productId: string, quantity = 1, token?: 
   return fetchCart(token);
 }
 
-export async function updateCartItemQuantity(cartItemId: string, quantity: number, token?: string): Promise<CartItem[]> {
+export async function updateCartItemQuantity(cartItemId: string, quantity: number, token?: string): Promise<CartSnapshot> {
   if (!token) {
-    return [];
+    return emptyCartSnapshot();
   }
 
   await request<ApiDocument<unknown>>(`/cart/items/${cartItemId}`, {
@@ -246,9 +294,9 @@ export async function updateCartItemQuantity(cartItemId: string, quantity: numbe
   return fetchCart(token);
 }
 
-export async function removeCartItem(cartItemId: string, token?: string): Promise<CartItem[]> {
+export async function removeCartItem(cartItemId: string, token?: string): Promise<CartSnapshot> {
   if (!token) {
-    return [];
+    return emptyCartSnapshot();
   }
 
   await request<void>(`/cart/items/${cartItemId}`, {
@@ -268,6 +316,78 @@ export async function createOrderFromCart(token?: string): Promise<Order> {
   return mapApiOrderToOrder(response.data);
 }
 
+export async function payOrder(orderId: string, token?: string): Promise<Order> {
+  const response = await request<ApiDocument<unknown>>(`/orders/${orderId}/pay`, {
+    method: 'POST',
+    token,
+  });
+
+  return mapApiOrderToOrder(response.data);
+}
+
+export type NotificationsSnapshot = {
+  notifications: AppNotification[];
+  unreadCount: number;
+};
+
+const NOTIFICATION_TYPES: NotificationType[] = ['sale', 'payment_confirmed', 'order_status', 'cart_stock'];
+
+function mapApiNotification(raw: unknown): AppNotification {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  const type = value.type as NotificationType;
+
+  return {
+    id: String(value.id ?? ''),
+    type: NOTIFICATION_TYPES.includes(type) ? type : 'order_status',
+    title: String(value.title ?? ''),
+    body: String(value.body ?? ''),
+    data: value.data && typeof value.data === 'object' ? (value.data as Record<string, unknown>) : {},
+    readAt: typeof value.read_at === 'string' ? value.read_at : null,
+    createdAt: typeof value.created_at === 'string' ? value.created_at : null,
+  };
+}
+
+export async function fetchNotifications(token?: string): Promise<NotificationsSnapshot> {
+  if (!token) {
+    return { notifications: [], unreadCount: 0 };
+  }
+
+  const response = await request<ApiCollection<unknown> & { unread_count?: unknown }>('/notifications', { token });
+
+  return {
+    notifications: (response.data ?? []).map(mapApiNotification),
+    unreadCount: Number(response.unread_count ?? 0),
+  };
+}
+
+export async function markNotificationRead(notificationId: string, token?: string): Promise<void> {
+  if (!token) {
+    return;
+  }
+
+  await request<ApiDocument<unknown>>(`/notifications/${notificationId}/read`, { method: 'POST', token });
+}
+
+export async function markAllNotificationsRead(token?: string): Promise<void> {
+  if (!token) {
+    return;
+  }
+
+  await request<ApiDocument<unknown>>('/notifications/read-all', { method: 'POST', token });
+}
+
+export async function registerPushToken(pushToken: string | null, token?: string): Promise<void> {
+  if (!token) {
+    return;
+  }
+
+  await request<ApiDocument<unknown>>('/me/push-token', {
+    method: 'POST',
+    token,
+    body: { push_token: pushToken },
+  });
+}
+
 export async function fetchOrders(token?: string): Promise<Order[]> {
   if (!token) {
     return [];
@@ -276,6 +396,30 @@ export async function fetchOrders(token?: string): Promise<Order[]> {
   const response = await request<ApiCollection<unknown>>('/orders', { token });
 
   return response.data.map(mapApiOrderToOrder);
+}
+
+export async function fetchSellerSales(token?: string): Promise<Sale[]> {
+  if (!token) {
+    return [];
+  }
+
+  const response = await request<ApiCollection<unknown>>('/seller/sales', { token });
+
+  return (response.data ?? []).map(mapApiSale);
+}
+
+export async function advanceSaleStatus(
+  saleId: string,
+  status: ItemFulfillmentStatus,
+  token?: string,
+): Promise<Sale> {
+  const response = await request<ApiDocument<unknown>>(`/seller/sales/${saleId}`, {
+    method: 'PATCH',
+    token,
+    body: { status },
+  });
+
+  return mapApiSale(response.data);
 }
 
 export async function fetchProfile(token?: string): Promise<ProfileResource | null> {

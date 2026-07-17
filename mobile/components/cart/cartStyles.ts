@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native';
-import { colors, radii } from '../../theme/colors';
+import { colors, radii, shadows } from '../../theme/colors';
 
 export const cartStyles = StyleSheet.create({
   container: {
-    gap: 14,
+    gap: 16,
   },
   headerRow: {
     flexDirection: 'row',
@@ -30,89 +30,98 @@ export const cartStyles = StyleSheet.create({
     marginTop: 2,
   },
   list: {
-    gap: 10,
+    gap: 12,
   },
   itemCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
     borderRadius: radii.medium,
-    borderWidth: 1,
-    borderColor: colors.line,
     backgroundColor: colors.surface,
-    padding: 12,
-    shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 3,
+    padding: 14,
+    ...shadows.card,
   },
   itemIcon: {
-    width: 48,
-    height: 48,
+    width: 64,
+    height: 64,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.brandBlueSoft,
+    overflow: 'hidden',
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
   },
   itemContent: {
     flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  itemTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   itemTitle: {
+    flex: 1,
     color: colors.ink,
     fontSize: 14,
+    lineHeight: 18,
     fontWeight: '700',
   },
   itemMeta: {
     color: colors.inkMuted,
     fontSize: 11,
-    marginTop: 3,
+    fontWeight: '600',
   },
-  itemPrice: {
-    color: colors.brandBlue,
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 6,
-  },
-  itemActions: {
+  itemFooterRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 4,
   },
-  quantityButton: {
-    width: 26,
-    height: 26,
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
+  },
+  stepperButton: {
+    width: 32,
+    height: 32,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
   },
-  quantityButtonPressed: {
-    transform: [{ scale: 0.92 }],
-    backgroundColor: colors.brandBlueSoft,
-  },
-  quantity: {
+  stepperValue: {
+    minWidth: 22,
+    textAlign: 'center',
     color: colors.ink,
     fontSize: 14,
     fontWeight: '700',
   },
+  itemLineTotal: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   removeButton: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  removeButtonPressed: {
-    transform: [{ scale: 0.92 }],
-    backgroundColor: colors.silverSoft,
-  },
   summary: {
-    gap: 10,
-    padding: 14,
-    borderRadius: radii.medium,
+    gap: 12,
+    padding: 18,
+    borderRadius: radii.large,
     backgroundColor: colors.brandBlueSoft,
-    borderWidth: 1,
-    borderColor: colors.brandBlueLine,
   },
   summaryTitle: {
     color: colors.ink,
@@ -121,10 +130,10 @@ export const cartStyles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.line,
+    backgroundColor: colors.brandBlueLine,
   },
   checkoutButton: {
-    height: 48,
+    height: 52,
     borderRadius: radii.pill,
     backgroundColor: colors.brandBlue,
     alignItems: 'center',
@@ -132,10 +141,10 @@ export const cartStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     shadowColor: colors.brandBlue,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 5,
   },
   checkoutButtonPressed: {
     transform: [{ scale: 0.97 }],

@@ -1,22 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { OrderCard } from '../../components/cards/OrderCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { fetchOrders } from '../../services/marketplaceApi';
+import { fetchOrders, payOrder } from '../../services/marketplaceApi';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Order } from '../../types/marketplace';
+import type { StatusTone } from '../../types/status';
 
 type OrdersScreenProps = {
   accessToken: string | null;
+  onStatusMessage?: (message: string, tone: StatusTone) => void;
 };
 
-export function OrdersScreen({ accessToken }: OrdersScreenProps) {
+const CLOSED_STATUSES: Order['status'][] = ['delivered', 'cancelled'];
+
+export function OrdersScreen({ accessToken, onStatusMessage }: OrdersScreenProps) {
   const [remoteOrders, setRemoteOrders] = useState<Order[]>([]);
+  const [payingId, setPayingId] = useState<string | null>(null);
   const isAuthenticated = accessToken !== null;
-  const activeOrders = remoteOrders.filter((order) => order.status !== 'Entregado').length;
-  const deliveredOrders = remoteOrders.length - activeOrders;
+  const activeOrders = remoteOrders.filter((order) => !CLOSED_STATUSES.includes(order.status)).length;
+  const deliveredOrders = remoteOrders.filter((order) => order.status === 'delivered').length;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -42,6 +47,27 @@ export function OrdersScreen({ accessToken }: OrdersScreenProps) {
       isMounted = false;
     };
   }, [accessToken, isAuthenticated]);
+
+  const handlePay = useCallback(
+    async (orderId: string) => {
+      if (!accessToken) {
+        return;
+      }
+
+      setPayingId(orderId);
+
+      try {
+        const updated = await payOrder(orderId, accessToken);
+        setRemoteOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)));
+        onStatusMessage?.('Pago confirmado.', 'success');
+      } catch {
+        onStatusMessage?.('No pudimos confirmar el pago. Intenta nuevamente.', 'error');
+      } finally {
+        setPayingId(null);
+      }
+    },
+    [accessToken, onStatusMessage],
+  );
 
   if (!isAuthenticated) {
     return (
@@ -85,7 +111,14 @@ export function OrdersScreen({ accessToken }: OrdersScreenProps) {
 
       {remoteOrders.length > 0 ? (
         <View style={styles.orderList}>
-          {remoteOrders.map((order) => <OrderCard key={order.id} order={order} />)}
+          {remoteOrders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              isPaying={payingId === order.id}
+              onPay={handlePay}
+            />
+          ))}
         </View>
       ) : (
         <View style={styles.logicList}>

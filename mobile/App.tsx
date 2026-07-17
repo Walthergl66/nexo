@@ -1,6 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { StatusToast } from './components/common/StatusToast';
@@ -10,10 +12,12 @@ import { tabs } from './constants/navigation';
 import { AccountScreen } from './app/account/AccountScreen';
 import { CartScreen } from './app/cart/CartScreen';
 import { HomeScreen } from './app/home/HomeScreen';
-import { OrdersScreen } from './app/orders/OrdersScreen';
+import { NotificationsScreen } from './app/notifications/NotificationsScreen';
 import { SellScreen } from './app/sell/SellScreen';
 import { useAuthSession } from './hooks/app/useAuthSession';
 import { useCart } from './hooks/app/useCart';
+import { useNotifications } from './hooks/app/useNotifications';
+import { usePushNotifications } from './hooks/app/usePushNotifications';
 import { useCatalog } from './hooks/app/useCatalog';
 import { useProfile } from './hooks/app/useProfile';
 import { usePasswordRecoveryDeepLink } from './hooks/app/usePasswordRecoveryDeepLink';
@@ -24,11 +28,14 @@ import { signOut } from './services/authService';
 import { colors } from './theme/colors';
 import type { Product, TabKey } from './types/marketplace';
 import type { ConfirmActionRequest, StatusMessage, StatusTone } from './types/status';
+import { formatPrice } from './utils/format';
 
-export default function App() {
+function AppShell() {
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [ordersFocusSignal, setOrdersFocusSignal] = useState(0);
   const [confirmAction, setConfirmAction] = useState<ConfirmActionRequest | null>(null);
   const [isConfirmResolving, setIsConfirmResolving] = useState(false);
   const [statusToast, setStatusToast] = useState<StatusMessage | null>(null);
@@ -38,6 +45,7 @@ export default function App() {
   const handleTokenChange = useCallback(() => {
     setSelectedProductId(null);
     setIsCartOpen(false);
+    setIsNotificationsOpen(false);
   }, []);
 
   const { accessToken, isSessionReady, setAccessToken } = useAuthSession(handleTokenChange);
@@ -72,9 +80,13 @@ export default function App() {
     setActiveTab('Cuenta');
   }, []);
 
+  // Los pedidos viven dentro de la pestaña Cuenta: al crear una orden llevamos
+  // al usuario a su perfil y activamos la seccion de pedidos con esta senal.
   const goToOrders = useCallback(() => {
     setIsCartOpen(false);
-    setActiveTab('Pedidos');
+    setSelectedProductId(null);
+    setActiveTab('Cuenta');
+    setOrdersFocusSignal((current) => current + 1);
   }, []);
 
   const handleStatusMessage = useCallback((text: string, tone: StatusTone) => {
@@ -89,6 +101,17 @@ export default function App() {
     onRequireAccount: goToAccount,
     onOrderPlaced: goToOrders,
     onStatusMessage: handleStatusMessage,
+  });
+
+  const notificationsState = useNotifications({
+    accessToken,
+    isEnabled: hasBusinessProfile,
+  });
+
+  usePushNotifications({
+    accessToken,
+    isEnabled: hasBusinessProfile,
+    onNotificationReceived: notificationsState.refresh,
   });
 
   const handlePasswordRecovery = useCallback(
@@ -160,8 +183,8 @@ export default function App() {
   );
 
   const isProductPresentation = activeTab === 'Inicio';
-  const screenTransitionKey = `${activeTab}-${isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !selectedProduct;
+  const screenTransitionKey = `${activeTab}-${isNotificationsOpen ? 'notificaciones' : isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
+  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen;
 
   const nav = useBottomNavAnimations({ activeTab, visibleActiveIndex, tabCount: visibleTabs.length });
   const header = useHeaderVisibility(shouldShowHeader);
@@ -172,7 +195,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (!hasBusinessProfile && (activeTab === 'Vender' || activeTab === 'Pedidos')) {
+    if (!hasBusinessProfile && activeTab === 'Vender') {
       setActiveTab('Cuenta');
       setIsCartOpen(false);
       setSelectedProductId(null);
@@ -182,6 +205,14 @@ export default function App() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProductId(product.id);
     setIsCartOpen(false);
+  };
+
+  // Abrir el detalle de un producto desde la pestaña Cuenta (p. ej. Favoritos).
+  const handleOpenProductFromAccount = (product: Product) => {
+    setActiveTab('Inicio');
+    setIsCartOpen(false);
+    setIsNotificationsOpen(false);
+    setSelectedProductId(product.id);
   };
 
   const handleBackToCatalog = () => {
@@ -199,7 +230,20 @@ export default function App() {
 
     setActiveTab('Inicio');
     setSelectedProductId(null);
+    setIsNotificationsOpen(false);
     setIsCartOpen(true);
+  };
+
+  const handleOpenNotifications = () => {
+    setActiveTab('Inicio');
+    setSelectedProductId(null);
+    setIsCartOpen(false);
+    setIsNotificationsOpen(true);
+    notificationsState.refresh();
+  };
+
+  const handleCloseNotifications = () => {
+    setIsNotificationsOpen(false);
   };
 
   const handleRefreshCatalog = () => {
@@ -223,6 +267,20 @@ export default function App() {
     });
   };
 
+  const handleCheckout = () => {
+    if (cart.cartItems.length === 0) {
+      return;
+    }
+
+    requestConfirmation({
+      title: 'Confirmar compra',
+      description: `Se creara tu orden por ${formatPrice(cart.cartSummary.total)} (envio incluido) y confirmaremos el pago. Deseas continuar?`,
+      confirmLabel: 'Pagar',
+      cancelLabel: 'Cancelar',
+      onConfirm: () => cart.checkout(),
+    });
+  };
+
   const handleRemoveCartItem = (productId: string) => {
     const item = cart.cartItems.find((cartItem) => cartItem.product.id === productId);
     requestConfirmation({
@@ -236,7 +294,9 @@ export default function App() {
   };
 
   const handleSelectTab = (tab: TabKey) => {
-    if (!hasBusinessProfile && (tab === 'Vender' || tab === 'Pedidos')) {
+    setIsNotificationsOpen(false);
+
+    if (!hasBusinessProfile && tab === 'Vender') {
       setActiveTab('Cuenta');
       setIsCartOpen(false);
       setSelectedProductId(null);
@@ -253,15 +313,27 @@ export default function App() {
   };
 
   const renderActiveScreen = () => {
+    if (isNotificationsOpen) {
+      return (
+        <NotificationsScreen
+          notifications={notificationsState.notifications}
+          unreadCount={notificationsState.unreadCount}
+          onBack={handleCloseNotifications}
+          onMarkRead={notificationsState.markRead}
+          onMarkAllRead={notificationsState.markAllRead}
+        />
+      );
+    }
+
     if (isCartOpen) {
       return (
         <CartScreen
           isAuthenticated={hasBusinessProfile}
           items={cart.cartItems}
-          shipping={4.99}
+          summary={cart.cartSummary}
           onBackToCatalog={handleBackToCatalog}
           onChangeQuantity={handleChangeCartQuantity}
-          onCheckout={cart.checkout}
+          onCheckout={handleCheckout}
           onRemoveItem={handleRemoveCartItem}
         />
       );
@@ -281,6 +353,7 @@ export default function App() {
             search={catalog.search}
             selectedProduct={selectedProduct}
             isAuthenticated={hasBusinessProfile}
+            myProfileId={profile?.id ?? null}
             onAddToCart={cart.addToCart}
             onBackToCatalog={handleBackToCatalog}
             onChangeFilter={catalog.setActiveFilter}
@@ -301,8 +374,6 @@ export default function App() {
             onStatusMessage={handleStatusMessage}
           />
         );
-      case 'Pedidos':
-        return <OrdersScreen accessToken={hasBusinessProfile ? accessToken : null} />;
       case 'Cuenta':
         return (
           <AccountScreen
@@ -310,10 +381,15 @@ export default function App() {
             profile={profile}
             profileError={profileError}
             isProfileLoading={isProfileLoading}
+            catalogProducts={catalog.products}
+            isAuthenticated={hasBusinessProfile}
+            ordersFocusSignal={ordersFocusSignal}
             onClearStatusMessage={handleClearStatusMessage}
             onConfirmAction={requestConfirmation}
             onStatusMessage={handleStatusMessage}
             onExplore={() => setActiveTab('Inicio')}
+            onAddToCart={cart.addToCart}
+            onOpenProduct={handleOpenProductFromAccount}
             passwordResetKey={passwordResetKey}
             onProfileChange={onProfileChange}
             onRetryProfile={retryProfile}
@@ -334,8 +410,12 @@ export default function App() {
             cartPulse={cart.cartPulse}
             headerOpacity={header.headerVisibility}
             headerTranslateY={header.headerTranslateY}
+            userName={profile?.first_name ?? profile?.display_name ?? null}
             showCart={hasBusinessProfile}
             onOpenCart={handleOpenCart}
+            showNotifications={hasBusinessProfile}
+            unreadCount={notificationsState.unreadCount}
+            onOpenNotifications={handleOpenNotifications}
           />
         )}
 
@@ -395,6 +475,16 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <FavoritesProvider>
+        <AppShell />
+      </FavoritesProvider>
+    </SafeAreaProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -413,7 +503,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingTop: 2,
     paddingBottom: 142,
   },
@@ -427,6 +517,6 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   screenTransition: {
-    gap: 14,
+    gap: 18,
   },
 });

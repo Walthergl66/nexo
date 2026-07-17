@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchCategoryNames, fetchProducts, type ProfileResource } from '../../services/marketplaceApi';
+import { isSupabaseConfigured, supabase } from '../../services/supabaseClient';
 import type { Product, TabKey } from '../../types/marketplace';
 import { CATALOG_AUTO_REFRESH_MS, REFRESH_THROTTLE_MS } from '../../constants/app';
+
+// Claves de caché en disco: permiten pintar el último catálogo conocido al
+// instante mientras la red revalida (patrón stale-while-revalidate).
+const CATALOG_CACHE_KEY = 'nexo.catalog.products.v1';
+const FILTERS_CACHE_KEY = 'nexo.catalog.filters.v1';
 
 type UseCatalogParams = {
   accessToken: string | null;
@@ -31,8 +38,12 @@ function applyCatalogFilters(sourceProducts: Product[], filter: string, query: s
 /**
  * Fetches and filters the public product catalog for the home tab, including
  * category chips, throttled manual refresh, and background auto-refresh.
+ *
+ * Rendimiento: hidrata desde caché en disco para pintado inmediato, revalida en
+ * red sin bloquear, y NUNCA descarta los datos ya cargados ante un fallo puntual
+ * (un error de red deja el último catálogo bueno en pantalla en vez de vaciarlo).
  */
-export function useCatalog({ accessToken, profile, profileError, isSessionReady, activeTab }: UseCatalogParams) {
+export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalogParams) {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [filters, setFilters] = useState<string[]>(['Todo']);
@@ -44,6 +55,7 @@ export function useCatalog({ accessToken, profile, profileError, isSessionReady,
   const [catalogRequestKey, setCatalogRequestKey] = useState(0);
   const hasLoadedCatalog = useRef(false);
   const lastCatalogRefreshRequestAt = useRef(0);
+  const realtimeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshCatalog = useCallback(() => {
     const now = Date.now();
@@ -56,12 +68,63 @@ export function useCatalog({ accessToken, profile, profileError, isSessionReady,
     setCatalogRequestKey((current) => current + 1);
   }, []);
 
+  // Hidratación desde caché: pinta el último catálogo conocido de inmediato para
+  // que abrir la app no muestre skeleton en frío mientras llega la red.
+  useEffect(() => {
+    let active = true;
+
+    AsyncStorage.multiGet([CATALOG_CACHE_KEY, FILTERS_CACHE_KEY])
+      .then((entries) => {
+        if (!active || hasLoadedCatalog.current) {
+          return;
+        }
+
+        const cache = Object.fromEntries(entries) as Record<string, string | null>;
+
+        try {
+          const cachedProducts = cache[CATALOG_CACHE_KEY]
+            ? (JSON.parse(cache[CATALOG_CACHE_KEY] as string) as Product[])
+            : null;
+
+          if (Array.isArray(cachedProducts) && cachedProducts.length > 0) {
+            setProducts(cachedProducts);
+            // Marcamos como cargado: la próxima respuesta de red será un refresh
+            // silencioso, no un "initial load" que reactive el skeleton.
+            hasLoadedCatalog.current = true;
+            setIsLoading(false);
+          }
+        } catch {
+          // Caché corrupta: se ignora y la red repuebla.
+        }
+
+        try {
+          const cachedFilters = cache[FILTERS_CACHE_KEY]
+            ? (JSON.parse(cache[FILTERS_CACHE_KEY] as string) as string[])
+            : null;
+
+          if (Array.isArray(cachedFilters) && cachedFilters.length > 1) {
+            setFilters(cachedFilters);
+          }
+        } catch {
+          // Igual: se ignora.
+        }
+      })
+      .catch(() => {
+        // Sin caché disponible: seguimos con la carga normal desde red.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     const isInitialLoad = !hasLoadedCatalog.current;
-    const shouldDeferCatalog = accessToken !== null && profile === null && profileError === null;
 
-    if (!isSessionReady || activeTab !== 'Inicio' || shouldDeferCatalog) {
+    // El catálogo es público: NO lo bloqueamos esperando el perfil. Se carga en
+    // paralelo con /me para que los usuarios logueados no esperen dos peticiones.
+    if (!isSessionReady || activeTab !== 'Inicio') {
       if (!hasLoadedCatalog.current) {
         setIsLoading(false);
       }
@@ -86,9 +149,12 @@ export function useCatalog({ accessToken, profile, profileError, isSessionReady,
         setProducts(nextProducts);
         setLastSyncAt(new Date());
         hasLoadedCatalog.current = true;
+        AsyncStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(nextProducts)).catch(() => {});
       })
       .catch(() => {
-        if (isMounted) {
+        // Clave de robustez: un fallo puntual NO borra el catálogo ya visible.
+        // Solo mostramos vacío si nunca logramos cargar nada.
+        if (isMounted && !hasLoadedCatalog.current) {
           setProducts([]);
         }
       })
@@ -102,13 +168,12 @@ export function useCatalog({ accessToken, profile, profileError, isSessionReady,
     return () => {
       isMounted = false;
     };
-  }, [accessToken, activeTab, catalogRequestKey, isSessionReady, profile, profileError]);
+  }, [accessToken, activeTab, catalogRequestKey, isSessionReady]);
 
   useEffect(() => {
     let isMounted = true;
-    const shouldDeferCatalog = accessToken !== null && profile === null && profileError === null;
 
-    if (!isSessionReady || activeTab !== 'Inicio' || shouldDeferCatalog) {
+    if (!isSessionReady || activeTab !== 'Inicio') {
       return () => {
         isMounted = false;
       };
@@ -116,24 +181,61 @@ export function useCatalog({ accessToken, profile, profileError, isSessionReady,
 
     fetchCategoryNames()
       .then((names) => {
-        if (isMounted) {
-          setFilters(['Todo', ...names]);
+        if (!isMounted) {
+          return;
         }
+
+        const nextFilters = ['Todo', ...names];
+        setFilters(nextFilters);
+        AsyncStorage.setItem(FILTERS_CACHE_KEY, JSON.stringify(nextFilters)).catch(() => {});
       })
       .catch(() => {
-        if (isMounted) {
-          setFilters(['Todo']);
-        }
+        // No tocamos los filtros ya cargados si la red falla puntualmente.
       });
 
     return () => {
       isMounted = false;
     };
-  }, [accessToken, activeTab, catalogRequestKey, isSessionReady, profile, profileError]);
+  }, [accessToken, activeTab, catalogRequestKey, isSessionReady]);
 
   useEffect(() => {
     setFilteredProducts(applyCatalogFilters(products, activeFilter, search));
   }, [activeFilter, products, search]);
+
+  // Realtime: en vez de esperar al siguiente poll, escuchamos los cambios de la
+  // tabla de productos (y sus imágenes) y refrescamos al instante. Si Supabase no
+  // está configurado o la tabla no está en la publicación realtime, no llega nada
+  // y el polling de abajo sigue actuando como red de seguridad. Sin riesgo.
+  useEffect(() => {
+    if (!isSupabaseConfigured || activeTab !== 'Inicio' || !isSessionReady) {
+      return undefined;
+    }
+
+    const scheduleSync = () => {
+      if (realtimeDebounce.current) {
+        clearTimeout(realtimeDebounce.current);
+      }
+      // Pequeño debounce: agrupa ráfagas de cambios en un solo refresh y evita
+      // el throttle de refreshCatalog (esto es un evento en vivo, no un poll).
+      realtimeDebounce.current = setTimeout(() => {
+        setCatalogRequestKey((current) => current + 1);
+      }, 400);
+    };
+
+    const channel = supabase
+      .channel('catalog-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, scheduleSync)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images' }, scheduleSync)
+      .subscribe();
+
+    return () => {
+      if (realtimeDebounce.current) {
+        clearTimeout(realtimeDebounce.current);
+        realtimeDebounce.current = null;
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [activeTab, isSessionReady]);
 
   useEffect(() => {
     if (activeTab !== 'Inicio' || !isSessionReady) {

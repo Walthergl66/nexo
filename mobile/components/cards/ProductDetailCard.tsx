@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '../common/RemoteImage';
+import { PressableScale } from '../common/PressableScale';
+import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 import { formatPrice } from '../../utils/format';
@@ -9,19 +11,26 @@ import { formatPrice } from '../../utils/format';
 type ProductDetailCardProps = {
   product: Product;
   isAuthenticated: boolean;
-  onAddToCart: () => void;
+  isOwn?: boolean;
+  onAddToCart: () => void | Promise<boolean>;
   onBack: () => void;
 };
 
 export function ProductDetailCard({
   product,
   isAuthenticated,
+  isOwn = false,
   onAddToCart,
   onBack,
 }: ProductDetailCardProps) {
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(product.imageUrl) && !hasImageError;
   const stockLabel = product.stock === 1 ? '1 disponible' : `${product.stock} disponibles`;
+  const { isAdded, progress, run } = useAddToCartFeedback(onAddToCart);
+
+  const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
+  const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
+  const successOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
 
   return (
     <View style={styles.container}>
@@ -34,7 +43,12 @@ export function ProductDetailCard({
           <Ionicons name="chevron-back" size={18} color={colors.ink} />
           <Text style={styles.backText}>Volver</Text>
         </Pressable>
-        <Text style={styles.statusText}>{product.available ? 'Disponible' : 'Agotado'}</Text>
+        <View style={[styles.statusPill, !product.available && styles.statusPillOff]}>
+          <View style={[styles.statusDot, !product.available && styles.statusDotOff]} />
+          <Text style={[styles.statusText, !product.available && styles.statusTextOff]}>
+            {product.available ? 'Disponible' : 'Agotado'}
+          </Text>
+        </View>
       </View>
 
       <Text style={styles.title}>{product.title}</Text>
@@ -76,10 +90,10 @@ export function ProductDetailCard({
           </View>
         </View>
         <View style={styles.infoItem}>
-          <Ionicons name="pricetag-outline" size={16} color={colors.brandBlue} />
+          <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
           <View style={styles.infoCopy}>
-            <Text style={styles.infoLabel}>Categoria</Text>
-            <Text numberOfLines={1} style={styles.infoValue}>{product.category}</Text>
+            <Text style={styles.infoLabel}>Envio</Text>
+            <Text numberOfLines={1} style={styles.infoValue}>Gratis y protegido</Text>
           </View>
         </View>
       </View>
@@ -89,24 +103,40 @@ export function ProductDetailCard({
         <Text style={styles.description}>{product.description}</Text>
       </View>
 
-      <View style={styles.bottomActions}>
-        <View style={styles.protection}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
-          <Text style={styles.protectionText}>Compra protegida</Text>
+      {isOwn ? (
+        <View style={styles.ownBanner}>
+          <Ionicons name="storefront-outline" size={18} color={colors.brandBlue} />
+          <Text style={styles.ownBannerText}>Este es tu producto. Gestiona sus ventas desde la pestana Vender.</Text>
         </View>
-        <Pressable
-          disabled={!product.available}
-          style={({ pressed }) => [
-            styles.addCartButton,
-            !product.available && styles.addCartButtonDisabled,
-            pressed && styles.pressed,
-          ]}
-          onPress={onAddToCart}
-        >
-          <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
-          <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
-        </Pressable>
-      </View>
+      ) : (
+        <View style={styles.bottomActions}>
+          <View style={styles.protection}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
+            <Text style={styles.protectionText}>Compra protegida</Text>
+          </View>
+          <PressableScale
+            disabled={!product.available}
+            style={[
+              styles.addCartButton,
+              !product.available && styles.addCartButtonDisabled,
+              isAdded && styles.addCartButtonSuccess,
+            ]}
+            onPress={() => void run()}
+          >
+            <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+              <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
+              <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
+            </Animated.View>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+            >
+              <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
+              <Text style={styles.addCartText}>Agregado</Text>
+            </Animated.View>
+          </PressableScale>
+        </View>
+      )}
     </View>
   );
 }
@@ -114,11 +144,9 @@ export function ProductDetailCard({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: 26,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: 14,
+    borderRadius: 24,
+    padding: 18,
+    gap: 18,
     ...shadows.card,
   },
   topRow: {
@@ -137,10 +165,36 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandBlueSoft,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  statusPillOff: {
+    backgroundColor: colors.surfaceSoft,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.brandBlue,
+  },
+  statusDotOff: {
+    backgroundColor: colors.inkSoft,
+  },
   statusText: {
-    color: colors.ink,
+    color: colors.brandBlue,
     fontSize: 10,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  statusTextOff: {
+    color: colors.inkMuted,
   },
   title: {
     color: colors.ink,
@@ -213,16 +267,14 @@ const styles = StyleSheet.create({
   infoItem: {
     flex: 1,
     minWidth: 138,
-    minHeight: 56,
+    minHeight: 58,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.line,
     backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
   },
   infoCopy: {
     flex: 1,
@@ -290,11 +342,40 @@ const styles = StyleSheet.create({
   addCartButtonDisabled: {
     backgroundColor: colors.inkSoft,
   },
+  addCartButtonSuccess: {
+    backgroundColor: colors.brandAccent,
+  },
+  addCartInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  addCartSuccessLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
   pressed: {
     transform: [{ scale: 0.97 }],
   },
   addCartText: {
     color: colors.surface,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  ownBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  ownBannerText: {
+    flex: 1,
+    color: colors.brandBlue,
     fontSize: 11,
     fontWeight: '700',
   },

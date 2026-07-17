@@ -1,17 +1,32 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
+import { ProductCard } from '../cards/ProductCard';
 import { SellerProductCard } from '../cards/SellerProductCard';
+import { Skeleton } from '../common/Skeleton';
 import { Tag } from '../common/Tag';
+import { OrdersScreen } from '../../app/orders/OrdersScreen';
+import { useFavorites } from '../../context/FavoritesContext';
 import type { ProfileResource } from '../../services/marketplaceApi';
 import type { Product } from '../../types/marketplace';
+import type { StatusTone } from '../../types/status';
 import { colors } from '../../theme/colors';
 import { accountStyles as styles } from './accountStyles';
+
+type ProfileSection = 'posts' | 'favorites' | 'orders';
 
 type AuthenticatedAccountPanelProps = {
   isLoggingOut: boolean;
   products: Product[];
+  isLoadingProducts: boolean;
   profile: ProfileResource;
+  catalogProducts: Product[];
+  isAuthenticated: boolean;
+  accessToken: string | null;
+  ordersFocusSignal: number;
+  onAddToCart: (product: Product) => void | Promise<boolean>;
+  onOpenProduct: (product: Product) => void;
+  onStatusMessage?: (message: string, tone: StatusTone) => void;
   onLogout: () => void;
   onOpenSettings: () => void;
   onSell: () => void;
@@ -20,7 +35,15 @@ type AuthenticatedAccountPanelProps = {
 export function AuthenticatedAccountPanel({
   isLoggingOut,
   products,
+  isLoadingProducts,
   profile,
+  catalogProducts,
+  isAuthenticated,
+  accessToken,
+  ordersFocusSignal,
+  onAddToCart,
+  onOpenProduct,
+  onStatusMessage,
   onLogout,
   onOpenSettings,
   onSell,
@@ -28,9 +51,22 @@ export function AuthenticatedAccountPanel({
   const canRequestSellerVerification = profile.role === 'buyer' && profile.verification_status !== 'suspended';
   const initials = useMemo(() => getInitials(profile), [profile]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [section, setSection] = useState<ProfileSection>('posts');
   const roleLabel = getRoleLabel(profile.role);
   const statusLabel = getVerificationLabel(profile.verification_status);
   const publishedProducts = products.filter((product) => product.available);
+  const { isFavorite } = useFavorites();
+  const favoriteProducts = useMemo(
+    () => catalogProducts.filter((product) => isFavorite(product.id)),
+    [catalogProducts, isFavorite],
+  );
+
+  // Al crear una orden, App incrementa la senal para abrir aqui los pedidos.
+  useEffect(() => {
+    if (ordersFocusSignal > 0) {
+      setSection('orders');
+    }
+  }, [ordersFocusSignal]);
 
   const handleOpenSettings = () => {
     setIsProfileMenuOpen(false);
@@ -63,8 +99,8 @@ export function AuthenticatedAccountPanel({
 
           <View style={styles.socialStats}>
             <ProfileStat label="Productos" value={String(products.length)} />
-            <ProfileStat label="activos" value={String(publishedProducts.length)} />
-            <ProfileStat label="ventas" value="0" />
+            <ProfileStat label="Activos" value={String(publishedProducts.length)} />
+            <ProfileStat label="Ventas" value="0" />
           </View>
 
           <View style={styles.profileHeaderActions}>
@@ -128,36 +164,88 @@ export function AuthenticatedAccountPanel({
             </Pressable>
           )}
         </View>
+      </View>
 
-        <View style={styles.profileHighlights}>
-          <Highlight icon="receipt-outline" label="Pedidos" />
-          <Highlight icon="heart-outline" label="Favoritos" />
-        </View>
-
+      <View style={styles.profileContentCard}>
         <View style={styles.profileTabs}>
-          <View style={styles.profileTabActive}>
-            <Ionicons name="grid" size={22} color={colors.ink} />
-          </View>
-          <View style={styles.profileTab}>
-            <Ionicons name="person-circle-outline" size={24} color={colors.inkSoft} />
-          </View>
+          <SectionTab
+            icon="grid"
+            label="Publicaciones"
+            active={section === 'posts'}
+            onPress={() => setSection('posts')}
+          />
+          <SectionTab
+            icon="heart"
+            label="Favoritos"
+            badge={favoriteProducts.length}
+            active={section === 'favorites'}
+            onPress={() => setSection('favorites')}
+          />
+          <SectionTab
+            icon="receipt"
+            label="Pedidos"
+            active={section === 'orders'}
+            onPress={() => setSection('orders')}
+          />
         </View>
 
-        {products.length > 0 ? (
-          <View style={styles.postGrid}>
-            {products.map((product) => (
-              <View key={product.id} style={styles.postCell}>
-                <SellerProductCard product={product} />
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyPosts}>
-            <Ionicons name="grid-outline" size={28} color={colors.brandBlue} />
-            <Text style={styles.emptyPostsTitle}>Sin publicaciones</Text>
-            <Text style={styles.emptyPostsText}>
-              Los productos publicados apareceran aqui como el catalogo visible del perfil.
-            </Text>
+        {section === 'posts' &&
+          (products.length > 0 ? (
+            <View style={styles.postGrid}>
+              {products.map((product) => (
+                <View key={product.id} style={styles.postCell}>
+                  <SellerProductCard product={product} />
+                </View>
+              ))}
+            </View>
+          ) : isLoadingProducts ? (
+            // Mientras carga mostramos skeletons en vez del estado "vacío": así no
+            // parece que no hay productos cuando en realidad aún están llegando.
+            <View style={styles.postGrid}>
+              {[0, 1, 2, 3].map((placeholder) => (
+                <View key={placeholder} style={styles.postCell}>
+                  <Skeleton style={styles.postSkeleton} />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyPosts}>
+              <Ionicons name="grid-outline" size={28} color={colors.brandBlue} />
+              <Text style={styles.emptyPostsTitle}>Sin publicaciones</Text>
+              <Text style={styles.emptyPostsText}>
+                Los productos publicados apareceran aqui como el catalogo visible del perfil.
+              </Text>
+            </View>
+          ))}
+
+        {section === 'favorites' &&
+          (favoriteProducts.length > 0 ? (
+            <View style={styles.postGrid}>
+              {favoriteProducts.map((product) => (
+                <View key={product.id} style={styles.postCell}>
+                  <ProductCard
+                    product={product}
+                    isAuthenticated={isAuthenticated}
+                    isOwn={Boolean(product.ownerProfileId) && product.ownerProfileId === profile.id}
+                    onAddToCart={() => onAddToCart(product)}
+                    onSelectProduct={() => onOpenProduct(product)}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyPosts}>
+              <Ionicons name="heart-outline" size={28} color={colors.brandBlue} />
+              <Text style={styles.emptyPostsTitle}>Sin favoritos</Text>
+              <Text style={styles.emptyPostsText}>
+                Toca el corazon en cualquier producto del catalogo para guardarlo aqui.
+              </Text>
+            </View>
+          ))}
+
+        {section === 'orders' && (
+          <View style={styles.profileSectionEmbed}>
+            <OrdersScreen accessToken={accessToken} onStatusMessage={onStatusMessage} />
           </View>
         )}
       </View>
@@ -415,14 +503,38 @@ function ImportantInfo({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; 
   );
 }
 
-function Highlight({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+function SectionTab({
+  icon,
+  label,
+  badge,
+  active,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  badge?: number;
+  active: boolean;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.highlightItem}>
-      <View style={styles.highlightCircle}>
-        <Ionicons name={icon} size={20} color={colors.brandBlue} />
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      style={[styles.sectionTab, active && styles.sectionTabActive]}
+      onPress={onPress}
+    >
+      <View style={styles.sectionTabIcon}>
+        <Ionicons name={icon} size={19} color={active ? colors.ink : colors.inkSoft} />
+        {badge !== undefined && badge > 0 && (
+          <View style={styles.highlightBadge}>
+            <Text style={styles.highlightBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        )}
       </View>
-      <Text numberOfLines={1} style={styles.highlightLabel}>{label}</Text>
-    </View>
+      <Text numberOfLines={1} style={[styles.sectionTabLabel, active && styles.sectionTabLabelActive]}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 

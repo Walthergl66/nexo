@@ -71,11 +71,20 @@ export const accountStyles = StyleSheet.create({
   },
   profilePage: {
     backgroundColor: colors.surface,
-    borderRadius: radii.medium,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 14,
+    borderRadius: radii.large,
+    padding: 16,
     gap: 16,
+    marginTop: 30,
+    ...shadows.card,
+  },
+  // Segunda tarjeta: separa visualmente el perfil de sus publicaciones.
+  profileContentCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.large,
+    padding: 16,
+    gap: 14,
+    marginTop: 14,
+    ...shadows.card,
   },
   socialHeader: {
     flexDirection: 'row',
@@ -90,8 +99,6 @@ export const accountStyles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    borderWidth: 1,
-    borderColor: colors.line,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
@@ -128,7 +135,7 @@ export const accountStyles = StyleSheet.create({
   },
   profileStatValue: {
     color: colors.ink,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
   },
   profileStatValueCompact: {
@@ -143,9 +150,7 @@ export const accountStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -199,11 +204,9 @@ export const accountStyles = StyleSheet.create({
   },
   profileImportantStrip: {
     backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.small,
-    padding: 12,
-    gap: 9,
+    borderRadius: radii.medium,
+    padding: 14,
+    gap: 11,
   },
   importantInfoRow: {
     flexDirection: 'row',
@@ -222,11 +225,9 @@ export const accountStyles = StyleSheet.create({
   },
   profileActionButton: {
     flex: 1,
-    height: 38,
+    height: 44,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -235,51 +236,56 @@ export const accountStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  profileHighlights: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  highlightItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 7,
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: 11,
-    paddingHorizontal: 8,
-  },
-  highlightCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.surface,
+  highlightBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: colors.brandBlue,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
   },
-  highlightLabel: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '500',
+  highlightBadgeText: {
+    color: colors.surface,
+    fontSize: 9,
+    fontWeight: '700',
   },
   profileTabs: {
-    height: 42,
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderColor: colors.line,
   },
-  profileTabActive: {
+  sectionTab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 9,
     borderBottomWidth: 2,
+    borderColor: 'transparent',
+  },
+  sectionTabActive: {
     borderColor: colors.ink,
   },
-  profileTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  sectionTabIcon: {
+    position: 'relative',
+  },
+  sectionTabLabel: {
+    color: colors.inkSoft,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  sectionTabLabelActive: {
+    color: colors.ink,
+    fontWeight: '700',
+  },
+  profileSectionEmbed: {
+    gap: 12,
   },
   postGrid: {
     flexDirection: 'row',
@@ -288,6 +294,10 @@ export const accountStyles = StyleSheet.create({
   },
   postCell: {
     width: '48.7%',
+  },
+  postSkeleton: {
+    height: 172,
+    borderRadius: 16,
   },
   emptyPosts: {
     minHeight: 150,

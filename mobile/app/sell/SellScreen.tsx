@@ -7,6 +7,7 @@ import { CreateStoreForm } from '../../components/sell/CreateStoreForm';
 import { ProductCreateForm } from '../../components/sell/ProductCreateForm';
 import { ProductSuccessDialog } from '../../components/sell/ProductSuccessDialog';
 import { SellerProductList } from '../../components/sell/SellerProductList';
+import { SellerSalesList } from '../../components/sell/SellerSalesList';
 import {
   createProduct,
   createStore,
@@ -33,7 +34,9 @@ import {
 } from '../../constants/sell';
 import { useSellCategories } from '../../hooks/sell/useSellCategories';
 import { useSellerCenter } from '../../hooks/sell/useSellerCenter';
+import { useSellerSales } from '../../hooks/sell/useSellerSales';
 import type { SellScreenProps } from '../../types/sell';
+import type { Sale } from '../../types/marketplace';
 
 export function SellScreen({
   accessToken,
@@ -94,6 +97,22 @@ export function SellScreen({
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
+  const canManageSales = isApprovedSeller && Boolean(store);
+  const {
+    sales,
+    isLoading: isSalesLoading,
+    advancingId,
+    advance,
+  } = useSellerSales({ accessToken, enabled: canManageSales, onError: handleSellerError });
+  const handleAdvanceSale = useCallback(
+    (sale: Sale) => {
+      if (!sale.nextStatus) {
+        return;
+      }
+      void advance(sale.id, sale.nextStatus);
+    },
+    [advance],
+  );
   const resetProductForm = useCallback(() => {
     setProductForm({ ...initialProductForm, image: null });
   }, []);
@@ -592,6 +611,15 @@ export function SellScreen({
       )}
 
       <SellerProductList products={products} isLoading={isSellerLoading} />
+
+      {canManageSales && (
+        <SellerSalesList
+          sales={sales}
+          isLoading={isSalesLoading}
+          advancingId={advancingId}
+          onAdvance={handleAdvanceSale}
+        />
+      )}
 
     </>
   );

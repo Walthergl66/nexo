@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '../common/RemoteImage';
+import { useFavorites } from '../../context/FavoritesContext';
 import { colors } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
 
@@ -63,13 +64,29 @@ export function ProductVisual({ product, showFavorite = false, imageWidth = 500 
   const palette = palettes[product.visualTone];
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(product.imageUrl) && !hasImageError;
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favorite = isFavorite(product.id);
 
   return (
     <View style={styles.visual}>
       {showFavorite && (
-        <View style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={14} color={colors.ink} />
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={favorite ? `Quitar ${product.title} de favoritos` : `Agregar ${product.title} a favoritos`}
+          accessibilityState={{ selected: favorite }}
+          hitSlop={8}
+          style={({ pressed }) => [styles.favoriteButton, pressed && styles.favoriteButtonPressed]}
+          onPress={(event) => {
+            event.stopPropagation();
+            toggleFavorite(product.id);
+          }}
+        >
+          <Ionicons
+            name={favorite ? 'heart' : 'heart-outline'}
+            size={15}
+            color={favorite ? colors.popCoral : colors.ink}
+          />
+        </Pressable>
       )}
       {showRealImage ? (
         <RemoteImage
@@ -102,15 +119,13 @@ export function ProductVisual({ product, showFavorite = false, imageWidth = 500 
 
 const styles = StyleSheet.create({
   visual: {
-    height: 138,
+    height: 140,
     borderRadius: 14,
     backgroundColor: colors.silverSoft,
-    marginBottom: 10,
+    marginBottom: 12,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: colors.line,
   },
   productImage: {
     ...StyleSheet.absoluteFillObject,
@@ -138,6 +153,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 4,
+  },
+  favoriteButtonPressed: {
+    transform: [{ scale: 0.88 }],
+    backgroundColor: colors.surface,
   },
   leafLeft: {
     left: 18,

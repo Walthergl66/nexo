@@ -12,6 +12,30 @@ class OrderItem extends Model
     use HasFactory;
     use HasUlids;
 
+    public const FULFILLMENT_PENDING = 'pending';
+
+    public const FULFILLMENT_PROCESSING = 'processing';
+
+    public const FULFILLMENT_PACKED = 'packed';
+
+    public const FULFILLMENT_SHIPPED = 'shipped';
+
+    public const FULFILLMENT_DELIVERED = 'delivered';
+
+    public const FULFILLMENT_CANCELLED = 'cancelled';
+
+    /**
+     * Forward-only fulfilment flow the seller walks the item through once paid.
+     *
+     * @var list<string>
+     */
+    public const FULFILLMENT_FLOW = [
+        self::FULFILLMENT_PROCESSING,
+        self::FULFILLMENT_PACKED,
+        self::FULFILLMENT_SHIPPED,
+        self::FULFILLMENT_DELIVERED,
+    ];
+
     /**
      * @var list<string>
      */
@@ -25,10 +49,26 @@ class OrderItem extends Model
         'store_slug',
         'unit_price_cents',
         'quantity',
+        'fulfillment_status',
         'subtotal_cents',
         'currency',
         'metadata',
     ];
+
+    /**
+     * The status that follows the current one in the fulfilment flow, or null
+     * when the item is already delivered or outside the forward flow.
+     */
+    public function nextFulfillmentStatus(): ?string
+    {
+        $index = array_search($this->fulfillment_status, self::FULFILLMENT_FLOW, true);
+
+        if ($index === false || $index === count(self::FULFILLMENT_FLOW) - 1) {
+            return null;
+        }
+
+        return self::FULFILLMENT_FLOW[$index + 1];
+    }
 
     /**
      * @return array<string, string>

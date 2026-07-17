@@ -1,15 +1,50 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FULFILLMENT_LABELS, FULFILLMENT_STEPS, fulfillmentStepIndex } from '../../constants/fulfillment';
 import { colors, radii, shadows } from '../../theme/colors';
-import type { Order } from '../../types/marketplace';
+import type { Order, OrderItem, OrderStatus, PaymentStatus, Tone } from '../../types/marketplace';
+import { formatPrice } from '../../utils/format';
 import { Tag } from '../common/Tag';
 
 type OrderCardProps = {
   order: Order;
+  isPaying?: boolean;
+  onPay?: (orderId: string) => void;
 };
 
-export function OrderCard({ order }: OrderCardProps) {
-  const progress = getOrderProgress(order.status);
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: 'Pendiente de pago',
+  processing: 'En preparacion',
+  shipped: 'En camino',
+  delivered: 'Entregado',
+  cancelled: 'Cancelada',
+};
+
+const PAYMENT_LABELS: Record<PaymentStatus, string> = {
+  pending: 'Pago pendiente',
+  paid: 'Pago confirmado',
+  failed: 'Pago fallido',
+  refunded: 'Reembolsado',
+};
+
+const STATUS_PROGRESS: Record<OrderStatus, number> = {
+  pending: 0,
+  processing: 1,
+  shipped: 2,
+  delivered: 3,
+  cancelled: 0,
+};
+
+export function OrderCard({ order, isPaying = false, onPay }: OrderCardProps) {
+  const progress = STATUS_PROGRESS[order.status];
+  const isCancelled = order.status === 'cancelled';
+  const statusTone: Tone = isCancelled
+    ? 'warning'
+    : order.status === 'delivered'
+      ? 'success'
+      : 'default';
+  const canPay = order.paymentStatus === 'pending' && !isCancelled;
+  const orderDate = formatOrderDate(order.createdAt);
 
   return (
     <View style={styles.container}>
@@ -18,45 +53,103 @@ export function OrderCard({ order }: OrderCardProps) {
           <Ionicons name="cube-outline" size={20} color={colors.brandBlue} />
         </View>
         <View style={styles.headerText}>
-          <Text numberOfLines={1} style={styles.id}>{order.id}</Text>
-          <Text numberOfLines={2} style={styles.title}>{order.title}</Text>
+          <Text numberOfLines={1} style={styles.id}>{order.orderNumber || order.id}</Text>
+          <Text numberOfLines={1} style={styles.title}>
+            {order.itemCount} {order.itemCount === 1 ? 'producto' : 'productos'}
+            {orderDate ? ` · ${orderDate}` : ''}
+          </Text>
         </View>
+        <Text style={styles.total}>{formatPrice(order.total)}</Text>
       </View>
 
-      <View style={styles.progressRow}>
-        {[0, 1, 2, 3].map((step) => (
-          <View key={step} style={styles.progressSegment}>
-            <View style={[styles.progressDot, step <= progress && styles.progressDotActive]} />
-            {step < 3 && <View style={[styles.progressLine, step < progress && styles.progressLineActive]} />}
-          </View>
-        ))}
-      </View>
+      {!isCancelled && (
+        <View style={styles.progressRow}>
+          {[0, 1, 2, 3].map((step) => (
+            <View key={step} style={styles.progressSegment}>
+              <View style={[styles.progressDot, step <= progress && styles.progressDotActive]} />
+              {step < 3 && <View style={[styles.progressLine, step < progress && styles.progressLineActive]} />}
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={styles.footer}>
-        <Tag text={order.status} tone={order.status === 'Entregado' ? 'success' : 'default'} />
-        <View style={styles.etaWrap}>
-          <Ionicons name="time-outline" size={14} color={colors.inkMuted} />
-          <Text style={styles.eta}>{order.eta}</Text>
+        <Tag text={STATUS_LABELS[order.status]} tone={statusTone} />
+        <View style={styles.paymentWrap}>
+          <Ionicons
+            name={order.paymentStatus === 'paid' ? 'checkmark-circle-outline' : 'time-outline'}
+            size={14}
+            color={order.paymentStatus === 'paid' ? colors.success : colors.inkMuted}
+          />
+          <Text style={styles.payment}>{PAYMENT_LABELS[order.paymentStatus]}</Text>
         </View>
+      </View>
+
+      {order.paymentStatus === 'paid' && !isCancelled && order.items.length > 0 && (
+        <View style={styles.items}>
+          <Text style={styles.itemsTitle}>Seguimiento por producto</Text>
+          {order.items.map((item) => (
+            <OrderItemStatus key={item.id} item={item} />
+          ))}
+        </View>
+      )}
+
+      {canPay && onPay && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.payButton,
+            pressed && styles.payButtonPressed,
+            isPaying && styles.payButtonDisabled,
+          ]}
+          disabled={isPaying}
+          onPress={() => onPay(order.id)}
+        >
+          <Ionicons name="card-outline" size={16} color={colors.surface} />
+          <Text style={styles.payButtonText}>{isPaying ? 'Procesando...' : 'Pagar ahora'}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function OrderItemStatus({ item }: { item: OrderItem }) {
+  const stepIndex = fulfillmentStepIndex(item.fulfillmentStatus);
+
+  return (
+    <View style={styles.itemRow}>
+      <View style={styles.itemTop}>
+        <Text numberOfLines={1} style={styles.itemName}>
+          {item.productName}
+        </Text>
+        <Text style={styles.itemStatus}>{FULFILLMENT_LABELS[item.fulfillmentStatus]}</Text>
+      </View>
+      <View style={styles.itemSteps}>
+        {FULFILLMENT_STEPS.map((step, index) => {
+          const reached = stepIndex >= index;
+          return (
+            <View key={step} style={styles.itemStepSeg}>
+              {index > 0 && <View style={[styles.itemBar, reached && styles.itemBarOn]} />}
+              <View style={[styles.itemDot, reached && styles.itemDotOn]} />
+            </View>
+          );
+        })}
       </View>
     </View>
   );
 }
 
-function getOrderProgress(status: Order['status']) {
-  if (status === 'Pagado') {
-    return 0;
+function formatOrderDate(value: string | null): string {
+  if (!value) {
+    return '';
   }
 
-  if (status === 'Empacado') {
-    return 1;
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
   }
 
-  if (status === 'En camino') {
-    return 2;
-  }
-
-  return 3;
+  return date.toLocaleDateString();
 }
 
 const styles = StyleSheet.create({
@@ -72,7 +165,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     gap: 12,
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   iconWrap: {
     width: 42,
@@ -95,10 +188,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   title: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.ink,
-    lineHeight: 20,
+    lineHeight: 18,
+  },
+  total: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.ink,
   },
   progressRow: {
     flexDirection: 'row',
@@ -139,16 +237,101 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
+    marginTop: 12,
   },
-  etaWrap: {
+  paymentWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     flexShrink: 1,
   },
-  eta: {
+  payment: {
     color: colors.inkMuted,
     fontSize: 12,
     fontWeight: '700',
+  },
+  payButton: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.brandBlue,
+    borderRadius: radii.small,
+    paddingVertical: 12,
+  },
+  payButtonPressed: {
+    opacity: 0.85,
+  },
+  payButtonDisabled: {
+    opacity: 0.6,
+  },
+  payButtonText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  items: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    gap: 12,
+  },
+  itemsTitle: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  itemRow: {
+    gap: 7,
+  },
+  itemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  itemName: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  itemStatus: {
+    color: colors.brandBlue,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  itemSteps: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemStepSeg: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemBar: {
+    flex: 1,
+    height: 2,
+    backgroundColor: colors.line,
+  },
+  itemBarOn: {
+    backgroundColor: colors.brandAccent,
+  },
+  itemDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+  },
+  itemDotOn: {
+    backgroundColor: colors.brandBlue,
+    borderColor: colors.brandBlue,
   },
 });

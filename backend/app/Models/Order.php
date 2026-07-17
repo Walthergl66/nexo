@@ -41,6 +41,7 @@ class Order extends Model
         'payment_status',
         'currency',
         'subtotal_cents',
+        'shipping_cents',
         'total_cents',
         'metadata',
     ];
@@ -53,6 +54,7 @@ class Order extends Model
         return [
             'metadata' => 'array',
             'subtotal_cents' => 'integer',
+            'shipping_cents' => 'integer',
             'total_cents' => 'integer',
         ];
     }
