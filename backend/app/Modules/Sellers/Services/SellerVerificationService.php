@@ -91,7 +91,12 @@ class SellerVerificationService
                 'verification_status' => $status,
             ])->save();
 
-            if ($status !== SellerVerificationRequest::STATUS_APPROVED) {
+            if ($status === SellerVerificationRequest::STATUS_APPROVED) {
+                // Reactivar la tienda si estaba suspendida al levantar la suspension.
+                $sellerProfile->store()
+                    ->where('status', Store::STATUS_SUSPENDED)
+                    ->update(['status' => Store::STATUS_ACTIVE]);
+            } elseif ($status !== SellerVerificationRequest::STATUS_APPROVED) {
                 $sellerProfile->store()
                     ->update(['status' => Store::STATUS_SUSPENDED]);
             }
