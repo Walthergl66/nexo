@@ -362,12 +362,14 @@ function AppShell() {
             selectedProduct={selectedProduct}
             isAuthenticated={hasBusinessProfile}
             myProfileId={profile?.id ?? null}
+            accessToken={accessToken}
             onAddToCart={cart.addToCart}
             onBackToCatalog={handleBackToCatalog}
             onChangeFilter={catalog.setActiveFilter}
             onChangeSearch={catalog.setSearch}
             onRefreshCatalog={handleRefreshCatalog}
             onSelectProduct={handleSelectProduct}
+            onStatusMessage={handleStatusMessage}
           />
         );
       case 'Vender':

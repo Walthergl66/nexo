@@ -3,8 +3,11 @@ export type TabKey = 'Inicio' | 'Vender' | 'Cuenta' | 'Admin';
 export type ProductComment = {
   id: string;
   author: string;
+  authorId: string;
+  avatarUrl: string | null;
   rating: number;
   text: string;
+  createdAt: string | null;
 };
 
 export type Product = {
@@ -23,6 +26,8 @@ export type Product = {
   ownerProfileId: string | null;
   imageUrl: string | null;
   visualTone: 'light' | 'dark' | 'cool' | 'warm';
+  averageRating: number;
+  reviewCount: number;
 };
 
 export type CartItem = {

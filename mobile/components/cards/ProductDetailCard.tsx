@@ -3,25 +3,32 @@ import { useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '../common/RemoteImage';
 import { PressableScale } from '../common/PressableScale';
+import { ReviewsSection } from '../reviews/ReviewsSection';
+import { StarRating } from '../reviews/StarRating';
 import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
+import type { StatusTone } from '../../types/status';
 import { formatPrice } from '../../utils/format';
 
 type ProductDetailCardProps = {
   product: Product;
   isAuthenticated: boolean;
   isOwn?: boolean;
+  accessToken: string | null;
   onAddToCart: () => void | Promise<boolean>;
   onBack: () => void;
+  onStatusMessage?: (message: string, tone: StatusTone) => void;
 };
 
 export function ProductDetailCard({
   product,
   isAuthenticated,
   isOwn = false,
+  accessToken,
   onAddToCart,
   onBack,
+  onStatusMessage,
 }: ProductDetailCardProps) {
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(product.imageUrl) && !hasImageError;
@@ -77,6 +84,14 @@ export function ProductDetailCard({
             <Ionicons name="storefront-outline" size={13} color={colors.brandBlue} />
             <Text numberOfLines={1} style={styles.seller}>{product.seller}</Text>
           </View>
+          {product.reviewCount > 0 && (
+            <View style={styles.ratingRow}>
+              <StarRating rating={product.averageRating} size={12} />
+              <Text style={styles.ratingText}>
+                {product.averageRating.toFixed(1)} ({product.reviewCount})
+              </Text>
+            </View>
+          )}
         </View>
         <Text style={styles.price}>{formatPrice(product.price)}</Text>
       </View>
@@ -101,6 +116,18 @@ export function ProductDetailCard({
       <View style={styles.descriptionBlock}>
         <Text style={styles.sectionTitle}>Descripcion</Text>
         <Text style={styles.description}>{product.description}</Text>
+      </View>
+
+      <View style={styles.reviewsBlock}>
+        <ReviewsSection
+          productSlug={product.slug}
+          averageRating={product.averageRating}
+          reviewCount={product.reviewCount}
+          isAuthenticated={isAuthenticated}
+          isOwn={isOwn}
+          accessToken={accessToken}
+          onStatusMessage={onStatusMessage}
+        />
       </View>
 
       {isOwn ? (
@@ -306,6 +333,22 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontSize: 13,
     lineHeight: 20,
+  },
+  reviewsBlock: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 14,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 5,
+  },
+  ratingText: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '600',
   },
   bottomActions: {
     flexDirection: 'row',

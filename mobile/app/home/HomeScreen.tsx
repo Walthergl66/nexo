@@ -34,12 +34,14 @@ type HomeScreenProps = {
   search: string;
   selectedProduct: Product | null;
   myProfileId?: string | null;
+  accessToken?: string | null;
   onAddToCart: (product: Product) => void | Promise<boolean>;
   onBackToCatalog: () => void;
   onChangeFilter: (filter: string) => void;
   onChangeSearch: (value: string) => void;
   onRefreshCatalog: () => void;
   onSelectProduct: (product: Product) => void;
+  onStatusMessage?: (message: string, tone: import('../../types/status').StatusTone) => void;
 };
 
 function AnimatedProductCell({
@@ -220,12 +222,14 @@ export function HomeScreen({
   search,
   selectedProduct,
   myProfileId,
+  accessToken = null,
   onAddToCart,
   onBackToCatalog,
   onChangeFilter,
   onChangeSearch,
   onRefreshCatalog,
   onSelectProduct,
+  onStatusMessage,
 }: HomeScreenProps) {
   const { width: screenWidth } = useWindowDimensions();
   const isOwnProduct = (product: Product) =>
@@ -237,8 +241,10 @@ export function HomeScreen({
         product={selectedProduct}
         isAuthenticated={isAuthenticated}
         isOwn={isOwnProduct(selectedProduct)}
+        accessToken={accessToken}
         onAddToCart={() => onAddToCart(selectedProduct)}
         onBack={onBackToCatalog}
+        onStatusMessage={onStatusMessage}
       />
     );
   }

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { ProductVisual } from './ProductVisual';
 import { PressableScale } from '../common/PressableScale';
+import { StarRating } from '../reviews/StarRating';
 import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
@@ -41,6 +42,12 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
           {product.seller}
         </Text>
       </View>
+      {product.reviewCount > 0 && (
+        <View style={styles.ratingRow}>
+          <StarRating rating={product.averageRating} size={10} />
+          <Text style={styles.ratingText}>{product.averageRating.toFixed(1)}</Text>
+        </View>
+      )}
       <View style={styles.bottomRow}>
         <View>
           <Text style={styles.price}>{formatPrice(product.price)}</Text>
@@ -108,6 +115,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.brandBlue,
     fontWeight: '600',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
+  },
+  ratingText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.inkMuted,
   },
   bottomRow: {
     flexDirection: 'row',

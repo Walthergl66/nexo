@@ -40,6 +40,8 @@ use App\Modules\Stores\Http\Controllers\ListStoresController;
 use App\Modules\Stores\Http\Controllers\MyStoreController;
 use App\Modules\Stores\Http\Controllers\ShowStoreController;
 use App\Modules\Stores\Http\Controllers\UpdateStoreController;
+use App\Modules\Reviews\Http\Controllers\CreateReviewController;
+use App\Modules\Reviews\Http\Controllers\ListProductReviewsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/stores', ListStoresController::class);
@@ -47,6 +49,7 @@ Route::get('/stores/{store}', ShowStoreController::class);
 Route::get('/categories', ListCategoriesController::class);
 Route::get('/products', ListProductsController::class);
 Route::get('/products/{product}', ShowProductController::class);
+Route::get('/products/{product}/reviews', ListProductReviewsController::class);
 Route::get('/identity/lookup', LookupIdentityController::class);
 Route::get('/profiles/availability', CheckProfileAvailabilityController::class);
 
@@ -84,6 +87,8 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::post('/notifications/read-all', MarkAllNotificationsReadController::class);
     Route::post('/notifications/{notification}/read', MarkNotificationReadController::class);
     Route::post('/me/push-token', RegisterPushTokenController::class);
+
+    Route::post('/products/{product}/reviews', CreateReviewController::class);
 
     Route::get('/admin/seller-verification-requests', ListSellerVerificationRequestsController::class);
     Route::patch('/admin/seller-verification-requests/{sellerVerificationRequest}', ReviewSellerVerificationRequestController::class);

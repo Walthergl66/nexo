@@ -684,3 +684,47 @@ export async function reviewVerificationRequest(
 
   return response.data;
 }
+
+// ─── Reviews ─────────────────────────────────────────────────────────────────
+
+export type ReviewAuthor = {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+};
+
+export type ReviewResource = {
+  id: string;
+  rating: number;
+  body: string | null;
+  created_at: string | null;
+  author: ReviewAuthor | null;
+};
+
+export type ReviewsPage = {
+  data: ReviewResource[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    total: number;
+  };
+};
+
+export async function fetchProductReviews(
+  productSlug: string,
+  page = 1,
+): Promise<ReviewsPage> {
+  return request<ReviewsPage>(`/products/${productSlug}/reviews?page=${page}`);
+}
+
+export async function createReview(
+  token: string,
+  productSlug: string,
+  payload: { rating: number; body?: string | null; order_item_id?: string | null },
+): Promise<ReviewResource> {
+  const response = await request<ApiDocument<ReviewResource>>(
+    `/products/${productSlug}/reviews`,
+    { method: 'POST', token, body: payload },
+  );
+  return response.data;
+}

@@ -52,6 +52,8 @@ function mapApiProductToProduct(product) {
           : null,
     imageUrl: pickPrimaryImageUrl(product?.images),
     visualTone: pickTone(product?.id),
+    averageRating: Number(product?.average_rating ?? 0),
+    reviewCount: Number(product?.review_count ?? 0),
   };
 }
 
