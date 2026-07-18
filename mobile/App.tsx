@@ -14,6 +14,7 @@ import { CartScreen } from './app/cart/CartScreen';
 import { HomeScreen } from './app/home/HomeScreen';
 import { NotificationsScreen } from './app/notifications/NotificationsScreen';
 import { SellScreen } from './app/sell/SellScreen';
+import { AdminVerificationPanel } from './components/admin/AdminVerificationPanel';
 import { useAuthSession } from './hooks/app/useAuthSession';
 import { useCart } from './hooks/app/useCart';
 import { useNotifications } from './hooks/app/useNotifications';
@@ -171,10 +172,17 @@ function AppShell() {
     }
   }, [confirmAction]);
 
-  const visibleTabs = useMemo<TabKey[]>(
-    () => (hasBusinessProfile ? tabs : ['Inicio', 'Cuenta']),
-    [hasBusinessProfile],
-  );
+  const visibleTabs = useMemo<TabKey[]>(() => {
+    if (!hasBusinessProfile) {
+      return ['Inicio', 'Cuenta'];
+    }
+
+    if (profile?.role === 'admin') {
+      return ['Inicio', 'Admin', 'Cuenta'];
+    }
+
+    return tabs;
+  }, [hasBusinessProfile, profile?.role]);
   const visibleActiveIndex = Math.max(0, visibleTabs.indexOf(activeTab));
 
   const selectedProduct = useMemo(
@@ -371,6 +379,13 @@ function AppShell() {
             onExploreProducts={() => setActiveTab('Inicio')}
             onGoToAccount={() => setActiveTab('Cuenta')}
             onProfileChange={onProfileChange}
+            onStatusMessage={handleStatusMessage}
+          />
+        );
+      case 'Admin':
+        return (
+          <AdminVerificationPanel
+            accessToken={accessToken ?? ''}
             onStatusMessage={handleStatusMessage}
           />
         );

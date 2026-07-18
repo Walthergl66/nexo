@@ -1,4 +1,4 @@
-export type TabKey = 'Inicio' | 'Vender' | 'Cuenta';
+export type TabKey = 'Inicio' | 'Vender' | 'Cuenta' | 'Admin';
 
 export type ProductComment = {
   id: string;
