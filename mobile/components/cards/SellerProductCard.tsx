@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ProductVisual } from './ProductVisual';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
@@ -6,9 +7,11 @@ import { formatPrice } from '../../utils/format';
 
 type SellerProductCardProps = {
   product: Product;
+  onEdit?: (product: Product) => void;
+  onDelete?: (product: Product) => void;
 };
 
-export function SellerProductCard({ product }: SellerProductCardProps) {
+export function SellerProductCard({ product, onEdit, onDelete }: SellerProductCardProps) {
   return (
     <View style={styles.container}>
       <ProductVisual product={product} imageWidth={500} />
@@ -31,6 +34,32 @@ export function SellerProductCard({ product }: SellerProductCardProps) {
           </Text>
         </View>
       </View>
+
+      {(onEdit || onDelete) && (
+        <View style={styles.actionRow}>
+          {onEdit && (
+            <Pressable
+              accessibilityLabel="Editar producto"
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.actionBtn, styles.editBtn, pressed && styles.btnPressed]}
+              onPress={() => onEdit(product)}
+            >
+              <Ionicons name="pencil-outline" size={13} color={colors.brandBlue} />
+              <Text style={styles.editBtnText}>Editar</Text>
+            </Pressable>
+          )}
+          {onDelete && (
+            <Pressable
+              accessibilityLabel="Eliminar producto"
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.actionBtn, styles.deleteBtn, pressed && styles.btnPressed]}
+              onPress={() => onDelete(product)}
+            >
+              <Ionicons name="trash-outline" size={13} color={colors.popCoral} />
+            </Pressable>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -43,6 +72,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: 10,
     overflow: 'hidden',
+    gap: 0,
     ...shadows.card,
   },
   category: {
@@ -105,5 +135,40 @@ const styles = StyleSheet.create({
   },
   statusTextDraft: {
     color: colors.inkMuted,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  actionBtn: {
+    height: 30,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+  },
+  editBtn: {
+    flex: 1,
+    backgroundColor: colors.brandBlueSoft,
+    borderColor: colors.brandBlueLine,
+  },
+  deleteBtn: {
+    width: 30,
+    paddingHorizontal: 0,
+    backgroundColor: '#FF6B6B11',
+    borderColor: '#FF6B6B44',
+  },
+  editBtnText: {
+    color: colors.brandBlue,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  btnPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.96 }],
   },
 });

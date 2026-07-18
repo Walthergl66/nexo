@@ -9,11 +9,15 @@ export type ProductComment = {
 
 export type Product = {
   id: string;
+  slug: string;
   title: string;
   description: string;
   category: string;
+  categoryId: string | null;
   price: number;
+  priceCents: number;
   stock: number;
+  status: string;
   available: boolean;
   seller: string;
   ownerProfileId: string | null;

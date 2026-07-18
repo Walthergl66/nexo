@@ -545,6 +545,35 @@ export async function createProduct(
   return mapApiProductToProduct(response.data);
 }
 
+export async function updateProduct(
+  token: string,
+  productSlug: string,
+  payload: {
+    category_id?: string | null;
+    name?: string;
+    description?: string | null;
+    images?: Array<{ alt_text?: string | null; url: string }>;
+    price_cents?: number;
+    stock?: number;
+    status?: 'draft' | 'active' | 'paused';
+  },
+): Promise<Product> {
+  const response = await request<ApiDocument<unknown>>(`/products/${productSlug}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+
+  return mapApiProductToProduct(response.data);
+}
+
+export async function deleteProduct(token: string, productSlug: string): Promise<void> {
+  await request<void>(`/products/${productSlug}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export async function lookupIdentity(nationalId: string): Promise<IdentityLookup> {
   const response = await request<ApiDocument<IdentityLookup>>(
     `/identity/lookup?identificacion=${encodeURIComponent(nationalId)}`,

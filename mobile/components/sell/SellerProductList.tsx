@@ -8,9 +8,11 @@ import { styles as sellStyles } from './sellStyles';
 type SellerProductListProps = {
   products: Product[];
   isLoading?: boolean;
+  onEdit?: (product: Product) => void;
+  onDelete?: (product: Product) => void;
 };
 
-export function SellerProductList({ products, isLoading = false }: SellerProductListProps) {
+export function SellerProductList({ products, isLoading = false, onEdit, onDelete }: SellerProductListProps) {
   if (products.length === 0) {
     if (isLoading) {
       return (
@@ -35,7 +37,11 @@ export function SellerProductList({ products, isLoading = false }: SellerProduct
       <View style={styles.grid}>
         {products.map((product) => (
           <View key={product.id} style={styles.cell}>
-            <SellerProductCard product={product} />
+            <SellerProductCard
+              product={product}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
           </View>
         ))}
       </View>

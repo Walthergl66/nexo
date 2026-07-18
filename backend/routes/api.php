@@ -19,6 +19,7 @@ use App\Modules\Orders\Http\Controllers\PayOrderController;
 use App\Modules\Orders\Http\Controllers\ShowOrderController;
 use App\Modules\Orders\Http\Controllers\UpdateSaleStatusController;
 use App\Modules\Products\Http\Controllers\CreateProductController;
+use App\Modules\Products\Http\Controllers\DeleteProductController;
 use App\Modules\Products\Http\Controllers\ListMyProductsController;
 use App\Modules\Products\Http\Controllers\ListProductsController;
 use App\Modules\Products\Http\Controllers\ShowProductController;
@@ -63,6 +64,7 @@ Route::middleware('supabase.jwt')->group(function (): void {
     Route::get('/my-products', ListMyProductsController::class);
     Route::post('/products', CreateProductController::class);
     Route::patch('/products/{product}', UpdateProductController::class);
+    Route::delete('/products/{product}', DeleteProductController::class);
 
     Route::get('/cart', ListCartController::class);
     Route::post('/cart/items', AddCartItemController::class);
