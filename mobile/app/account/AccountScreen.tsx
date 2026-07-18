@@ -4,6 +4,7 @@ import { AccountModeSwitch } from '../../components/account/AccountModeSwitch';
 import { accountStyles as styles } from '../../components/account/accountStyles';
 import { AccountUnavailablePanel, ProfileLoadingPanel, ProfileSyncErrorPanel } from '../../components/account/AccountStatusPanels';
 import { AccountSettingsPanel, AuthenticatedAccountPanel } from '../../components/account/AuthenticatedAccountPanel';
+import { AdminVerificationPanel } from '../../components/admin/AdminVerificationPanel';
 import { LoginForm } from '../../components/account/LoginForm';
 import { PasswordRecoveryForm } from '../../components/account/PasswordRecoveryForm';
 import { RegisterForm } from '../../components/account/RegisterForm';
@@ -527,6 +528,40 @@ export function AccountScreen({
   }
 
   if (!isGuest && profile) {
+    // ── Admin: panel de verificaciones ──────────────────────────────────────
+    if (profile.role === 'admin') {
+      if (accountView === 'settings') {
+        return (
+          <>
+            <AccountSettingsPanel
+              isSavingProfile={isSavingProfile}
+              profile={profile}
+              onBack={() => setAccountView('profile')}
+              onChangeAvatar={handleChangeAvatar}
+              onDeleteAvatar={handleDeleteAvatar}
+              onLogout={handleLogout}
+              onUpdateProfile={handleUpdateProfile}
+            />
+          </>
+        );
+      }
+
+      return (
+        <>
+          <SectionTitle
+            title="Panel de administrador"
+            subtitle="Gestiona solicitudes de vendedores."
+          />
+          <AdminVerificationPanel
+            accessToken={accessToken}
+            onStatusMessage={onStatusMessage}
+          />
+        </>
+      );
+    }
+
+    // ── Usuario regular autenticado ──────────────────────────────────────────
+    // ── Usuario regular autenticado ──────────────────────────────────────────
     if (accountView === 'settings') {
       return (
         <>
