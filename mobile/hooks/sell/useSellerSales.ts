@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { advanceSaleStatus, fetchSellerSales } from '../../services/marketplaceApi';
 import type { ItemFulfillmentStatus, Sale } from '../../types/marketplace';
+
+const SELLER_SALES_CACHE_KEY = 'nexo.seller.sales.v1';
 
 type UseSellerSalesParams = {
   accessToken: string | null;
@@ -18,6 +21,7 @@ export function useSellerSales({ accessToken, enabled, onError }: UseSellerSales
   const [isLoading, setIsLoading] = useState(false);
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const isMounted = useRef(true);
+  const hasLoadedSales = useRef(false);
 
   useEffect(() => {
     isMounted.current = true;
@@ -28,19 +32,45 @@ export function useSellerSales({ accessToken, enabled, onError }: UseSellerSales
 
   const load = useCallback(async () => {
     if (!accessToken || !enabled) {
+      hasLoadedSales.current = false;
       setSales([]);
+      // Al cerrar sesión / perder acceso limpiamos la caché por privacidad.
+      AsyncStorage.removeItem(SELLER_SALES_CACHE_KEY).catch(() => {});
       return;
     }
 
     setIsLoading(true);
 
+    // Pintado instantáneo desde caché (en paralelo, sin bloquear el fetch): las
+    // visitas siguientes muestran las ventas al toque mientras la red revalida.
+    if (!hasLoadedSales.current) {
+      AsyncStorage.getItem(SELLER_SALES_CACHE_KEY)
+        .then((raw) => {
+          if (!raw || !isMounted.current || hasLoadedSales.current) {
+            return;
+          }
+          try {
+            const cached = JSON.parse(raw) as Sale[];
+            if (Array.isArray(cached) && cached.length > 0) {
+              setSales(cached);
+            }
+          } catch {
+            // Caché corrupta: se ignora.
+          }
+        })
+        .catch(() => {});
+    }
+
     try {
       const items = await fetchSellerSales(accessToken);
       if (isMounted.current) {
         setSales(items);
+        hasLoadedSales.current = true;
+        AsyncStorage.setItem(SELLER_SALES_CACHE_KEY, JSON.stringify(items)).catch(() => {});
       }
     } catch (error) {
-      if (isMounted.current) {
+      // Un fallo puntual no borra las ventas ya cargadas ni molesta con un error.
+      if (isMounted.current && !hasLoadedSales.current) {
         setSales([]);
         onError?.(error instanceof Error ? error.message : 'No pudimos cargar tus ventas.');
       }

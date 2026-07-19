@@ -1,9 +1,19 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '../../theme/colors';
-import type { StatusMessage, StatusTone } from '../../types/status';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { alertTones } from '../../theme/alertTones';
+import { colors, shadows } from '../../theme/colors';
+import type { AlertTone, StatusMessage, StatusTone } from '../../types/status';
 
 type StatusToastProps = {
   status: StatusMessage | null;
+};
+
+/** Los avisos flotantes comparten paleta e iconografia con AlertSheet. */
+const toneToAlertTone: Record<StatusTone, AlertTone> = {
+  success: 'success',
+  error: 'danger',
+  info: 'info',
+  warning: 'warning',
 };
 
 export function StatusToast({ status }: StatusToastProps) {
@@ -11,62 +21,107 @@ export function StatusToast({ status }: StatusToastProps) {
     return null;
   }
 
+  const palette = alertTones[toneToAlertTone[status.tone]];
+  const hasActions = status.actions && status.actions.length > 0;
+
   return (
-    <View pointerEvents="none" style={styles.layer}>
-      <Text style={[styles.toast, toneStyles[status.tone]]}>
-        {status.text}
-      </Text>
+    <View pointerEvents="box-none" style={styles.layer}>
+      <View style={styles.bar}>
+        <View style={styles.barRow}>
+          <View style={[styles.iconWrap, { backgroundColor: palette.badge }]}>
+            <Ionicons color={palette.badgeInk} name={palette.icon} size={15} />
+          </View>
+          <Text numberOfLines={2} style={styles.barText}>{status.text}</Text>
+        </View>
+        {hasActions && (
+          <View style={styles.actionsRow}>
+            {status.actions!.map((action, i) => (
+              <Pressable
+                key={i}
+                accessibilityLabel={action.label}
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  i === 0 && { backgroundColor: palette.primary },
+                  pressed && styles.actionBtnPressed,
+                ]}
+                onPress={action.onPress}
+              >
+                <Text style={[styles.actionLabel, i === 0 && styles.actionLabelPrimary]}>
+                  {action.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
 
-const toneStyles: Record<StatusTone, object> = {
-  success: {
-    color: '#166534',
-    backgroundColor: '#ecfdf3',
-    borderColor: '#86efac',
-  },
-  error: {
-    color: '#9f1239',
-    backgroundColor: '#fff1f2',
-    borderColor: '#fda4af',
-  },
-  info: {
-    color: colors.brandBlue,
-    backgroundColor: colors.brandBlueSoft,
-    borderColor: colors.brandBlueLine,
-  },
-  warning: {
-    color: '#92400e',
-    backgroundColor: '#fffbeb',
-    borderColor: '#fcd34d',
-  },
-};
-
 const styles = StyleSheet.create({
   layer: {
     position: 'absolute',
-    top: 14,
-    left: 12,
-    right: 12,
-    zIndex: 50,
-    elevation: 20,
-    alignItems: 'flex-end',
+    bottom: 104,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    elevation: 30,
+    alignItems: 'center',
+    paddingHorizontal: 16,
   },
-  toast: {
-    maxWidth: '92%',
-    minHeight: 44,
-    borderRadius: 12,
+  bar: {
+    width: '100%',
+    flexDirection: 'column',
+    gap: 10,
+    borderRadius: 20,
     borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 12,
+    paddingVertical: 12,
+    ...shadows.floating,
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  iconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  barText: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '600',
     lineHeight: 18,
-    fontWeight: '800',
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 12,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  actionBtn: {
+    minHeight: 40,
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: 16,
+  },
+  actionBtnPressed: {
+    opacity: 0.85,
+  },
+  actionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  actionLabelPrimary: {
+    color: colors.surface,
   },
 });

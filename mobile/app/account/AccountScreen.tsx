@@ -527,6 +527,7 @@ export function AccountScreen({
   }
 
   if (!isGuest && profile) {
+    // ── Usuario autenticado (buyer, seller y admin comparten este flujo) ─────
     if (accountView === 'settings') {
       return (
         <>

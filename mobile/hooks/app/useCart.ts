@@ -112,27 +112,59 @@ export function useCart({
 
   const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems]);
 
-  const addToCart = useCallback(
-    async (product: Product): Promise<boolean> => {
+  /**
+   * Requisitos previos para agregar (disponibilidad, dueño, sesión, stock
+   * restante). Devuelve cuantas unidades caben aun en el carrito, 0 si no se
+   * puede, y avisa al usuario del motivo. Lo usan tanto addToCart como el
+   * selector de cantidad, para que ambos apliquen las mismas reglas.
+   */
+  const getAddableQuantity = useCallback(
+    (product: Product): number => {
       if (!product.available || product.stock <= 0) {
         onStatusMessage?.('Este producto no esta disponible.', 'warning');
-        return false;
+        return 0;
       }
 
       if (product.ownerProfileId && profile && product.ownerProfileId === profile.id) {
         onStatusMessage?.('No puedes comprar tu propio producto.', 'warning');
-        return false;
+        return 0;
       }
 
       if (!hasBusinessProfile || isProfileLoading) {
         onStatusMessage?.('Inicia sesion para agregar productos al carrito.', 'info');
         onRequireAccount();
-        return false;
+        return 0;
       }
 
       const currentQuantity = cartItems.find((item) => item.product.id === product.id)?.quantity ?? 0;
+      const addable = product.stock - currentQuantity;
 
-      if (currentQuantity + 1 > product.stock) {
+      if (addable <= 0) {
+        onStatusMessage?.(outOfStockMessage(product.stock), 'warning');
+        return 0;
+      }
+
+      return addable;
+    },
+    [cartItems, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage, profile],
+  );
+
+  const addToCart = useCallback(
+    async (product: Product, quantity = 1): Promise<boolean> => {
+      const addable = getAddableQuantity(product);
+
+      if (addable <= 0) {
+        return false;
+      }
+
+      const amount = Math.floor(quantity);
+
+      if (!Number.isFinite(amount) || amount < 1) {
+        onStatusMessage?.('Elige al menos una unidad.', 'warning');
+        return false;
+      }
+
+      if (amount > addable) {
         onStatusMessage?.(outOfStockMessage(product.stock), 'warning');
         return false;
       }
@@ -144,9 +176,9 @@ export function useCart({
       const existing = cartItems.find((item) => item.product.id === product.id);
       const nextItems = existing
         ? cartItems.map((item) =>
-            item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
+            item.product.id === product.id ? { ...item, quantity: item.quantity + amount } : item,
           )
-        : [...cartItems, { product, quantity: 1 }];
+        : [...cartItems, { product, quantity: amount }];
 
       setCartItems(nextItems);
       setCartSummary(optimisticSummary(nextItems, prevSummary));
@@ -168,11 +200,12 @@ export function useCart({
       ]).start();
 
       try {
-        const snapshot = await addProductToCart(product.id, 1, accessToken ?? undefined);
+        const snapshot = await addProductToCart(product.id, amount, accessToken ?? undefined);
         // Reconciliamos con la verdad del servidor (ids reales, envío, etc.).
         setCartItems(snapshot.items);
         setCartSummary(snapshot.summary);
-        onStatusMessage?.(`${product.title} agregado al carrito.`, 'success');
+        // El aviso de exito lo da la hoja de AlertSheetHost (via onCartAdded),
+        // asi evitamos dos mensajes simultaneos para la misma accion.
       } catch (error) {
         // Revertimos el cambio optimista.
         setCartItems(prevItems);
@@ -187,7 +220,7 @@ export function useCart({
 
       return true;
     },
-    [accessToken, cartItems, cartSummary, cartPulse, hasBusinessProfile, isProfileLoading, onRequireAccount, onStatusMessage, profile],
+    [accessToken, cartItems, cartSummary, cartPulse, getAddableQuantity, onStatusMessage],
   );
 
   const changeQuantity = useCallback(
@@ -298,6 +331,7 @@ export function useCart({
     cartCount,
     cartPulse,
     addToCart,
+    getAddableQuantity,
     changeQuantity,
     removeItem,
     checkout,

@@ -23,6 +23,8 @@ class ProductResource extends JsonResource
             'currency' => $this->currency,
             'stock' => $this->stock,
             'status' => $this->status,
+            'average_rating' => (float) $this->average_rating,
+            'review_count' => (int) $this->review_count,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
             'owner_profile_id' => $this->whenLoaded('store', fn () => $this->store->profile_id),

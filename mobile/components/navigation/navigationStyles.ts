@@ -1,4 +1,4 @@
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { colors, radii } from '../../theme/colors';
 
 export const bottomNavHorizontalPadding = 16;
@@ -9,37 +9,38 @@ export const navigationStyles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 0,
     zIndex: 10,
-    // Transparente: deja ver el mismo lienzo/AmbientBackground que hay detrás, así
-    // el header comparte exactamente el tono del fondo de la app (un color opaco
-    // tapaba los glows y se veía más plano/blanco que el cuerpo).
     backgroundColor: 'transparent',
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
+    overflow: 'visible',
   },
-  headerGreeting: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-    maxWidth: Platform.OS === 'web' ? 320 : 260,
+  headerGlass: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
-  headerGreetingLabel: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: '600',
+  headerShadow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -1,
+    height: 6,
+    backgroundColor: 'transparent',
+    shadowColor: colors.primarySoft,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 4,
   },
-  headerGreetingName: {
-    color: colors.ink,
-    fontSize: 21,
-    fontWeight: '700',
-    letterSpacing: -0.4,
-    textTransform: 'capitalize',
+  headerLogo: {
+    width: 34,
+    height: 34,
   },
   headerActions: {
     flexDirection: 'row',
@@ -48,13 +49,13 @@ export const navigationStyles = StyleSheet.create({
   },
   cartBadge: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: radii.small,
     borderWidth: 1,
     borderColor: colors.lineStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
   },
   cartBadgePressed: {
     transform: [{ scale: 0.94 }],
