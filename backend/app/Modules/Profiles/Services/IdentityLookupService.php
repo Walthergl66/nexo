@@ -102,8 +102,6 @@ class IdentityLookupService
         $source = $this->firstArrayPayload($payload);
 
         $fullName = $this->firstString($source, [
-            'nombre',
-            'nombres',
             'nombreCompleto',
             'nombre_completo',
             'razonSocial',
@@ -113,8 +111,11 @@ class IdentityLookupService
         ]);
         $firstName = $this->firstString($source, ['first_name', 'primer_nombre', 'nombres']);
         $lastName = $this->firstString($source, ['last_name', 'apellidos', 'apellido', 'primer_apellido']);
+        $registryFullName = $this->firstString($source, ['nombre']);
 
-        if (($firstName === null || $lastName === null) && $fullName !== null) {
+        if ($firstName === null && $lastName === null && $registryFullName !== null) {
+            [$firstName, $lastName] = $this->splitRegistryFullName($registryFullName);
+        } elseif (($firstName === null || $lastName === null) && $fullName !== null) {
             [$firstName, $lastName] = $this->splitFullName($fullName);
         }
 
@@ -284,6 +285,27 @@ class IdentityLookupService
         return [
             implode(' ', array_slice($parts, 0, $middle)),
             implode(' ', array_slice($parts, $middle)),
+        ];
+    }
+
+    /**
+     * El Registro Civil entrega `nombre` como APELLIDOS NOMBRES.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function splitRegistryFullName(string $fullName): array
+    {
+        $parts = preg_split('/\s+/', trim($fullName)) ?: [];
+
+        if (count($parts) <= 1) {
+            return [$fullName, null];
+        }
+
+        $lastNameParts = min(2, count($parts) - 1);
+
+        return [
+            implode(' ', array_slice($parts, $lastNameParts)),
+            implode(' ', array_slice($parts, 0, $lastNameParts)),
         ];
     }
 }

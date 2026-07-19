@@ -2,6 +2,33 @@ import { StyleSheet } from 'react-native';
 import { colors, radii, shadows } from '../../theme/colors';
 
 export const styles = StyleSheet.create({
+  editOverlay: {
+    borderRadius: radii.large,
+    backgroundColor: 'rgba(11, 34, 57, 0.18)',
+    padding: 10,
+    zIndex: 20,
+  },
+  editModal: {
+    borderRadius: radii.medium,
+    backgroundColor: colors.surface,
+    padding: 12,
+    gap: 10,
+    ...shadows.floating,
+  },
+  cancelEditBtn: {
+    minHeight: 44,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelEditText: {
+    color: colors.brandBlue,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   statusPanel: {
     backgroundColor: colors.surface,
     borderRadius: radii.medium,

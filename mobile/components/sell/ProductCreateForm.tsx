@@ -11,6 +11,10 @@ type ProductCreateFormProps = {
   form: ProductForm;
   isCategoriesLoading: boolean;
   isLoading: boolean;
+  submitIcon?: keyof typeof Ionicons.glyphMap;
+  submitLabel?: string;
+  subtitle?: string;
+  title?: string;
   onChange: (form: ProductForm) => void;
   onCreateProduct: () => void;
   onPickImage: () => void;
@@ -24,6 +28,10 @@ export function ProductCreateForm({
   form,
   isCategoriesLoading,
   isLoading,
+  submitIcon,
+  submitLabel,
+  subtitle = 'Completa la informacion, agrega una imagen y elige si publicarlo ahora.',
+  title = 'Nuevo producto',
   onChange,
   onCreateProduct,
   onPickImage,
@@ -34,8 +42,8 @@ export function ProductCreateForm({
     <View style={styles.formCard}>
       <FormHeader
         icon="pricetag-outline"
-        title="Nuevo producto"
-        subtitle="Completa la informacion, agrega una imagen y elige si publicarlo ahora."
+        title={title}
+        subtitle={subtitle}
       />
       <TextInput
         placeholder="Titulo del producto"
@@ -155,8 +163,8 @@ export function ProductCreateForm({
       </Pressable>
       <PrimaryButton
         disabled={isLoading}
-        icon={form.publishNow ? 'cloud-upload' : 'document-text'}
-        label={form.publishNow ? 'Publicar producto' : 'Guardar borrador'}
+        icon={submitIcon ?? (form.publishNow ? 'cloud-upload' : 'document-text')}
+        label={submitLabel ?? (form.publishNow ? 'Publicar producto' : 'Guardar borrador')}
         loading={isLoading}
         onPress={onCreateProduct}
       />

@@ -20,6 +20,10 @@ export const accountStyles = StyleSheet.create({
     gap: 12,
     paddingBottom: 12,
   },
+  authBrandHeaderRegister: {
+    gap: 8,
+    paddingBottom: 0,
+  },
   authLogoWrap: {
     width: 74,
     height: 74,
@@ -39,6 +43,12 @@ export const accountStyles = StyleSheet.create({
     borderColor: colors.brandBlueLine,
     ...shadows.card,
   },
+  authLogoWrapRegister: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.medium,
+    borderColor: colors.brandBlueLine,
+  },
   authLogo: {
     width: 54,
     height: 54,
@@ -47,6 +57,10 @@ export const accountStyles = StyleSheet.create({
   authLogoRecovery: {
     width: 66,
     height: 66,
+  },
+  authLogoRegister: {
+    width: 48,
+    height: 48,
   },
   authBrandCopy: {
     flex: 1,
@@ -544,6 +558,214 @@ export const accountStyles = StyleSheet.create({
   registerCard: {
     gap: 14,
   },
+  registerFlow: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    gap: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.large,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 20,
+    ...shadows.card,
+  },
+  registerHeaderBlock: {
+    gap: 12,
+  },
+  registerHeaderRow: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  registerHeaderTitle: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  registerStepCount: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  registerProgress: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  registerProgressSegment: {
+    flex: 1,
+    height: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.lineStrong,
+    overflow: 'hidden',
+  },
+  registerProgressSegmentFill: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.brandBlue,
+  },
+  registerStepContent: {
+    gap: 13,
+  },
+  registerIntro: {
+    gap: 4,
+    marginBottom: 4,
+  },
+  registerTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
+  },
+  registerDescription: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  registerField: {
+    gap: 6,
+  },
+  identityLookupRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  identityFieldWrap: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  identityCard: {
+    minHeight: 96,
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  identityIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.brandBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  identityCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  identityEyebrow: {
+    color: colors.brandBlue,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  identityName: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '700',
+  },
+  identityMeta: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  passwordRequirements: {
+    gap: 4,
+    marginTop: -5,
+  },
+  addressInput: {
+    minHeight: 72,
+    maxHeight: 84,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  registrationSummary: {
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
+    padding: 14,
+    gap: 4,
+  },
+  registrationSummaryTitle: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  registrationSummaryName: {
+    color: colors.ink,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  registrationSummaryValue: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  registrationSummaryLink: {
+    color: colors.brandBlue,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  fieldMessageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  fieldMessageText: {
+    flex: 1,
+    color: colors.inkSoft,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+  },
+  fieldMessageSuccess: {
+    color: '#177A65',
+  },
+  fieldMessageError: {
+    color: '#9F1239',
+  },
+  stepNavigation: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  stepBackButton: {
+    flex: 0.36,
+    minWidth: 0,
+    height: 50,
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  stepPrimaryButton: {
+    flex: 0.64,
+    minWidth: 0,
+    height: 50,
+    borderRadius: radii.medium,
+    backgroundColor: colors.brandBlue,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
   accountName: {
     fontSize: 18,
     fontWeight: '700',
@@ -575,17 +797,30 @@ export const accountStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     padding: 4,
-    marginBottom: 12,
+    marginBottom: 0,
   },
   switchButton: {
     flex: 1,
-    height: 38,
+    height: 40,
     borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   switchButtonActive: {
     backgroundColor: colors.brandBlue,
+    shadowColor: colors.primarySoft,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  switchButtonPressed: {
+    opacity: 0.78,
+  },
+  switchButtonFocused: {
+    borderColor: colors.brandAccent,
   },
   switchText: {
     color: colors.inkMuted,
@@ -596,7 +831,7 @@ export const accountStyles = StyleSheet.create({
     color: colors.surface,
   },
   input: {
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: radii.small,
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -628,6 +863,13 @@ export const accountStyles = StyleSheet.create({
   inputDisabled: {
     backgroundColor: colors.silverSoft,
     color: colors.inkMuted,
+  },
+  inputError: {
+    borderColor: '#C84B6F',
+    backgroundColor: '#FFF8FA',
+  },
+  inputSuccess: {
+    borderColor: '#5DAE9A',
   },
   inlineRow: {
     flexDirection: 'row',
@@ -725,11 +967,13 @@ export const accountStyles = StyleSheet.create({
     color: colors.brandBlue,
   },
   lookupButton: {
-    width: 88,
-    height: 44,
+    width: 104,
+    height: 48,
     borderRadius: radii.small,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 5,
     backgroundColor: colors.brandBlue,
   },
   lookupButtonText: {
@@ -738,8 +982,8 @@ export const accountStyles = StyleSheet.create({
     fontSize: 12,
   },
   primaryButton: {
-    height: 44,
-    borderRadius: radii.pill,
+    height: 50,
+    borderRadius: radii.medium,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -761,7 +1005,13 @@ export const accountStyles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.5,
+  },
+  registerButtonDisabled: {
+    backgroundColor: colors.silver,
+    opacity: 1,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   primaryButtonText: {
     color: colors.surface,

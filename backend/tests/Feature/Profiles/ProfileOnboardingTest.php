@@ -76,8 +76,8 @@ class ProfileOnboardingTest extends TestCase
         $this->getJson('/api/identity/lookup?identificacion=1710034065')
             ->assertOk()
             ->assertJsonPath('data.national_id', '1710034065')
-            ->assertJsonPath('data.first_name', 'ESPINOSA FLORES')
-            ->assertJsonPath('data.last_name', 'DORA MARGARITA')
+            ->assertJsonPath('data.first_name', 'DORA MARGARITA')
+            ->assertJsonPath('data.last_name', 'ESPINOSA FLORES')
             ->assertJsonPath('data.age', 52);
     }
 

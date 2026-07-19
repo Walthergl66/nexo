@@ -497,6 +497,9 @@ function AppShell() {
 
         <Animated.ScrollView
           ref={scrollViewRef}
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
           style={styles.scrollLayer}
           contentContainerStyle={[
             styles.content,

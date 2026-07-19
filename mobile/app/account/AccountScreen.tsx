@@ -72,6 +72,8 @@ export function AccountScreen({
   const [resetPasswordConfirmation, setResetPasswordConfirmation] = useState('');
   const [registerForm, setRegisterForm] = useState(initialRegisterForm);
   const [identity, setIdentity] = useState<IdentityLookup | null>(null);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenderOpen, setIsGenderOpen] = useState(false);
   const [isLoginPasswordVisible, setIsLoginPasswordVisible] = useState(false);
@@ -164,6 +166,21 @@ export function AccountScreen({
   }, [accessToken, profile]);
 
   const updateRegisterField = (key: keyof RegisterFormState, value: string) => {
+    setRegistrationError(null);
+
+    if (key === 'nationalId') {
+      setIdentity(null);
+      setIdentityError(null);
+      setRegisterForm((current) => ({
+        ...current,
+        nationalId: value,
+        firstName: '',
+        lastName: '',
+        age: '',
+      }));
+      return;
+    }
+
     setRegisterForm((current) => ({ ...current, [key]: value }));
 
     if (key === 'gender') {
@@ -173,6 +190,8 @@ export function AccountScreen({
 
   const handleChangeMode = (nextMode: AccountMode) => {
     setIsGenderOpen(false);
+    setIdentityError(null);
+    setRegistrationError(null);
     clearMessage();
     setMode(nextMode);
   };
@@ -185,10 +204,11 @@ export function AccountScreen({
 
   const handleLookupIdentity = async () => {
     clearMessage();
+    setIdentityError(null);
 
     if (!/^\d{10}$/.test(registerForm.nationalId)) {
       setIdentity(null);
-      showMessage('La cedula debe tener exactamente 10 digitos.', 'error');
+      setIdentityError('La cedula debe contener 10 digitos.');
       return;
     }
 
@@ -204,10 +224,9 @@ export function AccountScreen({
         lastName: data.last_name ?? '',
         age: data.age === null ? '' : String(data.age),
       }));
-      showMessage('Cedula validada.', 'success');
     } catch (error) {
       setIdentity(null);
-      showMessage(error instanceof Error ? error.message : 'No se pudo validar la cedula.', 'error');
+      setIdentityError(toIdentityErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -291,10 +310,11 @@ export function AccountScreen({
 
   const handleRegister = async () => {
     clearMessage();
+    setRegistrationError(null);
     const validationMessage = validateRegisterForm({ form: registerForm, passwordError, identity });
 
     if (validationMessage !== null) {
-      showMessage(validationMessage, 'error');
+      setRegistrationError(validationMessage);
       return;
     }
 
@@ -304,12 +324,12 @@ export function AccountScreen({
       const availability = await checkProfileAvailability(registerForm.email, registerForm.nationalId);
 
       if (!availability.email_available) {
-        showMessage('Ese correo ya esta registrado en nexo.', 'error');
+        setRegistrationError('El correo ya se encuentra registrado.');
         return;
       }
 
       if (!availability.national_id_available) {
-        showMessage('Esa cedula ya esta registrada en nexo.', 'error');
+        setRegistrationError('La cedula ya se encuentra registrada.');
         return;
       }
 
@@ -341,10 +361,12 @@ export function AccountScreen({
 
       setRegisterForm(initialRegisterForm);
       setIdentity(null);
+      setIdentityError(null);
+      setRegistrationError(null);
       setIsGenderOpen(false);
       setMode('login');
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : 'No se pudo crear la cuenta.', 'error');
+      setRegistrationError(toRegistrationErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -587,7 +609,7 @@ export function AccountScreen({
   return (
     <>
       <SectionTitle title="Cuenta" subtitle="Ingresa o crea una cuenta para comprar y vender." />
-      {mode !== 'recovery' && <AccountModeSwitch mode={mode} onChangeMode={handleChangeMode} />}
+      {(mode === 'login' || mode === 'register') && <AccountModeSwitch mode={mode} onChangeMode={handleChangeMode} />}
       {mode === 'login' && (
         <LoginForm
           email={loginEmail}
@@ -605,6 +627,9 @@ export function AccountScreen({
       {mode === 'register' && (
         <RegisterForm
           form={registerForm}
+          identity={identity}
+          identityError={identityError}
+          registrationError={registrationError}
           isConfirmPasswordVisible={isConfirmPasswordVisible}
           isGenderOpen={isGenderOpen}
           isLoading={isLoading}
@@ -629,4 +654,28 @@ export function AccountScreen({
       )}
     </>
   );
+}
+
+function toIdentityErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+
+  if (message.includes('no se encontraron datos')) {
+    return 'No se encontraron datos para esta cedula.';
+  }
+
+  if (message.includes('no es valida') || message.includes('10 digitos')) {
+    return 'Ingresa una cedula valida.';
+  }
+
+  return 'No fue posible validar la cedula. Intentalo nuevamente.';
+}
+
+function toRegistrationErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+
+  if (message.includes('correo') && (message.includes('registrado') || message.includes('registered'))) {
+    return 'El correo ya se encuentra registrado.';
+  }
+
+  return 'No fue posible crear la cuenta. Revisa los datos e intentalo nuevamente.';
 }
