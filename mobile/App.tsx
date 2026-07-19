@@ -137,6 +137,10 @@ function AppShell() {
       return;
     }
 
+    if (statusToast.actions && statusToast.actions.length > 0) {
+      return;
+    }
+
     const timeoutId = setTimeout(() => {
       setStatusToast(null);
     }, 4200);
@@ -242,6 +246,17 @@ function AppShell() {
     setIsNotificationsOpen(false);
     setIsCartOpen(true);
   };
+
+  const handleCartAdded = useCallback(() => {
+    setStatusToast({
+      text: 'Producto agregado correctamente',
+      tone: 'success',
+      actions: [
+        { label: 'Ir al carrito', onPress: handleOpenCart },
+        { label: 'Aceptar', onPress: () => setStatusToast(null) },
+      ],
+    });
+  }, []);
 
   const handleOpenNotifications = () => {
     setActiveTab('Inicio');
@@ -371,6 +386,7 @@ function AppShell() {
             onRefreshCatalog={handleRefreshCatalog}
             onSelectProduct={handleSelectProduct}
             onStatusMessage={handleStatusMessage}
+            onCartAdded={handleCartAdded}
           />
         );
       case 'Vender':

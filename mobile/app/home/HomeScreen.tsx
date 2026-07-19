@@ -38,6 +38,7 @@ type HomeScreenProps = {
   onRefreshCatalog: () => void;
   onSelectProduct: (product: Product) => void;
   onStatusMessage?: (message: string, tone: import('../../types/status').StatusTone) => void;
+  onCartAdded?: () => void;
 };
 
 function AnimatedProductCell({
@@ -47,6 +48,7 @@ function AnimatedProductCell({
   isOwn,
   onAddToCart,
   onSelectProduct,
+  onCartAdded,
 }: {
   index: number;
   product: Product;
@@ -54,6 +56,7 @@ function AnimatedProductCell({
   isOwn: boolean;
   onAddToCart: () => void | Promise<boolean>;
   onSelectProduct: () => void;
+  onCartAdded?: () => void;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(10)).current;
@@ -87,6 +90,7 @@ function AnimatedProductCell({
         isOwn={isOwn}
         onAddToCart={onAddToCart}
         onSelectProduct={onSelectProduct}
+        onCartAdded={onCartAdded}
       />
     </Animated.View>
   );
@@ -126,6 +130,7 @@ export function HomeScreen({
   onRefreshCatalog,
   onSelectProduct,
   onStatusMessage,
+  onCartAdded,
 }: HomeScreenProps) {
   const isOwnProduct = (product: Product) =>
     Boolean(myProfileId) && product.ownerProfileId === myProfileId;
@@ -140,6 +145,7 @@ export function HomeScreen({
         onAddToCart={() => onAddToCart(selectedProduct)}
         onBack={onBackToCatalog}
         onStatusMessage={onStatusMessage}
+        onCartAdded={onCartAdded}
       />
     );
   }
@@ -238,6 +244,7 @@ export function HomeScreen({
               product={product}
               onAddToCart={() => onAddToCart(product)}
               onSelectProduct={() => onSelectProduct(product)}
+              onCartAdded={onCartAdded}
             />
           ))}
         </View>

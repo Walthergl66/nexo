@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '../common/RemoteImage';
 import { PressableScale } from '../common/PressableScale';
 import { ReviewsSection } from '../reviews/ReviewsSection';
@@ -20,6 +20,7 @@ type ProductDetailCardProps = {
   onAddToCart: () => void | Promise<boolean>;
   onBack: () => void;
   onStatusMessage?: (message: string, tone: StatusTone) => void;
+  onCartAdded?: () => void;
 };
 
 export function ProductDetailCard({
@@ -30,11 +31,12 @@ export function ProductDetailCard({
   onAddToCart,
   onBack,
   onStatusMessage,
+  onCartAdded,
 }: ProductDetailCardProps) {
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(product.imageUrl) && !hasImageError;
   const stockLabel = product.stock === 1 ? '1 disponible' : `${product.stock} disponibles`;
-  const { isAdded, progress, run } = useAddToCartFeedback(onAddToCart);
+  const { isAdded, isLoading, progress, run } = useAddToCartFeedback(onAddToCart, { onSuccess: onCartAdded });
   const { isFavorite, toggleFavorite } = useFavorites();
   const isFav = isFavorite(product.id);
 
@@ -212,7 +214,7 @@ export function ProductDetailCard({
               <Text style={styles.protectionText}>Compra protegida</Text>
             </View>
             <PressableScale
-              disabled={!product.available}
+              disabled={!product.available || isLoading}
               style={[
                 styles.addCartButton,
                 !product.available && styles.addCartButtonDisabled,
@@ -220,17 +222,23 @@ export function ProductDetailCard({
               ]}
               onPress={() => void run()}
             >
-              <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
-                <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
-                <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
-              </Animated.View>
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
-              >
-                <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
-                <Text style={styles.addCartText}>Agregado</Text>
-              </Animated.View>
+              {isLoading ? (
+                <ActivityIndicator size={18} color={colors.surface} />
+              ) : (
+                <>
+                  <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+                    <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
+                    <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
+                  </Animated.View>
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+                  >
+                    <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
+                    <Text style={styles.addCartText}>Agregado</Text>
+                  </Animated.View>
+                </>
+              )}
             </PressableScale>
           </View>
         )}
