@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 
-/** The add-to-cart handler resolves truthy only when the item really landed in the cart. */
 type AddToCartHandler = () => void | Promise<boolean>;
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
-/**
- * Drives the "just added" confirmation on a buy button: it runs the async add
- * handler and, only when the backend confirms the item was added, plays a short
- * pop + checkmark morph that settles back to the idle label on its own.
- */
-export function useAddToCartFeedback(onAddToCart: AddToCartHandler, holdMs = 1200) {
+export function useAddToCartFeedback(
+  onAddToCart: AddToCartHandler,
+  { holdMs = 1200, onSuccess }: { holdMs?: number; onSuccess?: () => void } = {},
+) {
   const [isAdded, setIsAdded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted = useRef(true);
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
 
   useEffect(() => {
     return () => {
@@ -27,15 +27,23 @@ export function useAddToCartFeedback(onAddToCart: AddToCartHandler, holdMs = 120
   }, []);
 
   const run = useCallback(async () => {
+    if (isLoading) return;
+
+    setIsLoading(true);
+
     const outcome = onAddToCart();
     const added =
       outcome != null && typeof (outcome as Promise<boolean>).then === 'function'
         ? await outcome
         : false;
 
-    if (!added || !isMounted.current) {
-      return;
-    }
+    if (!isMounted.current) return;
+
+    setIsLoading(false);
+
+    if (!added) return;
+
+    onSuccessRef.current?.();
 
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -50,9 +58,7 @@ export function useAddToCartFeedback(onAddToCart: AddToCartHandler, holdMs = 120
     }).start();
 
     timeoutRef.current = setTimeout(() => {
-      if (!isMounted.current) {
-        return;
-      }
+      if (!isMounted.current) return;
       Animated.timing(progress, {
         toValue: 0,
         duration: 200,
@@ -64,7 +70,7 @@ export function useAddToCartFeedback(onAddToCart: AddToCartHandler, holdMs = 120
         }
       });
     }, holdMs);
-  }, [holdMs, onAddToCart, progress]);
+  }, [holdMs, isLoading, onAddToCart, progress]);
 
-  return { isAdded, progress, run };
+  return { isAdded, isLoading, progress, run };
 }

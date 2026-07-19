@@ -545,6 +545,35 @@ export async function createProduct(
   return mapApiProductToProduct(response.data);
 }
 
+export async function updateProduct(
+  token: string,
+  productSlug: string,
+  payload: {
+    category_id?: string | null;
+    name?: string;
+    description?: string | null;
+    images?: Array<{ alt_text?: string | null; url: string }>;
+    price_cents?: number;
+    stock?: number;
+    status?: 'draft' | 'active' | 'paused';
+  },
+): Promise<Product> {
+  const response = await request<ApiDocument<unknown>>(`/products/${productSlug}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+
+  return mapApiProductToProduct(response.data);
+}
+
+export async function deleteProduct(token: string, productSlug: string): Promise<void> {
+  await request<void>(`/products/${productSlug}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export async function lookupIdentity(nationalId: string): Promise<IdentityLookup> {
   const response = await request<ApiDocument<IdentityLookup>>(
     `/identity/lookup?identificacion=${encodeURIComponent(nationalId)}`,
@@ -586,5 +615,116 @@ export async function completeProfile(
     body: payload,
   });
 
+  return response.data;
+}
+
+// ─── Admin ───────────────────────────────────────────────────────────────────
+
+export type VerificationRequestResource = {
+  id: string;
+  profile_id: string;
+  business_name: string;
+  business_description: string | null;
+  document_type: string | null;
+  document_number: string | null;
+  status: string;
+  rejection_reason: string | null;
+  reviewed_at: string | null;
+  created_at: string | null;
+  profile: {
+    id: string;
+    email: string | null;
+    display_name: string | null;
+    role: string;
+    verification_status: string;
+  } | null;
+  reviewer: {
+    id: string;
+    email: string | null;
+    display_name: string | null;
+  } | null;
+};
+
+export type VerificationRequestsPage = {
+  data: VerificationRequestResource[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    total: number;
+  };
+};
+
+export async function fetchAdminVerificationRequests(
+  token: string,
+  page = 1,
+): Promise<VerificationRequestsPage> {
+  const response = await request<VerificationRequestsPage>(
+    `/admin/seller-verification-requests?page=${page}`,
+    { token },
+  );
+  return response;
+}
+
+export async function reviewVerificationRequest(
+  token: string,
+  requestId: string,
+  status: 'approved' | 'rejected' | 'suspended',
+  rejectionReason?: string,
+): Promise<VerificationRequestResource> {
+  const body: Record<string, unknown> = { status };
+
+  if (status === 'rejected' && rejectionReason) {
+    body.rejection_reason = rejectionReason;
+  }
+
+  const response = await request<{ data: VerificationRequestResource }>(
+    `/admin/seller-verification-requests/${requestId}`,
+    { method: 'PATCH', token, body },
+  );
+
+  return response.data;
+}
+
+// ─── Reviews ─────────────────────────────────────────────────────────────────
+
+export type ReviewAuthor = {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+};
+
+export type ReviewResource = {
+  id: string;
+  rating: number;
+  body: string | null;
+  created_at: string | null;
+  author: ReviewAuthor | null;
+};
+
+export type ReviewsPage = {
+  data: ReviewResource[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    total: number;
+  };
+};
+
+export async function fetchProductReviews(
+  productSlug: string,
+  page = 1,
+): Promise<ReviewsPage> {
+  return request<ReviewsPage>(`/products/${productSlug}/reviews?page=${page}`);
+}
+
+export async function createReview(
+  token: string,
+  productSlug: string,
+  payload: { rating: number; body?: string | null; order_item_id?: string | null },
+): Promise<ReviewResource> {
+  const response = await request<ApiDocument<ReviewResource>>(
+    `/products/${productSlug}/reviews`,
+    { method: 'POST', token, body: payload },
+  );
   return response.data;
 }

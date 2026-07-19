@@ -1,24 +1,33 @@
-export type TabKey = 'Inicio' | 'Vender' | 'Cuenta';
+export type TabKey = 'Inicio' | 'Vender' | 'Cuenta' | 'Admin';
 
 export type ProductComment = {
   id: string;
   author: string;
+  authorId: string;
+  avatarUrl: string | null;
   rating: number;
   text: string;
+  createdAt: string | null;
 };
 
 export type Product = {
   id: string;
+  slug: string;
   title: string;
   description: string;
   category: string;
+  categoryId: string | null;
   price: number;
+  priceCents: number;
   stock: number;
+  status: string;
   available: boolean;
   seller: string;
   ownerProfileId: string | null;
   imageUrl: string | null;
   visualTone: 'light' | 'dark' | 'cool' | 'warm';
+  averageRating: number;
+  reviewCount: number;
 };
 
 export type CartItem = {

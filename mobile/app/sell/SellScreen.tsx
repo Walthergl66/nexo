@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { CreateStoreForm } from '../../components/sell/CreateStoreForm';
@@ -13,6 +13,8 @@ import {
   createStore,
   fetchProfile,
   submitSellerVerification,
+  updateProduct,
+  deleteProduct,
 } from '../../services/marketplaceApi';
 import {
   pickProductImage,
@@ -50,6 +52,7 @@ export function SellScreen({
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
   const [productForm, setProductForm] = useState(initialProductForm);
+  const [editingProduct, setEditingProduct] = useState<import('../../types/marketplace').Product | null>(null);
   const [productSuccess, setProductSuccess] = useState<{
     description: string;
     title: string;
@@ -345,6 +348,131 @@ export function SellScreen({
     }
   };
 
+  const handleStartEdit = (product: import('../../types/marketplace').Product) => {
+    setProductForm({
+      categoryId: product.categoryId ?? '',
+      name: product.title,
+      description: product.description,
+      image: null,
+      price: (product.priceCents / 100).toFixed(2),
+      publishNow: product.status === 'active',
+      stock: String(product.stock),
+    });
+    setEditingProduct(product);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+    resetProductForm();
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!accessToken || !editingProduct) {
+      return;
+    }
+
+    const name = productForm.name.trim();
+    const description = productForm.description.trim();
+    const price = Number(productForm.price.replace(',', '.'));
+    const stock = Number(productForm.stock);
+
+    if (name.length < 3) {
+      notify('Ingresa un titulo de producto valido.', 'warning');
+      return;
+    }
+
+    if (description.length < 10) {
+      notify('Ingresa una descripcion de al menos 10 caracteres.', 'warning');
+      return;
+    }
+
+    if (!productForm.categoryId) {
+      notify('Selecciona una categoria para el producto.', 'warning');
+      return;
+    }
+
+    if (!Number.isFinite(price) || price <= 0 || price > 9999999.99) {
+      notify('Ingresa un precio valido mayor a cero.', 'warning');
+      return;
+    }
+
+    if (!Number.isInteger(stock) || stock < 0) {
+      notify('Ingresa una cantidad disponible valida.', 'warning');
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage(null);
+
+    try {
+      let imageUrl: string | undefined;
+
+      if (productForm.image && store) {
+        imageUrl = await uploadProductImage(store.id, productForm.image);
+      }
+
+      const payload: Parameters<typeof updateProduct>[2] = {
+        category_id: productForm.categoryId || null,
+        name,
+        description,
+        price_cents: Math.round(price * 100),
+        stock,
+        status: productForm.publishNow ? 'active' : 'draft',
+      };
+
+      if (imageUrl) {
+        payload.images = [{ url: imageUrl, alt_text: name }];
+      }
+
+      const updated = await updateProduct(accessToken, editingProduct.slug, payload);
+
+      setProducts((current) => current.map((p) => (p.id === updated.id ? updated : p)));
+      setEditingProduct(null);
+      resetProductForm();
+      notify('Producto actualizado.', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'No se pudo actualizar el producto.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteProduct = (product: import('../../types/marketplace').Product) => {
+    // Usar el ConfirmDialog del App si estuviera disponible; aquí notificamos
+    // y ejecutamos directamente ya que SellScreen no tiene acceso a onConfirmAction.
+    // El flujo de confirmación se maneja mostrando un segundo toque.
+    void performDeleteProduct(product);
+  };
+
+  const performDeleteProduct = async (product: import('../../types/marketplace').Product) => {
+    if (!accessToken) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await deleteProduct(accessToken, product.slug);
+      setProducts((current) => {
+        const next = current.filter((p) => p.id !== product.id);
+        const nextState = next.length > 0 ? 'catalog_ready' : 'catalog_required';
+
+        setSellerState(nextState);
+
+        if (store) {
+          saveSellerState({ sellerState: nextState, store, products: next });
+        }
+
+        return next;
+      });
+      notify('Producto eliminado.', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'No se pudo eliminar el producto.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleExploreProducts = () => {
     setProductSuccess(null);
     onExploreProducts();
@@ -429,6 +557,38 @@ export function SellScreen({
         onExploreProducts={handleExploreProducts}
         onPublishAnother={handlePublishAnother}
       />
+
+      {/* ── Modal de edición ─────────────────────────────────────── */}
+      {editingProduct !== null && (
+        <View style={styles.editOverlay}>
+          <View style={styles.editModal}>
+            <ProductCreateForm
+              categories={categories}
+              categoryError={categoryError}
+              form={productForm}
+              isCategoriesLoading={isCategoriesLoading}
+              isLoading={isLoading}
+              onChange={setProductForm}
+              onCreateProduct={handleUpdateProduct}
+              onPickImage={handlePickProductImage}
+              onRefreshCategories={refreshCategories}
+              onTakeImage={handleTakeProductImage}
+              submitLabel="Guardar cambios"
+              submitIcon="checkmark-circle"
+              title="Editar producto"
+              subtitle="Modifica los campos que quieras actualizar."
+            />
+            <Pressable
+              accessibilityLabel="Cancelar edicion"
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.cancelEditBtn, pressed && { opacity: 0.7 }]}
+              onPress={handleCancelEdit}
+            >
+              <Text style={styles.cancelEditText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       <SectionTitle title="Centro de ventas" subtitle="Verificacion, tienda e inventario." />
 
@@ -610,7 +770,7 @@ export function SellScreen({
         />
       )}
 
-      <SellerProductList products={products} isLoading={isSellerLoading} />
+      <SellerProductList products={products} isLoading={isSellerLoading} onEdit={canCreateProducts ? handleStartEdit : undefined} onDelete={canCreateProducts ? handleDeleteProduct : undefined} />
 
       {canManageSales && (
         <SellerSalesList

@@ -8,8 +8,9 @@ type NavIconName = keyof typeof Ionicons.glyphMap;
 
 const navIcons: Record<TabKey, { active: NavIconName; inactive: NavIconName }> = {
   Inicio: { active: 'home', inactive: 'home-outline' },
-  Vender: { active: 'flame', inactive: 'flame-outline' },
+  Vender: { active: 'add-circle', inactive: 'add-circle-outline' },
   Cuenta: { active: 'person', inactive: 'person-outline' },
+  Admin: { active: 'shield-checkmark', inactive: 'shield-checkmark-outline' },
 };
 
 type BottomNavProps = {

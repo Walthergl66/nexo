@@ -33,11 +33,15 @@ function mapApiProductToProduct(product) {
 
   return {
     id: String(product?.id ?? ''),
+    slug: String(product?.slug ?? ''),
     title: String(product?.name ?? 'Producto sin nombre'),
     description: String(product?.description ?? 'Producto publicado por un vendedor verificado en NEXO.'),
     category,
+    categoryId: product?.category_id != null ? String(product.category_id) : (product?.category?.id != null ? String(product.category.id) : null),
     price: centsToAmount(product?.price_cents),
+    priceCents: Number(product?.price_cents ?? 0),
     stock,
+    status: String(product?.status ?? 'draft'),
     available: product?.status === 'active' && stock > 0,
     seller,
     ownerProfileId:
@@ -48,6 +52,8 @@ function mapApiProductToProduct(product) {
           : null,
     imageUrl: pickPrimaryImageUrl(product?.images),
     visualTone: pickTone(product?.id),
+    averageRating: Number(product?.average_rating ?? 0),
+    reviewCount: Number(product?.review_count ?? 0),
   };
 }
 

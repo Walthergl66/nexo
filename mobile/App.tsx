@@ -1,10 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
+import { AlertSheetHost } from './components/common/AlertSheetHost';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
+import { QuantitySheet } from './components/common/QuantitySheet';
 import { StatusToast } from './components/common/StatusToast';
 import { AppHeader } from './components/navigation/AppHeader';
 import { BottomNav } from './components/navigation/BottomNav';
@@ -14,6 +16,8 @@ import { CartScreen } from './app/cart/CartScreen';
 import { HomeScreen } from './app/home/HomeScreen';
 import { NotificationsScreen } from './app/notifications/NotificationsScreen';
 import { SellScreen } from './app/sell/SellScreen';
+import { AdminVerificationPanel } from './components/admin/AdminVerificationPanel';
+import { useAlertSheet } from './hooks/app/useAlertSheet';
 import { useAuthSession } from './hooks/app/useAuthSession';
 import { useCart } from './hooks/app/useCart';
 import { useNotifications } from './hooks/app/useNotifications';
@@ -21,9 +25,11 @@ import { usePushNotifications } from './hooks/app/usePushNotifications';
 import { useCatalog } from './hooks/app/useCatalog';
 import { useProfile } from './hooks/app/useProfile';
 import { usePasswordRecoveryDeepLink } from './hooks/app/usePasswordRecoveryDeepLink';
+import { useQuantityPrompt } from './hooks/app/useQuantityPrompt';
 import { useBottomNavAnimations } from './hooks/navigation/useBottomNavAnimations';
 import { useHeaderVisibility } from './hooks/navigation/useHeaderVisibility';
 import { useScreenTransition } from './hooks/navigation/useScreenTransition';
+import { SHEET_EXIT_DURATION } from './hooks/ui/useSheetAnimation';
 import { signOut } from './services/authService';
 import { colors } from './theme/colors';
 import type { Product, TabKey } from './types/marketplace';
@@ -31,6 +37,7 @@ import type { ConfirmActionRequest, StatusMessage, StatusTone } from './types/st
 import { formatPrice } from './utils/format';
 
 function AppShell() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -40,6 +47,8 @@ function AppShell() {
   const [isConfirmResolving, setIsConfirmResolving] = useState(false);
   const [statusToast, setStatusToast] = useState<StatusMessage | null>(null);
   const [passwordResetKey, setPasswordResetKey] = useState(0);
+  const { alert, dismissAlert, showAlert } = useAlertSheet();
+  const quantityPrompt = useQuantityPrompt();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleTokenChange = useCallback(() => {
@@ -135,6 +144,10 @@ function AppShell() {
       return;
     }
 
+    if (statusToast.actions && statusToast.actions.length > 0) {
+      return;
+    }
+
     const timeoutId = setTimeout(() => {
       setStatusToast(null);
     }, 4200);
@@ -171,10 +184,17 @@ function AppShell() {
     }
   }, [confirmAction]);
 
-  const visibleTabs = useMemo<TabKey[]>(
-    () => (hasBusinessProfile ? tabs : ['Inicio', 'Cuenta']),
-    [hasBusinessProfile],
-  );
+  const visibleTabs = useMemo<TabKey[]>(() => {
+    if (!hasBusinessProfile) {
+      return ['Inicio', 'Cuenta'];
+    }
+
+    if (profile?.role === 'admin') {
+      return ['Inicio', 'Admin', 'Cuenta'];
+    }
+
+    return tabs;
+  }, [hasBusinessProfile, profile?.role]);
   const visibleActiveIndex = Math.max(0, visibleTabs.indexOf(activeTab));
 
   const selectedProduct = useMemo(
@@ -184,7 +204,7 @@ function AppShell() {
 
   const isProductPresentation = activeTab === 'Inicio';
   const screenTransitionKey = `${activeTab}-${isNotificationsOpen ? 'notificaciones' : isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen;
+  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen && !selectedProductId;
 
   const nav = useBottomNavAnimations({ activeTab, visibleActiveIndex, tabCount: visibleTabs.length });
   const header = useHeaderVisibility(shouldShowHeader);
@@ -220,7 +240,10 @@ function AppShell() {
     setIsCartOpen(false);
   };
 
-  const handleOpenCart = () => {
+  // Memoizado porque lo capturan callbacks memoizados (handleCartAdded): sin
+  // esto conservarian el hasBusinessProfile del primer render, cuando el perfil
+  // aun no ha cargado, y mandarian al usuario a Cuenta en vez de al carrito.
+  const handleOpenCart = useCallback(() => {
     if (!hasBusinessProfile) {
       setSelectedProductId(null);
       setIsCartOpen(false);
@@ -232,7 +255,50 @@ function AppShell() {
     setSelectedProductId(null);
     setIsNotificationsOpen(false);
     setIsCartOpen(true);
-  };
+  }, [hasBusinessProfile]);
+
+  // Punto unico por donde pasan "Comprar" y "Agregar al carrito": valida
+  // primero (sesion, stock, dueño) y solo entonces pregunta la cantidad.
+  const requestAddToCart = useCallback(
+    async (product: Product): Promise<boolean> => {
+      const maxQuantity = cart.getAddableQuantity(product);
+
+      if (maxQuantity <= 0) {
+        // getAddableQuantity ya explico el motivo al usuario.
+        return false;
+      }
+
+      // Con una sola unidad disponible no hay nada que elegir.
+      if (maxQuantity === 1) {
+        return cart.addToCart(product, 1);
+      }
+
+      const quantity = await quantityPrompt.askQuantity(product, maxQuantity);
+
+      if (quantity === null) {
+        return false;
+      }
+
+      // Dejamos que esta hoja termine de cerrarse antes de seguir: al terminar,
+      // el exito abre otra y dos Modals solapados no conviven bien en iOS.
+      await new Promise((resolve) => setTimeout(resolve, SHEET_EXIT_DURATION));
+
+      return cart.addToCart(product, quantity);
+    },
+    [cart, quantityPrompt],
+  );
+
+  const handleCartAdded = useCallback(() => {
+    showAlert({
+      title: 'Producto agregado',
+      description: 'Se agrego correctamente a tu carrito. Puedes seguir explorando o finalizar tu compra.',
+      tone: 'success',
+      actions: [
+        { label: 'Ir al carrito', icon: 'cart-outline', onPress: handleOpenCart },
+        { label: 'Seguir explorando' },
+      ],
+    });
+  }, [handleOpenCart, showAlert]);
 
   const handleOpenNotifications = () => {
     setActiveTab('Inicio');
@@ -354,12 +420,15 @@ function AppShell() {
             selectedProduct={selectedProduct}
             isAuthenticated={hasBusinessProfile}
             myProfileId={profile?.id ?? null}
-            onAddToCart={cart.addToCart}
+            accessToken={accessToken}
+            onAddToCart={requestAddToCart}
             onBackToCatalog={handleBackToCatalog}
             onChangeFilter={catalog.setActiveFilter}
             onChangeSearch={catalog.setSearch}
             onRefreshCatalog={handleRefreshCatalog}
             onSelectProduct={handleSelectProduct}
+            onStatusMessage={handleStatusMessage}
+            onCartAdded={handleCartAdded}
           />
         );
       case 'Vender':
@@ -371,6 +440,13 @@ function AppShell() {
             onExploreProducts={() => setActiveTab('Inicio')}
             onGoToAccount={() => setActiveTab('Cuenta')}
             onProfileChange={onProfileChange}
+            onStatusMessage={handleStatusMessage}
+          />
+        );
+      case 'Admin':
+        return (
+          <AdminVerificationPanel
+            accessToken={accessToken ?? ''}
             onStatusMessage={handleStatusMessage}
           />
         );
@@ -388,7 +464,7 @@ function AppShell() {
             onConfirmAction={requestConfirmation}
             onStatusMessage={handleStatusMessage}
             onExplore={() => setActiveTab('Inicio')}
-            onAddToCart={cart.addToCart}
+            onAddToCart={requestAddToCart}
             onOpenProduct={handleOpenProductFromAccount}
             passwordResetKey={passwordResetKey}
             onProfileChange={onProfileChange}
@@ -410,10 +486,10 @@ function AppShell() {
             cartPulse={cart.cartPulse}
             headerOpacity={header.headerVisibility}
             headerTranslateY={header.headerTranslateY}
-            userName={profile?.first_name ?? profile?.display_name ?? null}
-            showCart={hasBusinessProfile}
+            scrollY={header.scrollY}
+            showCart={isAuthenticated}
             onOpenCart={handleOpenCart}
-            showNotifications={hasBusinessProfile}
+            showNotifications={isAuthenticated}
             unreadCount={notificationsState.unreadCount}
             onOpenNotifications={handleOpenNotifications}
           />
@@ -425,7 +501,7 @@ function AppShell() {
           contentContainerStyle={[
             styles.content,
             isProductPresentation && styles.productContent,
-            shouldShowHeader && styles.contentWithHeader,
+            shouldShowHeader && { paddingTop: insets.top + 78 },
           ]}
           onScroll={shouldShowHeader ? header.handleProductScroll : undefined}
           scrollEventThrottle={16}
@@ -448,6 +524,12 @@ function AppShell() {
           isResolving={isConfirmResolving}
           onCancel={handleCancelConfirmation}
           onConfirm={handleConfirmAction}
+        />
+        <AlertSheetHost alert={alert} onDismiss={dismissAlert} />
+        <QuantitySheet
+          request={quantityPrompt.request}
+          onCancel={quantityPrompt.cancelQuantity}
+          onConfirm={quantityPrompt.confirmQuantity}
         />
         <StatusToast status={statusToast} />
 
@@ -510,11 +592,9 @@ const styles = StyleSheet.create({
   scrollLayer: {
     zIndex: 1,
   },
-  contentWithHeader: {
-    paddingTop: 104,
-  },
   productContent: {
     paddingTop: 0,
+    paddingHorizontal: 0,
   },
   screenTransition: {
     gap: 18,

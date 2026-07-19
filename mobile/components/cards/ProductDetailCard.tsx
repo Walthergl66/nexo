@@ -1,59 +1,89 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '../common/RemoteImage';
 import { PressableScale } from '../common/PressableScale';
+import { ReviewsSection } from '../reviews/ReviewsSection';
+import { StarRating } from '../reviews/StarRating';
 import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
-import { colors, radii, shadows } from '../../theme/colors';
+import { useFavorites } from '../../context/FavoritesContext';
+import { colors, radii, shadows, spacing } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
+import type { StatusTone } from '../../types/status';
 import { formatPrice } from '../../utils/format';
 
 type ProductDetailCardProps = {
   product: Product;
   isAuthenticated: boolean;
   isOwn?: boolean;
+  accessToken: string | null;
   onAddToCart: () => void | Promise<boolean>;
   onBack: () => void;
+  onStatusMessage?: (message: string, tone: StatusTone) => void;
+  onCartAdded?: () => void;
 };
 
 export function ProductDetailCard({
   product,
   isAuthenticated,
   isOwn = false,
+  accessToken,
   onAddToCart,
   onBack,
+  onStatusMessage,
+  onCartAdded,
 }: ProductDetailCardProps) {
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(product.imageUrl) && !hasImageError;
   const stockLabel = product.stock === 1 ? '1 disponible' : `${product.stock} disponibles`;
-  const { isAdded, progress, run } = useAddToCartFeedback(onAddToCart);
+  const { isAdded, isLoading, progress, run } = useAddToCartFeedback(onAddToCart, { onSuccess: onCartAdded });
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const isFav = isFavorite(product.id);
 
   const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
   const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
   const successOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const bodyFade = useRef(new Animated.Value(0)).current;
+  const bodySlide = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      Animated.parallel([
+        Animated.timing(bodyFade, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(bodySlide, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  }, [fadeAnim, slideAnim, bodyFade, bodySlide]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.topRow}>
-        <Pressable
-          accessibilityLabel="Volver al catalogo"
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-          onPress={onBack}
-        >
-          <Ionicons name="chevron-back" size={18} color={colors.ink} />
-          <Text style={styles.backText}>Volver</Text>
-        </Pressable>
-        <View style={[styles.statusPill, !product.available && styles.statusPillOff]}>
-          <View style={[styles.statusDot, !product.available && styles.statusDotOff]} />
-          <Text style={[styles.statusText, !product.available && styles.statusTextOff]}>
-            {product.available ? 'Disponible' : 'Agotado'}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={styles.title}>{product.title}</Text>
-
-      <View style={styles.heroVisual}>
+      <Animated.View style={[styles.heroSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {showRealImage ? (
           <RemoteImage
             accessibilityLabel={`Imagen de ${product.title}`}
@@ -68,164 +98,376 @@ export function ProductDetailCard({
             <Text style={styles.imageFallbackText}>Imagen no disponible</Text>
           </View>
         )}
-      </View>
 
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryCopy}>
-          <Text style={styles.category}>{product.category}</Text>
-          <View style={styles.sellerRow}>
-            <Ionicons name="storefront-outline" size={13} color={colors.brandBlue} />
-            <Text numberOfLines={1} style={styles.seller}>{product.seller}</Text>
+        <Pressable
+          accessibilityLabel="Volver al catalogo"
+          style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+          onPress={onBack}
+        >
+          <Ionicons name="chevron-back" size={18} color={colors.ink} />
+        </Pressable>
+
+        <Pressable
+          accessibilityLabel={isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+          style={({ pressed }) => [styles.favButton, pressed && styles.favButtonPressed]}
+          onPress={() => toggleFavorite(product.id)}
+        >
+          <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={18} color={isFav ? colors.brandAccent : colors.ink} />
+        </Pressable>
+
+        <View style={[styles.statusPill, !product.available && styles.statusPillOff]}>
+          <View style={[styles.statusDot, !product.available && styles.statusDotOff]} />
+          <Text style={[styles.statusText, !product.available && styles.statusTextOff]}>
+            {product.available ? 'Disponible' : 'Agotado'}
+          </Text>
+        </View>
+
+        {product.category && (
+          <View style={styles.categoryTag}>
+            <Text style={styles.categoryText}>{product.category}</Text>
+          </View>
+        )}
+
+        <View style={styles.heroOverlay}>
+          <Text numberOfLines={2} style={styles.heroTitle}>{product.title}</Text>
+          <View style={styles.heroMetaRow}>
+            <View style={styles.sellerChip}>
+              <Ionicons name="storefront-outline" size={11} color="rgba(255,255,255,0.8)" />
+              <Text numberOfLines={1} style={styles.sellerChipText}>{product.seller}</Text>
+            </View>
+            {product.reviewCount > 0 && (
+              <View style={styles.ratingChip}>
+                <Ionicons name="star" size={10} color={colors.popYellow} />
+                <Text style={styles.ratingChipText}>{product.averageRating.toFixed(1)}</Text>
+              </View>
+            )}
           </View>
         </View>
-        <Text style={styles.price}>{formatPrice(product.price)}</Text>
-      </View>
 
-      <View style={styles.infoGrid}>
-        <View style={styles.infoItem}>
-          <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
-          <View style={styles.infoCopy}>
-            <Text style={styles.infoLabel}>Inventario</Text>
-            <Text style={styles.infoValue}>{stockLabel}</Text>
+        <View style={styles.priceTag}>
+          <Text style={styles.priceTagText}>{formatPrice(product.price)}</Text>
+        </View>
+      </Animated.View>
+
+      <Animated.View style={[styles.body, { opacity: bodyFade, transform: [{ translateY: bodySlide }] }]}>
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryCopy}>
+            <View style={styles.sellerRow}>
+              <Ionicons name="storefront-outline" size={13} color={colors.brandBlue} />
+              <Text numberOfLines={1} style={styles.seller}>{product.seller}</Text>
+            </View>
+            {product.reviewCount > 0 && (
+              <View style={styles.ratingRow}>
+                <StarRating rating={product.averageRating} size={12} />
+                <Text style={styles.ratingText}>
+                  {product.averageRating.toFixed(1)} ({product.reviewCount})
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.price}>{formatPrice(product.price)}</Text>
+        </View>
+
+        <View style={styles.infoGrid}>
+          <View style={styles.infoItem}>
+            <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
+            <View style={styles.infoCopy}>
+              <Text style={styles.infoLabel}>Inventario</Text>
+              <Text style={styles.infoValue}>{stockLabel}</Text>
+            </View>
+          </View>
+          <View style={styles.infoItem}>
+            <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
+            <View style={styles.infoCopy}>
+              <Text style={styles.infoLabel}>Envio</Text>
+              <Text numberOfLines={1} style={styles.infoValue}>Gratis y protegido</Text>
+            </View>
           </View>
         </View>
-        <View style={styles.infoItem}>
-          <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
-          <View style={styles.infoCopy}>
-            <Text style={styles.infoLabel}>Envio</Text>
-            <Text numberOfLines={1} style={styles.infoValue}>Gratis y protegido</Text>
-          </View>
-        </View>
-      </View>
 
-      <View style={styles.descriptionBlock}>
-        <Text style={styles.sectionTitle}>Descripcion</Text>
-        <Text style={styles.description}>{product.description}</Text>
-      </View>
-
-      {isOwn ? (
-        <View style={styles.ownBanner}>
-          <Ionicons name="storefront-outline" size={18} color={colors.brandBlue} />
-          <Text style={styles.ownBannerText}>Este es tu producto. Gestiona sus ventas desde la pestana Vender.</Text>
+        <View style={styles.descriptionBlock}>
+          <Text style={styles.sectionTitle}>Descripcion</Text>
+          <Text style={styles.description}>{product.description}</Text>
         </View>
-      ) : (
-        <View style={styles.bottomActions}>
-          <View style={styles.protection}>
-            <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
-            <Text style={styles.protectionText}>Compra protegida</Text>
+
+        <View style={styles.reviewsBlock}>
+          <ReviewsSection
+            productSlug={product.slug}
+            averageRating={product.averageRating}
+            reviewCount={product.reviewCount}
+            isAuthenticated={isAuthenticated}
+            isOwn={isOwn}
+            accessToken={accessToken}
+            onStatusMessage={onStatusMessage}
+          />
+        </View>
+
+        {isOwn ? (
+          <View style={styles.ownBanner}>
+            <Ionicons name="storefront-outline" size={18} color={colors.brandBlue} />
+            <Text style={styles.ownBannerText}>Este es tu producto. Gestiona sus ventas desde la pestana Vender.</Text>
           </View>
-          <PressableScale
-            disabled={!product.available}
-            style={[
-              styles.addCartButton,
-              !product.available && styles.addCartButtonDisabled,
-              isAdded && styles.addCartButtonSuccess,
-            ]}
-            onPress={() => void run()}
-          >
-            <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
-              <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
-              <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
-            </Animated.View>
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+        ) : (
+          <View style={styles.bottomActions}>
+            <View style={styles.protection}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
+              <Text style={styles.protectionText}>Compra protegida</Text>
+            </View>
+            <PressableScale
+              disabled={!product.available || isLoading}
+              style={[
+                styles.addCartButton,
+                !product.available && styles.addCartButtonDisabled,
+                isAdded && styles.addCartButtonSuccess,
+              ]}
+              onPress={() => void run()}
             >
-              <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
-              <Text style={styles.addCartText}>Agregado</Text>
-            </Animated.View>
-          </PressableScale>
-        </View>
-      )}
+              {isLoading ? (
+                <ActivityIndicator size={18} color={colors.surface} />
+              ) : (
+                <>
+                  <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+                    <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
+                    <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
+                  </Animated.View>
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+                  >
+                    <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
+                    <Text style={styles.addCartText}>Agregado</Text>
+                  </Animated.View>
+                </>
+              )}
+            </PressableScale>
+          </View>
+        )}
+      </Animated.View>
     </View>
   );
 }
 
+const HERO_HEIGHT = 340;
+const CLIP_BOTTOM_RADIUS = 56;
+
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 18,
-    gap: 18,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     ...shadows.card,
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  backText: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: radii.pill,
-    backgroundColor: colors.brandBlueSoft,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-  },
-  statusPillOff: {
-    backgroundColor: colors.surfaceSoft,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.brandBlue,
-  },
-  statusDotOff: {
-    backgroundColor: colors.inkSoft,
-  },
-  statusText: {
-    color: colors.brandBlue,
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  statusTextOff: {
-    color: colors.inkMuted,
-  },
-  title: {
-    color: colors.ink,
-    fontSize: 26,
-    lineHeight: 31,
-    fontWeight: '700',
-  },
-  heroVisual: {
-    height: 280,
-    borderRadius: 22,
+
+  heroSection: {
+    height: HERO_HEIGHT,
     backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderBottomRightRadius: CLIP_BOTTOM_RADIUS,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 6,
   },
   heroImage: {
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
+    borderBottomRightRadius: CLIP_BOTTOM_RADIUS,
   },
   imageFallback: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    padding: 20,
   },
   imageFallbackText: {
     color: colors.inkMuted,
     fontSize: 12,
     fontWeight: '700',
   },
+
+  backButton: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: spacing.lg,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  backButtonPressed: {
+    transform: [{ scale: 0.94 }],
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+
+  favButton: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: spacing.lg + 50,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  favButtonPressed: {
+    transform: [{ scale: 0.94 }],
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+
+  statusPill: {
+    position: 'absolute',
+    top: spacing.lg,
+    right: spacing.lg,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(6, 79, 158, 0.78)',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  statusPillOff: {
+    backgroundColor: 'rgba(147, 163, 178, 0.78)',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#57D6C7',
+  },
+  statusDotOff: {
+    backgroundColor: colors.inkSoft,
+  },
+  statusText: {
+    color: colors.surface,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  statusTextOff: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+
+  categoryTag: {
+    position: 'absolute',
+    top: spacing.lg + 50,
+    left: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: radii.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  categoryText: {
+    color: colors.surface,
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+
+  heroOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.xl,
+    paddingBottom: 20,
+    gap: 8,
+  },
+  heroTitle: {
+    color: colors.surface,
+    fontSize: 24,
+    lineHeight: 29,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sellerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: radii.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  sellerChipText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  ratingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: radii.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  ratingChipText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+
+  priceTag: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    right: spacing.xl,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: radii.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  priceTagText: {
+    color: colors.surface,
+    fontSize: 16,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+
+  body: {
+    padding: 20,
+    gap: 18,
+  },
+
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -236,17 +478,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  category: {
-    color: colors.brandAccent,
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
   sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 6,
   },
   seller: {
     flex: 1,
@@ -306,6 +541,22 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontSize: 13,
     lineHeight: 20,
+  },
+  reviewsBlock: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 14,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 5,
+  },
+  ratingText: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '600',
   },
   bottomActions: {
     flexDirection: 'row',

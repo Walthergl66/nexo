@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
 import { ProductVisual } from './ProductVisual';
 import { PressableScale } from '../common/PressableScale';
+import { StarRating } from '../reviews/StarRating';
 import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
@@ -13,11 +14,12 @@ type ProductCardProps = {
   isOwn?: boolean;
   onAddToCart: () => void | Promise<boolean>;
   onSelectProduct: () => void;
+  onCartAdded?: () => void;
 };
 
-export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCart, onSelectProduct }: ProductCardProps) {
+export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCart, onSelectProduct, onCartAdded }: ProductCardProps) {
   const addLabel = isAuthenticated ? `Agregar ${product.title} al carrito` : `Iniciar sesion para comprar ${product.title}`;
-  const { isAdded, progress, run } = useAddToCartFeedback(onAddToCart);
+  const { isAdded, isLoading, progress, run } = useAddToCartFeedback(onAddToCart, { onSuccess: onCartAdded });
 
   const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
   const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -41,6 +43,12 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
           {product.seller}
         </Text>
       </View>
+      {product.reviewCount > 0 && (
+        <View style={styles.ratingRow}>
+          <StarRating rating={product.averageRating} size={10} />
+          <Text style={styles.ratingText}>{product.averageRating.toFixed(1)}</Text>
+        </View>
+      )}
       <View style={styles.bottomRow}>
         <View>
           <Text style={styles.price}>{formatPrice(product.price)}</Text>
@@ -54,7 +62,7 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
         ) : (
           <PressableScale
             accessibilityLabel={addLabel}
-            disabled={!product.available}
+            disabled={!product.available || isLoading}
             style={[
               styles.addButton,
               !product.available && styles.addButtonDisabled,
@@ -65,16 +73,22 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
               void run();
             }}
           >
-            <Animated.Text style={[styles.addButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
-              {isAuthenticated ? 'Comprar' : 'Entrar'}
-            </Animated.Text>
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.addButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
-            >
-              <Ionicons name="checkmark" size={13} color={colors.surface} />
-              <Text style={styles.addButtonSuccessText}>Listo</Text>
-            </Animated.View>
+            {isLoading ? (
+              <ActivityIndicator size={12} color={colors.surface} />
+            ) : (
+              <>
+                <Animated.Text style={[styles.addButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+                  {isAuthenticated ? 'Comprar' : 'Entrar'}
+                </Animated.Text>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.addButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+                >
+                  <Ionicons name="checkmark" size={13} color={colors.surface} />
+                  <Text style={styles.addButtonSuccessText}>Listo</Text>
+                </Animated.View>
+              </>
+            )}
           </PressableScale>
         )}
       </View>
@@ -108,6 +122,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.brandBlue,
     fontWeight: '600',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
+  },
+  ratingText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.inkMuted,
   },
   bottomRow: {
     flexDirection: 'row',
