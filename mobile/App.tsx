@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
@@ -32,6 +32,7 @@ import type { ConfirmActionRequest, StatusMessage, StatusTone } from './types/st
 import { formatPrice } from './utils/format';
 
 function AppShell() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -192,7 +193,7 @@ function AppShell() {
 
   const isProductPresentation = activeTab === 'Inicio';
   const screenTransitionKey = `${activeTab}-${isNotificationsOpen ? 'notificaciones' : isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen;
+  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen && !selectedProductId;
 
   const nav = useBottomNavAnimations({ activeTab, visibleActiveIndex, tabCount: visibleTabs.length });
   const header = useHeaderVisibility(shouldShowHeader);
@@ -427,10 +428,10 @@ function AppShell() {
             cartPulse={cart.cartPulse}
             headerOpacity={header.headerVisibility}
             headerTranslateY={header.headerTranslateY}
-            userName={profile?.first_name ?? profile?.display_name ?? null}
-            showCart={hasBusinessProfile}
+            scrollY={header.scrollY}
+            showCart={isAuthenticated}
             onOpenCart={handleOpenCart}
-            showNotifications={hasBusinessProfile}
+            showNotifications={isAuthenticated}
             unreadCount={notificationsState.unreadCount}
             onOpenNotifications={handleOpenNotifications}
           />
@@ -442,7 +443,7 @@ function AppShell() {
           contentContainerStyle={[
             styles.content,
             isProductPresentation && styles.productContent,
-            shouldShowHeader && styles.contentWithHeader,
+            shouldShowHeader && { paddingTop: insets.top + 78 },
           ]}
           onScroll={shouldShowHeader ? header.handleProductScroll : undefined}
           scrollEventThrottle={16}
@@ -527,11 +528,9 @@ const styles = StyleSheet.create({
   scrollLayer: {
     zIndex: 1,
   },
-  contentWithHeader: {
-    paddingTop: 104,
-  },
   productContent: {
     paddingTop: 0,
+    paddingHorizontal: 0,
   },
   screenTransition: {
     gap: 18,

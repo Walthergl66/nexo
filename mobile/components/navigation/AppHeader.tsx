@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
-import { Animated, Pressable, Text, View } from 'react-native';
+import { Animated, Image, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { navigationStyles as styles } from './navigationStyles';
 
@@ -9,7 +10,7 @@ type AppHeaderProps = {
   cartPulse: Animated.Value;
   headerOpacity: Animated.Value;
   headerTranslateY: Animated.AnimatedInterpolation<number>;
-  userName?: string | null;
+  scrollY: Animated.Value;
   showCart: boolean;
   onOpenCart: () => void;
   showNotifications?: boolean;
@@ -22,7 +23,7 @@ export function AppHeader({
   cartPulse,
   headerOpacity,
   headerTranslateY,
-  userName,
+  scrollY,
   showCart,
   onOpenCart,
   showNotifications = false,
@@ -31,6 +32,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   const bubbleScale = useRef(new Animated.Value(1)).current;
   const prevCount = useRef(cartCount);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (cartCount > prevCount.current) {
@@ -45,23 +47,54 @@ export function AppHeader({
     prevCount.current = cartCount;
   }, [bubbleScale, cartCount]);
 
+  const glassOpacity = scrollY.interpolate({
+    inputRange: [0, 40],
+    outputRange: [0.92, 0.95],
+    extrapolate: 'clamp',
+  });
+
+  const shadowOpacity = scrollY.interpolate({
+    inputRange: [0, 30],
+    outputRange: [0.08, 0.14],
+    extrapolate: 'clamp',
+  });
+
   return (
     <Animated.View
       pointerEvents="box-none"
       style={[
         styles.header,
         {
+          top: insets.top,
           opacity: headerOpacity,
           transform: [{ translateY: headerTranslateY }],
         },
       ]}
     >
-      <View style={styles.headerGreeting}>
-        <Text style={styles.headerGreetingLabel}>{userName ? 'Bienvenido de nuevo,' : 'Hola,'}</Text>
-        <Text numberOfLines={1} style={styles.headerGreetingName}>
-          {userName ? userName.toLowerCase() : 'bienvenido a nexo'}
-        </Text>
-      </View>
+      <Animated.View
+        style={[
+          styles.headerGlass,
+          {
+            opacity: glassOpacity,
+          },
+        ]}
+        pointerEvents="none"
+      />
+      <Animated.View
+        style={[
+          styles.headerShadow,
+          {
+            opacity: shadowOpacity,
+          },
+        ]}
+        pointerEvents="none"
+      />
+      <Image
+        source={require('../../assets/nexo-logo.png')}
+        style={styles.headerLogo}
+        resizeMode="contain"
+        accessibilityLabel="Logo nexo"
+      />
       <View style={styles.headerActions}>
         {showNotifications && onOpenNotifications && (
           <Pressable

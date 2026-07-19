@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -9,18 +9,14 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
-import { RemoteImage } from '../../components/common/RemoteImage';
-import { PressableScale } from '../../components/common/PressableScale';
 import { Skeleton } from '../../components/common/Skeleton';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
-import { useAddToCartFeedback } from '../../hooks/app/useAddToCartFeedback';
+import { HeroSection } from '../../components/home/HeroSection';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
-import { formatPrice } from '../../utils/format';
 
 type HomeScreenProps = {
   activeFilter: string;
@@ -96,106 +92,6 @@ function AnimatedProductCell({
   );
 }
 
-function FeaturedBuyButton({ onBuy }: { onBuy: () => void | Promise<boolean> }) {
-  const { isAdded, progress, run } = useAddToCartFeedback(onBuy);
-  const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
-  const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
-  const successOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
-
-  return (
-    <PressableScale
-      style={[styles.featuredButton, isAdded && styles.featuredButtonSuccess]}
-      onPress={(event) => {
-        event.stopPropagation();
-        void run();
-      }}
-    >
-      <Animated.Text style={[styles.featuredButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
-        Comprar ahora
-      </Animated.Text>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.featuredButtonSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
-      >
-        <Ionicons name="checkmark-circle" size={15} color={colors.surface} />
-        <Text style={styles.featuredButtonText}>Agregado</Text>
-      </Animated.View>
-    </PressableScale>
-  );
-}
-
-// Fondos pastel suaves que rotan por tarjeta (estilo carrusel ecommerce). Usan
-// tokens existentes: cada uno es una tinta clara sobre la que el texto oscuro
-// contrasta bien, sin introducir colores nuevos a la paleta.
-const FEATURED_BACKGROUNDS = [
-  colors.brandBlueSoft,
-  colors.success,
-  colors.accentSoft,
-  colors.warning,
-];
-
-function FeaturedCard({
-  product,
-  index,
-  width,
-  isOwn,
-  onAddToCart,
-  onSelectProduct,
-}: {
-  product: Product;
-  index: number;
-  width: number;
-  isOwn: boolean;
-  onAddToCart: () => void | Promise<boolean>;
-  onSelectProduct: () => void;
-}) {
-  const [hasImageError, setHasImageError] = useState(false);
-  const showRealImage = Boolean(product.imageUrl) && !hasImageError;
-  const background = FEATURED_BACKGROUNDS[index % FEATURED_BACKGROUNDS.length];
-
-  return (
-    <PressableScale
-      accessibilityLabel={`Ver detalle de ${product.title}`}
-      activeScale={0.985}
-      style={[styles.featuredCard, { width, backgroundColor: background }]}
-      onPress={onSelectProduct}
-    >
-      <View style={styles.featuredCopy}>
-        <Text style={styles.featuredCategory}>{product.category}</Text>
-        <Text numberOfLines={2} style={styles.featuredTitle}>{product.title}</Text>
-        <View style={styles.featuredSellerRow}>
-          <Ionicons name="storefront-outline" size={12} color={colors.inkMuted} />
-          <Text numberOfLines={1} style={styles.featuredSeller}>{product.seller}</Text>
-        </View>
-        <Text style={styles.featuredPrice}>{formatPrice(product.price)}</Text>
-        {isOwn ? (
-          <View style={styles.featuredOwnTag}>
-            <Ionicons name="storefront" size={13} color={colors.ink} />
-            <Text style={styles.featuredOwnTagText}>Tu producto</Text>
-          </View>
-        ) : (
-          <FeaturedBuyButton onBuy={onAddToCart} />
-        )}
-      </View>
-      <View style={styles.featuredImageWrap}>
-        {showRealImage ? (
-          <RemoteImage
-            accessibilityLabel={`Imagen de ${product.title}`}
-            uri={product.imageUrl as string}
-            width={520}
-            style={styles.featuredImage}
-            onFinalError={() => setHasImageError(true)}
-          />
-        ) : (
-          <View style={styles.featuredImageFallback}>
-            <Ionicons name="bag-handle-outline" size={56} color={colors.inkSoft} />
-          </View>
-        )}
-      </View>
-    </PressableScale>
-  );
-}
-
 function ProductSkeletonGrid() {
   return (
     <View style={styles.productGrid}>
@@ -231,7 +127,6 @@ export function HomeScreen({
   onSelectProduct,
   onStatusMessage,
 }: HomeScreenProps) {
-  const { width: screenWidth } = useWindowDimensions();
   const isOwnProduct = (product: Product) =>
     Boolean(myProfileId) && product.ownerProfileId === myProfileId;
 
@@ -255,8 +150,6 @@ export function HomeScreen({
   const featuredCount = filteredProducts.length >= 6 ? 4 : filteredProducts.length >= 3 ? 1 : 0;
   const featuredProducts = isLoading ? [] : filteredProducts.slice(0, featuredCount);
   const catalogProducts = filteredProducts.slice(featuredProducts.length);
-  // Ancho de tarjeta con un "peek" de la siguiente para invitar al swipe.
-  const featuredCardWidth = Math.round(screenWidth - 72);
   const syncLabel = lastSyncAt
     ? `Actualizado ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Conectando';
@@ -309,27 +202,17 @@ export function HomeScreen({
         })}
       </ScrollView>
 
-      {featuredProducts.length > 0 && !isLoading && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToInterval={featuredCardWidth + 12}
-          snapToAlignment="start"
-          contentContainerStyle={styles.featuredRow}
-        >
-          {featuredProducts.map((product, index) => (
-            <FeaturedCard
-              key={product.id}
-              product={product}
-              index={index}
-              width={featuredCardWidth}
-              isOwn={isOwnProduct(product)}
-              onAddToCart={() => onAddToCart(product)}
-              onSelectProduct={() => onSelectProduct(product)}
-            />
-          ))}
-        </ScrollView>
+      {!isLoading && featuredProducts.length > 0 && activeFilter === 'Todo' && (
+        <View style={styles.heroWrap}>
+          <HeroSection
+            imageUrl={featuredProducts[0].imageUrl}
+            title={featuredProducts[0].title}
+            seller={featuredProducts[0].seller}
+            price={featuredProducts[0].price}
+            category={featuredProducts[0].category}
+            onPress={() => onSelectProduct(featuredProducts[0])}
+          />
+        </View>
       )}
 
       <View style={styles.resultsHeader}>
@@ -428,113 +311,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '600',
   },
-  featuredRow: {
-    gap: 12,
-    paddingVertical: 2,
-    paddingRight: 4,
-  },
-  featuredCard: {
-    height: 196,
-    borderRadius: 24,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    ...shadows.card,
-  },
-  featuredCopy: {
-    flex: 1,
-    minWidth: 0,
-    padding: 20,
-    justifyContent: 'center',
-  },
-  featuredCategory: {
-    color: colors.inkMuted,
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
-  featuredTitle: {
-    color: colors.ink,
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: '700',
-    letterSpacing: -0.6,
-    marginTop: 8,
-  },
-  featuredSellerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 8,
-  },
-  featuredSeller: {
-    flex: 1,
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  featuredPrice: {
-    color: colors.ink,
-    fontSize: 19,
-    fontWeight: '700',
-    marginTop: 8,
-  },
-  featuredButton: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.pill,
-    backgroundColor: colors.ink,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    marginTop: 16,
-  },
-  featuredButtonSuccess: {
-    backgroundColor: colors.brandBlue,
-  },
-  featuredOwnTag: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.lineStrong,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    marginTop: 16,
-  },
-  featuredOwnTagText: {
-    color: colors.ink,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  featuredButtonSuccessLayer: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  featuredButtonText: {
-    color: colors.surface,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  featuredImageWrap: {
-    width: 148,
-    alignSelf: 'stretch',
-  },
-  featuredImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  featuredImageFallback: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   resultsHeader: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -617,5 +393,8 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  heroWrap: {
+    marginHorizontal: -20,
   },
 });

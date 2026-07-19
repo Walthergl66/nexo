@@ -25,8 +25,16 @@ if [ ! -f "$MOBILE_ENV" ]; then
     fi
 fi
 
-# Obtener IP local
-IP=$(hostname -I | awk '{print $1}')
+# Obtener IP local (compatible con Git Bash / Windows / Linux / macOS)
+if command -v ip &>/dev/null; then
+    IP=$(ip route get 1 2>/dev/null | awk '{print $7; exit}')
+elif command -v ifconfig &>/dev/null; then
+    IP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | awk '{print $2}' | head -1)
+elif command -v powershell.exe &>/dev/null; then
+    IP=$(powershell.exe -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { \$_.InterfaceAlias -notlike '*Loopback*' -and \$_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1).IPAddress" 2>/dev/null | tr -d '\r')
+else
+    IP=$(ipconfig 2>/dev/null | grep -i "IPv4" | awk '{print $NF}' | head -1)
+fi
 
 if [ -z "$IP" ]; then
     echo "No se pudo detectar una IP local."

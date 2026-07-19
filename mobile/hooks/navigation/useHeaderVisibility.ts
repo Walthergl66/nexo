@@ -8,6 +8,7 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
  */
 export function useHeaderVisibility(shouldShowHeader: boolean) {
   const headerVisibility = useRef(new Animated.Value(1)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
   const isHeaderVisible = useRef(true);
   const lastProductScrollY = useRef(0);
 
@@ -44,6 +45,8 @@ export function useHeaderVisibility(shouldShowHeader: boolean) {
     const delta = nextY - lastProductScrollY.current;
     const scrollThreshold = 8;
 
+    scrollY.setValue(nextY);
+
     if (nextY <= 10) {
       animateHeader(true);
     } else if (delta > scrollThreshold) {
@@ -58,6 +61,7 @@ export function useHeaderVisibility(shouldShowHeader: boolean) {
   return {
     headerVisibility,
     headerTranslateY,
+    scrollY,
     handleProductScroll,
   };
 }
