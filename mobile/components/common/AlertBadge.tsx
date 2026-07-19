@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { alertTones, type AlertTone } from '../../theme/alertTones';
+import { alertTones } from '../../theme/alertTones';
+import type { AlertTone } from '../../types/status';
 
 const BADGE_SIZE = 86;
 const LOBES = 12;

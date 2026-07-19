@@ -1,13 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
+import { useRef } from 'react';
 import { ActivityIndicator, Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSheetAnimation } from '../../hooks/ui/useSheetAnimation';
-import { alertTones, type AlertTone } from '../../theme/alertTones';
+import { alertTones } from '../../theme/alertTones';
 import { colors, spacing } from '../../theme/colors';
+import type { AlertTone, IoniconName } from '../../types/status';
 import { AlertBadge } from './AlertBadge';
-
-type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 export type AlertSheetAction = {
   disabled?: boolean;
@@ -45,6 +44,14 @@ export function AlertSheet({
   const insets = useSafeAreaInsets();
   const sheet = useSheetAnimation(visible);
 
+  // Quien invoca suele limpiar su estado al cerrar; conservamos el ultimo
+  // contenido para que la hoja no se vacie mientras se desliza hacia abajo.
+  const lastContent = useRef({ actions, description, title, tone });
+  if (visible) {
+    lastContent.current = { actions, description, title, tone };
+  }
+  const content = lastContent.current;
+
   if (!sheet.mounted) {
     return null;
   }
@@ -71,13 +78,13 @@ export function AlertSheet({
             },
           ]}
         >
-          <AlertBadge tone={tone} />
-          <Text style={styles.title}>{title}</Text>
-          {description ? <Text style={styles.description}>{description}</Text> : null}
+          <AlertBadge tone={content.tone} />
+          <Text style={styles.title}>{content.title}</Text>
+          {content.description ? <Text style={styles.description}>{content.description}</Text> : null}
 
           <View style={styles.actions}>
-            {actions.map((action) => (
-              <SheetButton key={action.label} action={action} tone={tone} />
+            {content.actions.map((action) => (
+              <SheetButton key={action.label} action={action} tone={content.tone} />
             ))}
           </View>
         </Animated.View>

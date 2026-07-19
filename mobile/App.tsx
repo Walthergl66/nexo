@@ -4,6 +4,7 @@ import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
+import { AlertSheetHost } from './components/common/AlertSheetHost';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { StatusToast } from './components/common/StatusToast';
 import { AppHeader } from './components/navigation/AppHeader';
@@ -15,6 +16,7 @@ import { HomeScreen } from './app/home/HomeScreen';
 import { NotificationsScreen } from './app/notifications/NotificationsScreen';
 import { SellScreen } from './app/sell/SellScreen';
 import { AdminVerificationPanel } from './components/admin/AdminVerificationPanel';
+import { useAlertSheet } from './hooks/app/useAlertSheet';
 import { useAuthSession } from './hooks/app/useAuthSession';
 import { useCart } from './hooks/app/useCart';
 import { useNotifications } from './hooks/app/useNotifications';
@@ -42,6 +44,7 @@ function AppShell() {
   const [isConfirmResolving, setIsConfirmResolving] = useState(false);
   const [statusToast, setStatusToast] = useState<StatusMessage | null>(null);
   const [passwordResetKey, setPasswordResetKey] = useState(0);
+  const { alert, dismissAlert, showAlert } = useAlertSheet();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleTokenChange = useCallback(() => {
@@ -248,15 +251,16 @@ function AppShell() {
   };
 
   const handleCartAdded = useCallback(() => {
-    setStatusToast({
-      text: 'Producto agregado correctamente',
+    showAlert({
+      title: 'Producto agregado',
+      description: 'Se agrego correctamente a tu carrito. Puedes seguir explorando o finalizar tu compra.',
       tone: 'success',
       actions: [
-        { label: 'Ir al carrito', onPress: handleOpenCart },
-        { label: 'Aceptar', onPress: () => setStatusToast(null) },
+        { label: 'Ir al carrito', icon: 'cart-outline', onPress: handleOpenCart },
+        { label: 'Seguir explorando' },
       ],
     });
-  }, []);
+  }, [showAlert]);
 
   const handleOpenNotifications = () => {
     setActiveTab('Inicio');
@@ -483,6 +487,7 @@ function AppShell() {
           onCancel={handleCancelConfirmation}
           onConfirm={handleConfirmAction}
         />
+        <AlertSheetHost alert={alert} onDismiss={dismissAlert} />
         <StatusToast status={statusToast} />
 
         <BottomNav

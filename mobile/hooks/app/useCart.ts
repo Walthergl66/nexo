@@ -172,7 +172,8 @@ export function useCart({
         // Reconciliamos con la verdad del servidor (ids reales, envío, etc.).
         setCartItems(snapshot.items);
         setCartSummary(snapshot.summary);
-        onStatusMessage?.(`${product.title} agregado al carrito.`, 'success');
+        // El aviso de exito lo da la hoja de AlertSheetHost (via onCartAdded),
+        // asi evitamos dos mensajes simultaneos para la misma accion.
       } catch (error) {
         // Revertimos el cambio optimista.
         setCartItems(prevItems);

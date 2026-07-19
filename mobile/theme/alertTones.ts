@@ -1,10 +1,5 @@
-import type { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
+import type { AlertTone, IoniconName } from '../types/status';
 import { colors } from './colors';
-
-export type AlertTone = 'success' | 'danger' | 'warning' | 'info' | 'question';
-
-type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 type TonePalette = {
   /** Relleno del roseton que corona la hoja. */

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { alertTones, type AlertTone } from '../../theme/alertTones';
+import { alertTones } from '../../theme/alertTones';
 import { colors, shadows } from '../../theme/colors';
-import type { StatusMessage, StatusTone } from '../../types/status';
+import type { AlertTone, StatusMessage, StatusTone } from '../../types/status';
 
 type StatusToastProps = {
   status: StatusMessage | null;
