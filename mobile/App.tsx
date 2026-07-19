@@ -236,7 +236,10 @@ function AppShell() {
     setIsCartOpen(false);
   };
 
-  const handleOpenCart = () => {
+  // Memoizado porque lo capturan callbacks memoizados (handleCartAdded): sin
+  // esto conservarian el hasBusinessProfile del primer render, cuando el perfil
+  // aun no ha cargado, y mandarian al usuario a Cuenta en vez de al carrito.
+  const handleOpenCart = useCallback(() => {
     if (!hasBusinessProfile) {
       setSelectedProductId(null);
       setIsCartOpen(false);
@@ -248,7 +251,7 @@ function AppShell() {
     setSelectedProductId(null);
     setIsNotificationsOpen(false);
     setIsCartOpen(true);
-  };
+  }, [hasBusinessProfile]);
 
   const handleCartAdded = useCallback(() => {
     showAlert({
@@ -260,7 +263,7 @@ function AppShell() {
         { label: 'Seguir explorando' },
       ],
     });
-  }, [showAlert]);
+  }, [handleOpenCart, showAlert]);
 
   const handleOpenNotifications = () => {
     setActiveTab('Inicio');
