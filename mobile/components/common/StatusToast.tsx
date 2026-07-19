@@ -1,9 +1,19 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../../theme/colors';
+import { alertTones, type AlertTone } from '../../theme/alertTones';
+import { colors, shadows } from '../../theme/colors';
 import type { StatusMessage, StatusTone } from '../../types/status';
 
 type StatusToastProps = {
   status: StatusMessage | null;
+};
+
+/** Los avisos flotantes comparten paleta e iconografia con AlertSheet. */
+const toneToAlertTone: Record<StatusTone, AlertTone> = {
+  success: 'success',
+  error: 'danger',
+  info: 'info',
+  warning: 'warning',
 };
 
 export function StatusToast({ status }: StatusToastProps) {
@@ -11,13 +21,16 @@ export function StatusToast({ status }: StatusToastProps) {
     return null;
   }
 
+  const palette = alertTones[toneToAlertTone[status.tone]];
   const hasActions = status.actions && status.actions.length > 0;
 
   return (
     <View pointerEvents="box-none" style={styles.layer}>
-      <View style={[styles.bar, toneStyles[status.tone]]}>
+      <View style={styles.bar}>
         <View style={styles.barRow}>
-          <View style={[styles.dot, { backgroundColor: toneDot[status.tone] }]} />
+          <View style={[styles.iconWrap, { backgroundColor: palette.badge }]}>
+            <Ionicons color={palette.badgeInk} name={palette.icon} size={15} />
+          </View>
           <Text numberOfLines={2} style={styles.barText}>{status.text}</Text>
         </View>
         {hasActions && (
@@ -26,9 +39,10 @@ export function StatusToast({ status }: StatusToastProps) {
               <Pressable
                 key={i}
                 accessibilityLabel={action.label}
+                accessibilityRole="button"
                 style={({ pressed }) => [
                   styles.actionBtn,
-                  i === 0 && styles.actionBtnPrimary,
+                  i === 0 && { backgroundColor: palette.primary },
                   pressed && styles.actionBtnPressed,
                 ]}
                 onPress={action.onPress}
@@ -45,20 +59,6 @@ export function StatusToast({ status }: StatusToastProps) {
   );
 }
 
-const toneDot: Record<StatusTone, string> = {
-  success: '#22c55e',
-  error: '#ef4444',
-  info: colors.brandBlue,
-  warning: '#f59e0b',
-};
-
-const toneStyles: Record<StatusTone, object> = {
-  success: { backgroundColor: '#f0fdf4', borderColor: '#86efac' },
-  error: { backgroundColor: '#fef2f2', borderColor: '#fca5a5' },
-  info: { backgroundColor: colors.brandBlueSoft, borderColor: colors.brandBlueLine },
-  warning: { backgroundColor: '#fffbeb', borderColor: '#fcd34d' },
-};
-
 const styles = StyleSheet.create({
   layer: {
     position: 'absolute',
@@ -74,25 +74,25 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'column',
     gap: 10,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: 16,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
+    ...shadows.floating,
   },
   barRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  iconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   barText: {
     flex: 1,
@@ -107,22 +107,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionBtn: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  actionBtnPrimary: {
-    backgroundColor: colors.brandBlue,
-    borderColor: colors.brandBlue,
+    minHeight: 40,
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: 16,
   },
   actionBtnPressed: {
-    opacity: 0.6,
+    opacity: 0.85,
   },
   actionLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.ink,
   },
