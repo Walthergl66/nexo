@@ -11,29 +11,29 @@ export function StatusToast({ status }: StatusToastProps) {
     return null;
   }
 
+  const hasActions = status.actions && status.actions.length > 0;
+
   return (
     <View pointerEvents="box-none" style={styles.layer}>
-      <View style={[styles.toast, toneStyles[status.tone]]}>
-        <Text style={styles.toastText}>{status.text}</Text>
-        {status.actions && status.actions.length > 0 && (
+      <View style={[styles.bar, toneStyles[status.tone]]}>
+        <View style={styles.barRow}>
+          <View style={[styles.dot, { backgroundColor: toneDot[status.tone] }]} />
+          <Text numberOfLines={2} style={styles.barText}>{status.text}</Text>
+        </View>
+        {hasActions && (
           <View style={styles.actionsRow}>
-            {status.actions.map((action, i) => (
+            {status.actions!.map((action, i) => (
               <Pressable
                 key={i}
                 accessibilityLabel={action.label}
                 style={({ pressed }) => [
-                  styles.actionButton,
-                  i === 0 && styles.actionButtonPrimary,
-                  pressed && styles.actionButtonPressed,
+                  styles.actionBtn,
+                  i === 0 && styles.actionBtnPrimary,
+                  pressed && styles.actionBtnPressed,
                 ]}
                 onPress={action.onPress}
               >
-                <Text
-                  style={[
-                    styles.actionText,
-                    i === 0 && styles.actionTextPrimary,
-                  ]}
-                >
+                <Text style={[styles.actionLabel, i === 0 && styles.actionLabelPrimary]}>
                   {action.label}
                 </Text>
               </Pressable>
@@ -45,81 +45,88 @@ export function StatusToast({ status }: StatusToastProps) {
   );
 }
 
+const toneDot: Record<StatusTone, string> = {
+  success: '#22c55e',
+  error: '#ef4444',
+  info: colors.brandBlue,
+  warning: '#f59e0b',
+};
+
 const toneStyles: Record<StatusTone, object> = {
-  success: {
-    backgroundColor: '#ecfdf3',
-    borderColor: '#86efac',
-  },
-  error: {
-    backgroundColor: '#fff1f2',
-    borderColor: '#fda4af',
-  },
-  info: {
-    backgroundColor: colors.brandBlueSoft,
-    borderColor: colors.brandBlueLine,
-  },
-  warning: {
-    backgroundColor: '#fffbeb',
-    borderColor: '#fcd34d',
-  },
+  success: { backgroundColor: '#f0fdf4', borderColor: '#86efac' },
+  error: { backgroundColor: '#fef2f2', borderColor: '#fca5a5' },
+  info: { backgroundColor: colors.brandBlueSoft, borderColor: colors.brandBlueLine },
+  warning: { backgroundColor: '#fffbeb', borderColor: '#fcd34d' },
 };
 
 const styles = StyleSheet.create({
   layer: {
     position: 'absolute',
-    top: 14,
-    left: 12,
-    right: 12,
-    zIndex: 50,
-    elevation: 20,
-    alignItems: 'flex-end',
+    bottom: 104,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    elevation: 30,
+    alignItems: 'center',
+    paddingHorizontal: 16,
   },
-  toast: {
-    maxWidth: '92%',
-    minWidth: 220,
-    borderRadius: 12,
+  bar: {
+    width: '100%',
+    flexDirection: 'column',
+    gap: 10,
+    borderRadius: 18,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  toastText: {
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  barText: {
+    flex: 1,
     color: colors.ink,
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '600',
     lineHeight: 18,
-    fontWeight: '800',
   },
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 8,
-    marginTop: 10,
   },
-  actionButton: {
-    borderRadius: 8,
+  actionBtn: {
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.surface,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
   },
-  actionButtonPrimary: {
+  actionBtnPrimary: {
     backgroundColor: colors.brandBlue,
     borderColor: colors.brandBlue,
   },
-  actionButtonPressed: {
-    opacity: 0.7,
+  actionBtnPressed: {
+    opacity: 0.6,
   },
-  actionText: {
-    fontSize: 11,
+  actionLabel: {
+    fontSize: 12,
     fontWeight: '700',
     color: colors.ink,
   },
-  actionTextPrimary: {
+  actionLabelPrimary: {
     color: colors.surface,
   },
 });
