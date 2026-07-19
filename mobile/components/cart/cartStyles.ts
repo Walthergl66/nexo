@@ -161,6 +161,7 @@ export const cartStyles = StyleSheet.create({
     borderColor: colors.line,
     padding: 24,
     backgroundColor: colors.surface,
+    position: 'relative',
   },
   emptyIcon: {
     width: 78,

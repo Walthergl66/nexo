@@ -11,6 +11,14 @@ type CartEmptyStateProps = {
 export function CartEmptyState({ isAuthenticated, onBackToCatalog }: CartEmptyStateProps) {
   return (
     <View style={styles.emptyContainer}>
+      <Pressable
+        accessibilityLabel="Volver al catalogo"
+        style={[styles.backButton, { position: 'absolute', top: 16, left: 16 }]}
+        onPress={onBackToCatalog}
+      >
+        <Ionicons name="chevron-back" size={20} color={colors.brandBlue} />
+      </Pressable>
+
       <View style={styles.emptyIcon}>
         <Ionicons name="cart-outline" size={42} color={colors.brandBlue} />
       </View>
