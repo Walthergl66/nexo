@@ -1,6 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRef } from 'react';
-import { ActivityIndicator, Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRef, type ReactNode } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSheetAnimation } from '../../hooks/ui/useSheetAnimation';
 import { alertTones } from '../../theme/alertTones';
@@ -19,6 +29,8 @@ export type AlertSheetAction = {
 
 type AlertSheetProps = {
   actions: AlertSheetAction[];
+  /** Contenido opcional entre el detalle y los botones (selectores, resumenes). */
+  children?: ReactNode;
   description?: string;
   /** Permite cerrar tocando el fondo. Desactivar en acciones que exigen respuesta. */
   dismissible?: boolean;
@@ -34,6 +46,7 @@ type AlertSheetProps = {
  */
 export function AlertSheet({
   actions,
+  children,
   description,
   dismissible = true,
   title,
@@ -46,9 +59,9 @@ export function AlertSheet({
 
   // Quien invoca suele limpiar su estado al cerrar; conservamos el ultimo
   // contenido para que la hoja no se vacie mientras se desliza hacia abajo.
-  const lastContent = useRef({ actions, description, title, tone });
+  const lastContent = useRef({ actions, children, description, title, tone });
   if (visible) {
-    lastContent.current = { actions, description, title, tone };
+    lastContent.current = { actions, children, description, title, tone };
   }
   const content = lastContent.current;
 
@@ -68,26 +81,34 @@ export function AlertSheet({
           />
         </Animated.View>
 
-        <Animated.View
-          style={[
-            styles.sheet,
-            {
-              paddingBottom: Math.max(insets.bottom, spacing.xl),
-              opacity: sheet.opacity,
-              transform: [{ translateY: sheet.translateY }],
-            },
-          ]}
+        {/* box-none deja pasar los toques al fondo salvo sobre la propia hoja. */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          pointerEvents="box-none"
+          style={styles.keyboardLayer}
         >
-          <AlertBadge tone={content.tone} />
-          <Text style={styles.title}>{content.title}</Text>
-          {content.description ? <Text style={styles.description}>{content.description}</Text> : null}
+          <Animated.View
+            style={[
+              styles.sheet,
+              {
+                paddingBottom: Math.max(insets.bottom, spacing.xl),
+                opacity: sheet.opacity,
+                transform: [{ translateY: sheet.translateY }],
+              },
+            ]}
+          >
+            <AlertBadge tone={content.tone} />
+            <Text style={styles.title}>{content.title}</Text>
+            {content.description ? <Text style={styles.description}>{content.description}</Text> : null}
+            {content.children ? <View style={styles.slot}>{content.children}</View> : null}
 
-          <View style={styles.actions}>
-            {content.actions.map((action) => (
-              <SheetButton key={action.label} action={action} tone={content.tone} />
-            ))}
-          </View>
-        </Animated.View>
+            <View style={styles.actions}>
+              {content.actions.map((action) => (
+                <SheetButton key={action.label} action={action} tone={content.tone} />
+              ))}
+            </View>
+          </Animated.View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -126,6 +147,9 @@ function SheetButton({ action, tone }: { action: AlertSheetAction; tone: AlertTo
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  keyboardLayer: {
+    flex: 1,
     justifyContent: 'flex-end',
   },
   backdrop: {
@@ -158,6 +182,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 20,
     textAlign: 'center',
+  },
+  slot: {
+    width: '100%',
+    marginTop: 20,
   },
   actions: {
     width: '100%',

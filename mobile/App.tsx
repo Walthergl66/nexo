@@ -6,6 +6,7 @@ import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
 import { AlertSheetHost } from './components/common/AlertSheetHost';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
+import { QuantitySheet } from './components/common/QuantitySheet';
 import { StatusToast } from './components/common/StatusToast';
 import { AppHeader } from './components/navigation/AppHeader';
 import { BottomNav } from './components/navigation/BottomNav';
@@ -24,9 +25,11 @@ import { usePushNotifications } from './hooks/app/usePushNotifications';
 import { useCatalog } from './hooks/app/useCatalog';
 import { useProfile } from './hooks/app/useProfile';
 import { usePasswordRecoveryDeepLink } from './hooks/app/usePasswordRecoveryDeepLink';
+import { useQuantityPrompt } from './hooks/app/useQuantityPrompt';
 import { useBottomNavAnimations } from './hooks/navigation/useBottomNavAnimations';
 import { useHeaderVisibility } from './hooks/navigation/useHeaderVisibility';
 import { useScreenTransition } from './hooks/navigation/useScreenTransition';
+import { SHEET_EXIT_DURATION } from './hooks/ui/useSheetAnimation';
 import { signOut } from './services/authService';
 import { colors } from './theme/colors';
 import type { Product, TabKey } from './types/marketplace';
@@ -45,6 +48,7 @@ function AppShell() {
   const [statusToast, setStatusToast] = useState<StatusMessage | null>(null);
   const [passwordResetKey, setPasswordResetKey] = useState(0);
   const { alert, dismissAlert, showAlert } = useAlertSheet();
+  const quantityPrompt = useQuantityPrompt();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleTokenChange = useCallback(() => {
@@ -253,6 +257,37 @@ function AppShell() {
     setIsCartOpen(true);
   }, [hasBusinessProfile]);
 
+  // Punto unico por donde pasan "Comprar" y "Agregar al carrito": valida
+  // primero (sesion, stock, dueño) y solo entonces pregunta la cantidad.
+  const requestAddToCart = useCallback(
+    async (product: Product): Promise<boolean> => {
+      const maxQuantity = cart.getAddableQuantity(product);
+
+      if (maxQuantity <= 0) {
+        // getAddableQuantity ya explico el motivo al usuario.
+        return false;
+      }
+
+      // Con una sola unidad disponible no hay nada que elegir.
+      if (maxQuantity === 1) {
+        return cart.addToCart(product, 1);
+      }
+
+      const quantity = await quantityPrompt.askQuantity(product, maxQuantity);
+
+      if (quantity === null) {
+        return false;
+      }
+
+      // Dejamos que esta hoja termine de cerrarse antes de seguir: al terminar,
+      // el exito abre otra y dos Modals solapados no conviven bien en iOS.
+      await new Promise((resolve) => setTimeout(resolve, SHEET_EXIT_DURATION));
+
+      return cart.addToCart(product, quantity);
+    },
+    [cart, quantityPrompt],
+  );
+
   const handleCartAdded = useCallback(() => {
     showAlert({
       title: 'Producto agregado',
@@ -386,7 +421,7 @@ function AppShell() {
             isAuthenticated={hasBusinessProfile}
             myProfileId={profile?.id ?? null}
             accessToken={accessToken}
-            onAddToCart={cart.addToCart}
+            onAddToCart={requestAddToCart}
             onBackToCatalog={handleBackToCatalog}
             onChangeFilter={catalog.setActiveFilter}
             onChangeSearch={catalog.setSearch}
@@ -429,7 +464,7 @@ function AppShell() {
             onConfirmAction={requestConfirmation}
             onStatusMessage={handleStatusMessage}
             onExplore={() => setActiveTab('Inicio')}
-            onAddToCart={cart.addToCart}
+            onAddToCart={requestAddToCart}
             onOpenProduct={handleOpenProductFromAccount}
             passwordResetKey={passwordResetKey}
             onProfileChange={onProfileChange}
@@ -491,6 +526,11 @@ function AppShell() {
           onConfirm={handleConfirmAction}
         />
         <AlertSheetHost alert={alert} onDismiss={dismissAlert} />
+        <QuantitySheet
+          request={quantityPrompt.request}
+          onCancel={quantityPrompt.cancelQuantity}
+          onConfirm={quantityPrompt.confirmQuantity}
+        />
         <StatusToast status={statusToast} />
 
         <BottomNav

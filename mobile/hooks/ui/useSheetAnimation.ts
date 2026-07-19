@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated } from 'react-native';
 
 const SLIDE_DISTANCE = 320;
-const EXIT_DURATION = 170;
+
+/**
+ * Lo que tarda la hoja en desmontarse al cerrarse. Se exporta porque quien
+ * encadena una hoja tras otra debe esperar este tiempo: en iOS, presentar un
+ * Modal mientras otro se esta cerrando puede dejar el segundo sin aparecer.
+ */
+export const SHEET_EXIT_DURATION = 170;
 
 /**
  * Controla la entrada/salida de una hoja inferior. Mantiene el contenido
@@ -27,7 +33,7 @@ export function useSheetAnimation(visible: boolean) {
 
     const exit = Animated.timing(progress, {
       toValue: 0,
-      duration: EXIT_DURATION,
+      duration: SHEET_EXIT_DURATION,
       useNativeDriver: true,
     });
 
