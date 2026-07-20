@@ -44,6 +44,13 @@ RUN install-php-extensions \
       pdo_pgsql \
       zip
 
+# La imagen de FrankenPHP trae cap_net_bind_service en el binario para poder
+# escuchar en el 80/443. Render descarta capabilities, y entonces execve falla
+# con EPERM ("Operation not permitted", exit 126). Escuchamos en $PORT (>1024),
+# asi que no hacen falta: se las quitamos.
+RUN apk add --no-cache libcap \
+  && setcap -r /usr/local/bin/frankenphp
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
@@ -59,8 +66,11 @@ RUN composer install \
 
 COPY . .
 
+# storage y bootstrap/cache tienen que ser escribibles sin depender del usuario
+# ni de CAP_DAC_OVERRIDE: Render corre como root pero con capabilities
+# recortadas, y un chown a www-data dejaria a root sin poder escribir.
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative \
-  && chown -R www-data:www-data storage bootstrap/cache
+  && chmod -R a+rwX storage bootstrap/cache
 
 COPY docker/render-entrypoint.sh /usr/local/bin/render-entrypoint
 RUN chmod +x /usr/local/bin/render-entrypoint
