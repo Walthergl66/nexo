@@ -8,7 +8,7 @@ Route::get('/', function () {
 });
 
 Route::get('/api/docs/openapi.json', function () {
-    return response(File::get(base_path('../docs/openapi.json')), 200, [
+    return response(File::get(base_path('docs/openapi.json')), 200, [
         'Content-Type' => 'application/json',
     ]);
 });
