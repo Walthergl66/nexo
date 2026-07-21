@@ -165,8 +165,58 @@ function toPublicErrorMessage(message: string): string {
   return message;
 }
 
-export async function fetchProducts(): Promise<Product[]> {
-  const response = await request<ApiCollection<unknown>>('/products');
+export type ProductQuery = {
+  search?: string;
+  /** Acepta id, slug o nombre de categoria. */
+  category?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  inStock?: boolean;
+  sort?: 'recent' | 'price_asc' | 'price_desc' | 'rating' | 'name';
+  perPage?: number;
+};
+
+function buildProductsPath(query: ProductQuery = {}): string {
+  const params = new URLSearchParams();
+
+  const search = query.search?.trim();
+  if (search) {
+    params.set('search', search);
+  }
+
+  const category = query.category?.trim();
+  // 'Todo' es el chip por defecto del movil: significa "sin filtro".
+  if (category && category !== 'Todo') {
+    params.set('category', category);
+  }
+
+  if (typeof query.minPrice === 'number') {
+    params.set('min_price', String(query.minPrice));
+  }
+
+  if (typeof query.maxPrice === 'number') {
+    params.set('max_price', String(query.maxPrice));
+  }
+
+  if (query.inStock) {
+    params.set('in_stock', '1');
+  }
+
+  if (query.sort) {
+    params.set('sort', query.sort);
+  }
+
+  if (typeof query.perPage === 'number') {
+    params.set('per_page', String(query.perPage));
+  }
+
+  const queryString = params.toString();
+
+  return queryString ? `/products?${queryString}` : '/products';
+}
+
+export async function fetchProducts(query: ProductQuery = {}): Promise<Product[]> {
+  const response = await request<ApiCollection<unknown>>(buildProductsPath(query));
 
   return response.data.map(mapApiProductToProduct);
 }

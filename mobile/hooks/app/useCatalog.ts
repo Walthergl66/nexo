@@ -11,6 +11,10 @@ import { CATALOG_AUTO_REFRESH_MS, REFRESH_THROTTLE_MS } from '../../constants/ap
 const CATALOG_CACHE_KEY = 'nexo.catalog.products.v1';
 const FILTERS_CACHE_KEY = 'nexo.catalog.filters.v1';
 
+// Espera entre la ultima tecla y la peticion, para no disparar una busqueda por
+// cada caracter escrito.
+const SEARCH_DEBOUNCE_MS = 350;
+
 type UseCatalogParams = {
   accessToken: string | null;
   profile: ProfileResource | null;
@@ -39,6 +43,11 @@ function applyCatalogFilters(sourceProducts: Product[], filter: string, query: s
  * Fetches and filters the public product catalog for the home tab, including
  * category chips, throttled manual refresh, and background auto-refresh.
  *
+ * La busqueda y el filtro por categoria se resuelven EN EL SERVIDOR: filtrar en
+ * el cliente solo veia la primera pagina, asi que un producto de la pagina 3
+ * resultaba invisible. applyCatalogFilters se mantiene como capa local para dar
+ * respuesta inmediata mientras corre el debounce; la API manda.
+ *
  * Rendimiento: hidrata desde caché en disco para pintado inmediato, revalida en
  * red sin bloquear, y NUNCA descarta los datos ya cargados ante un fallo puntual
  * (un error de red deja el último catálogo bueno en pantalla en vez de vaciarlo).
@@ -49,6 +58,7 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
   const [filters, setFilters] = useState<string[]>(['Todo']);
   const [activeFilter, setActiveFilter] = useState('Todo');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
@@ -118,9 +128,20 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
     };
   }, []);
 
+  // Debounce del texto: evita una peticion por tecla.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => {
     let isMounted = true;
     const isInitialLoad = !hasLoadedCatalog.current;
+    // Solo el catalogo sin filtrar se cachea en disco: guardar resultados de una
+    // busqueda haria que la proxima apertura de la app pintase un catalogo
+    // parcial como si fuera el completo.
+    const isUnfiltered = debouncedSearch.trim() === '' && activeFilter === 'Todo';
 
     // El catálogo es público: NO lo bloqueamos esperando el perfil. Se carga en
     // paralelo con /me para que los usuarios logueados no esperen dos peticiones.
@@ -140,7 +161,7 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
       setIsRefreshing(true);
     }
 
-    fetchProducts()
+    fetchProducts({ search: debouncedSearch, category: activeFilter })
       .then((nextProducts) => {
         if (!isMounted) {
           return;
@@ -149,7 +170,10 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
         setProducts(nextProducts);
         setLastSyncAt(new Date());
         hasLoadedCatalog.current = true;
-        AsyncStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(nextProducts)).catch(() => {});
+
+        if (isUnfiltered) {
+          AsyncStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(nextProducts)).catch(() => {});
+        }
       })
       .catch(() => {
         // Clave de robustez: un fallo puntual NO borra el catálogo ya visible.
@@ -168,7 +192,7 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
     return () => {
       isMounted = false;
     };
-  }, [accessToken, activeTab, catalogRequestKey, isSessionReady]);
+  }, [accessToken, activeFilter, activeTab, catalogRequestKey, debouncedSearch, isSessionReady]);
 
   useEffect(() => {
     let isMounted = true;
