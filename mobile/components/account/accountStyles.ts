@@ -786,6 +786,13 @@ export const accountStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  recoveryHintText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
   errorText: {
     color: '#9f1239',
     fontSize: 11,

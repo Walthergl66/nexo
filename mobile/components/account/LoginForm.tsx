@@ -9,6 +9,8 @@ type LoginFormProps = {
   isLoading: boolean;
   isPasswordVisible: boolean;
   password: string;
+  /** Tras varios fallos seguidos, encamina hacia la recuperacion de contrasena. */
+  showRecoveryHint?: boolean;
   onChangeEmail: (value: string) => void;
   onChangePassword: (value: string) => void;
   onExplore: () => void;
@@ -22,6 +24,7 @@ export function LoginForm({
   isLoading,
   isPasswordVisible,
   password,
+  showRecoveryHint = false,
   onChangeEmail,
   onChangePassword,
   onExplore,
@@ -64,6 +67,11 @@ export function LoginForm({
       <Pressable disabled={isLoading} style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={onSubmit}>
         {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
       </Pressable>
+      {showRecoveryHint && (
+        <Text style={styles.recoveryHintText}>
+          ¿No recuerdas tu contraseña? Puedes restablecerla en vez de seguir intentando.
+        </Text>
+      )}
       <Pressable style={({ pressed }) => [styles.recoveryLink, pressed && styles.recoveryLinkPressed]} onPress={onRecoverPassword}>
         <Text style={styles.recoveryLinkText}>Recuperar contraseña</Text>
       </Pressable>

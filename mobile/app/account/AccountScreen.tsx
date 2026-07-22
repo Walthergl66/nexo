@@ -20,6 +20,7 @@ import {
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { sendPasswordResetEmail, signInWithEmail, signOut, signUpWithEmail, updatePassword } from '../../services/authService';
 import { deleteProfileAvatar, pickProfileAvatar, uploadProfileAvatar } from '../../services/profileAvatarService';
+import { useLoginAttempts } from '../../hooks/app/useLoginAttempts';
 import { initialRegisterForm, type AccountMode, type RegisterForm as RegisterFormState } from '../../types/account';
 import type { Product } from '../../types/marketplace';
 import type { ConfirmActionRequest, StatusTone } from '../../types/status';
@@ -84,6 +85,7 @@ export function AccountScreen({
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const hasLoadedProfileProducts = useRef(false);
+  const loginAttempts = useLoginAttempts();
 
   const isGuest = accessToken === null;
   const passwordError = useMemo(() => validatePassword(registerForm.password), [registerForm.password]);
@@ -220,6 +222,7 @@ export function AccountScreen({
     try {
       const session = await signInWithEmail(loginEmail, loginPassword);
       setLoginPassword('');
+      loginAttempts.reset();
       showMessage(
         session?.access_token
           ? 'Sesion iniciada. Cargando tu cuenta...'
@@ -227,6 +230,7 @@ export function AccountScreen({
         'success',
       );
     } catch (error) {
+      loginAttempts.registerFailure();
       showMessage(error instanceof Error ? error.message : 'No se pudo iniciar sesion.', 'error');
     } finally {
       setIsLoading(false);
@@ -594,6 +598,7 @@ export function AccountScreen({
           isLoading={isLoading}
           isPasswordVisible={isLoginPasswordVisible}
           password={loginPassword}
+          showRecoveryHint={loginAttempts.shouldSuggestRecovery}
           onChangeEmail={setLoginEmail}
           onChangePassword={setLoginPassword}
           onExplore={onExplore}

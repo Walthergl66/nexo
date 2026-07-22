@@ -1,4 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
+import { toPublicAuthMessage } from '../utils/authErrors';
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 
 export type AuthProfileInput = {
@@ -136,21 +137,7 @@ export async function signOut(): Promise<void> {
 }
 
 function toPublicAuthError(error: Error): Error {
-  const message = error.message.toLowerCase();
-
-  if (message.includes('invalid login credentials')) {
-    return new Error('Correo o contrasena incorrectos.');
-  }
-
-  if (message.includes('email not confirmed')) {
-    return new Error('Confirma tu correo antes de iniciar sesion.');
-  }
-
-  if (message.includes('already registered') || message.includes('user already registered')) {
-    return new Error('Ese correo ya esta registrado.');
-  }
-
-  return new Error('No pudimos completar la accion. Intenta nuevamente.');
+  return new Error(toPublicAuthMessage(error));
 }
 
 function getPasswordResetRedirectUrl(): string {
