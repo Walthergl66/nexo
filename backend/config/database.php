@@ -21,6 +21,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Proteccion contra comandos destructivos
+    |--------------------------------------------------------------------------
+    |
+    | Con esto en true, migrate:fresh, migrate:refresh, migrate:reset y db:wipe
+    | se abortan en vez de ejecutarse. Va activo en cualquier entorno cuyo .env
+    | apunte a la base con datos reales, incluido el desarrollo local: hoy no
+    | hay base aparte, asi que un comando mal apuntado borra produccion.
+    |
+    */
+
+    'protected' => (bool) env('DB_PROTECTED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |

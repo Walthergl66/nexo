@@ -1,2 +1,5 @@
 # Claude Code skills instaladas localmente (no versionar)
 .claude/skills/
+
+# Respaldos generados por scripts/backup-db.php (contienen datos reales)
+backups/

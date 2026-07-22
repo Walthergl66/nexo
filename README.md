@@ -56,6 +56,7 @@ DB_DATABASE=postgres
 DB_USERNAME=postgres
 DB_PASSWORD=<password>
 DB_SSLMODE=require
+DB_PROTECTED=true
 
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_JWT_SECRET=<jwt-secret>
@@ -128,6 +129,30 @@ php artisan serve
 ```
 
 La API queda disponible en `http://127.0.0.1:8000`. Esta opcion es util para pruebas rapidas, pero puede quedarse corta si pruebas con celular y varias peticiones concurrentes.
+
+## Respaldos y proteccion de la base
+
+Hoy no hay una base de desarrollo aparte: `backend/.env` apunta a la misma base de Supabase que usa la app. Un `migrate:fresh` mal apuntado borra los datos reales, asi que `DB_PROTECTED=true` aborta `migrate:fresh`, `migrate:refresh`, `migrate:reset` y `db:wipe` antes de que toquen nada:
+
+```txt
+WARN This command is prohibited from running in this environment.
+```
+
+Los tests quedan exentos: corren sobre SQLite en memoria y necesitan recrear esa base en cada corrida.
+
+Antes de cualquier cambio de esquema conviene volcar los datos:
+
+```bash
+php scripts/backup-db.php
+```
+
+Genera `backups/nexo-data-AAAAMMDD-HHMMSS.sql` con los INSERTs de todas las tablas, ordenadas por llaves foraneas. La carpeta `backups/` esta en `.gitignore` porque contiene datos reales de usuarios. Para restaurar sobre una base vacia:
+
+```bash
+cd backend
+php artisan migrate
+psql "CONNECTION_STRING" -f ../backups/nexo-data-AAAAMMDD-HHMMSS.sql
+```
 
 ## Tests
 
