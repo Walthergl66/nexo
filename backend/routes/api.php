@@ -28,20 +28,20 @@ use App\Modules\Profiles\Http\Controllers\CheckProfileAvailabilityController;
 use App\Modules\Profiles\Http\Controllers\CompleteProfileController;
 use App\Modules\Profiles\Http\Controllers\LookupIdentityController;
 use App\Modules\Profiles\Http\Controllers\MeController;
+use App\Modules\Reviews\Http\Controllers\CreateReviewController;
+use App\Modules\Reviews\Http\Controllers\ListProductReviewsController;
 use App\Modules\Sellers\Http\Controllers\ListSellerVerificationRequestsController;
 use App\Modules\Sellers\Http\Controllers\ReviewSellerVerificationRequestController;
 use App\Modules\Sellers\Http\Controllers\SellerCenterController;
 use App\Modules\Sellers\Http\Controllers\SubmitSellerVerificationRequestController;
-use App\Modules\Stores\Http\Controllers\CreateStoreController;
 use App\Modules\Stores\Http\Controllers\Admin\DeleteStoreController;
 use App\Modules\Stores\Http\Controllers\Admin\ListStoresController as AdminListStoresController;
 use App\Modules\Stores\Http\Controllers\Admin\UpdateStoreStatusController;
+use App\Modules\Stores\Http\Controllers\CreateStoreController;
 use App\Modules\Stores\Http\Controllers\ListStoresController;
 use App\Modules\Stores\Http\Controllers\MyStoreController;
 use App\Modules\Stores\Http\Controllers\ShowStoreController;
 use App\Modules\Stores\Http\Controllers\UpdateStoreController;
-use App\Modules\Reviews\Http\Controllers\CreateReviewController;
-use App\Modules\Reviews\Http\Controllers\ListProductReviewsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/stores', ListStoresController::class);
@@ -50,10 +50,18 @@ Route::get('/categories', ListCategoriesController::class);
 Route::get('/products', ListProductsController::class);
 Route::get('/products/{product}', ShowProductController::class);
 Route::get('/products/{product}/reviews', ListProductReviewsController::class);
-Route::get('/identity/lookup', LookupIdentityController::class);
-Route::get('/profiles/availability', CheckProfileAvailabilityController::class);
+// Endpoints publicos que tocan datos personales: los usa el registro antes de
+// que exista sesion, asi que no pueden pedir token, pero llevan cupo propio.
+// Ver App\Providers\RateLimitServiceProvider.
+Route::get('/identity/lookup', LookupIdentityController::class)
+    ->middleware('throttle:identity');
+Route::get('/profiles/availability', CheckProfileAvailabilityController::class)
+    ->middleware('throttle:availability');
 
-Route::middleware('supabase.jwt')->group(function (): void {
+// El orden importa: supabase.jwt corre primero y deja el perfil en los
+// atributos de la peticion, que es lo que throttle:user usa para contar por
+// persona en vez de por IP.
+Route::middleware(['supabase.jwt', 'throttle:user'])->group(function (): void {
     Route::get('/me', MeController::class);
     Route::patch('/me/profile', CompleteProfileController::class);
 

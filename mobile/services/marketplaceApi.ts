@@ -54,8 +54,15 @@ export class ApiRequestError extends Error {
   constructor(
     message: string,
     public readonly status: number | null = null,
+    /** Segundos que pide esperar el backend, solo en respuestas 429. */
+    public readonly retryAfterSeconds: number | null = null,
   ) {
     super(message);
+  }
+
+  /** La API corto la peticion por exceso de intentos, no por un error del usuario. */
+  get isRateLimited(): boolean {
+    return this.status === 429;
   }
 }
 
@@ -96,6 +103,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   if (!response.ok) {
+    if (response.status === 429) {
+      throw await buildRateLimitError(response);
+    }
+
     throw new ApiRequestError(await getApiErrorMessage(response), response.status);
   }
 
@@ -104,6 +115,29 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   return response.json() as Promise<T>;
+}
+
+const GENERIC_ERROR_MESSAGE = 'No pudimos completar la solicitud. Intenta nuevamente.';
+
+/**
+ * La API limita las peticiones por minuto. El backend manda un `message` en
+ * espanol, pero un 429 tambien puede venir de un proxy sin cuerpo JSON, asi que
+ * hay un texto de respaldo. `Retry-After` llega en segundos.
+ */
+async function buildRateLimitError(response: Response): Promise<ApiRequestError> {
+  const header = response.headers.get('Retry-After');
+  const parsed = header === null ? Number.NaN : Number.parseInt(header, 10);
+  const retryAfterSeconds = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+
+  let message = await getApiErrorMessage(response);
+
+  if (message === GENERIC_ERROR_MESSAGE) {
+    message = retryAfterSeconds === null
+      ? 'Hiciste demasiadas peticiones seguidas. Espera un momento e intenta de nuevo.'
+      : `Hiciste demasiadas peticiones seguidas. Intenta de nuevo en ${retryAfterSeconds} segundos.`;
+  }
+
+  return new ApiRequestError(message, response.status, retryAfterSeconds);
 }
 
 async function getApiErrorMessage(response: Response): Promise<string> {
@@ -124,10 +158,10 @@ async function getApiErrorMessage(response: Response): Promise<string> {
       return toPublicErrorMessage(payload.message);
     }
   } catch {
-    return 'No pudimos completar la solicitud. Intenta nuevamente.';
+    return GENERIC_ERROR_MESSAGE;
   }
 
-  return 'No pudimos completar la solicitud. Intenta nuevamente.';
+  return GENERIC_ERROR_MESSAGE;
 }
 
 // Traducciones de los mensajes de validacion del backend (en ingles) a espanol.
