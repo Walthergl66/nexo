@@ -21,6 +21,8 @@ import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { sendPasswordResetEmail, signInWithEmail, signOut, signUpWithEmail, updatePassword } from '../../services/authService';
 import { deleteProfileAvatar, pickProfileAvatar, uploadProfileAvatar } from '../../services/profileAvatarService';
 import { useLoginAttempts } from '../../hooks/app/useLoginAttempts';
+import { useCooldown } from '../../hooks/ui/useCooldown';
+import { AuthError } from '../../utils/authErrors';
 import { initialRegisterForm, type AccountMode, type RegisterForm as RegisterFormState } from '../../types/account';
 import type { Product } from '../../types/marketplace';
 import type { ConfirmActionRequest, StatusTone } from '../../types/status';
@@ -86,6 +88,7 @@ export function AccountScreen({
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const hasLoadedProfileProducts = useRef(false);
   const loginAttempts = useLoginAttempts();
+  const loginCooldown = useCooldown();
 
   const isGuest = accessToken === null;
   const passwordError = useMemo(() => validatePassword(registerForm.password), [registerForm.password]);
@@ -216,6 +219,12 @@ export function AccountScreen({
   };
 
   const handleLogin = async () => {
+    // El boton ya esta deshabilitado durante la espera; esto cubre el caso de
+    // que llegue un submit por otra via (Enter en web, doble toque).
+    if (loginCooldown.isActive) {
+      return;
+    }
+
     clearMessage();
     setIsLoading(true);
 
@@ -223,6 +232,7 @@ export function AccountScreen({
       const session = await signInWithEmail(loginEmail, loginPassword);
       setLoginPassword('');
       loginAttempts.reset();
+      loginCooldown.clear();
       showMessage(
         session?.access_token
           ? 'Sesion iniciada. Cargando tu cuenta...'
@@ -231,6 +241,13 @@ export function AccountScreen({
       );
     } catch (error) {
       loginAttempts.registerFailure();
+
+      // Si Supabase corto por exceso de intentos, deshabilitar el boton hasta
+      // que expire la espera en vez de dejar que la persona siga apretando.
+      if (error instanceof AuthError && error.isRateLimit) {
+        loginCooldown.start(error.cooldownSeconds);
+      }
+
       showMessage(error instanceof Error ? error.message : 'No se pudo iniciar sesion.', 'error');
     } finally {
       setIsLoading(false);
@@ -599,6 +616,7 @@ export function AccountScreen({
           isPasswordVisible={isLoginPasswordVisible}
           password={loginPassword}
           showRecoveryHint={loginAttempts.shouldSuggestRecovery}
+          cooldownSeconds={loginCooldown.remainingSeconds}
           onChangeEmail={setLoginEmail}
           onChangePassword={setLoginPassword}
           onExplore={onExplore}

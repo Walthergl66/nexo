@@ -8,6 +8,58 @@
 
 export const GENERIC_AUTH_ERROR = 'No pudimos completar la accion. Intenta nuevamente.';
 
+/**
+ * Cuando Supabase corta por exceso de intentos pero no dice cuantos segundos
+ * faltan, se aplica esta espera. Es un valor de UX, no el bloqueo real: solo
+ * mantiene el boton deshabilitado un rato razonable para que la persona no siga
+ * apretando contra un 429.
+ */
+export const DEFAULT_AUTH_COOLDOWN_SECONDS = 30;
+
+/**
+ * Error de autenticacion ya traducido, con la informacion de limite que la UI
+ * necesita para el cooldown. Es un Error normal, asi que los `error.message` y
+ * los `error instanceof Error` de siempre siguen funcionando.
+ */
+export class AuthError extends Error {
+  readonly isRateLimit: boolean;
+
+  /** Segundos a esperar, si Supabase los informa; null si no. */
+  readonly retryAfterSeconds: number | null;
+
+  // Campos declarados aparte del constructor a proposito: el modo strip-only con
+  // que Node ejecuta los tests no soporta "parameter properties" (readonly en la
+  // firma del constructor).
+  constructor(message: string, isRateLimit = false, retryAfterSeconds: number | null = null) {
+    super(message);
+    this.name = 'AuthError';
+    this.isRateLimit = isRateLimit;
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+
+  /** Cuanto deshabilitar el boton: lo que diga Supabase o el default. */
+  get cooldownSeconds(): number {
+    if (!this.isRateLimit) {
+      return 0;
+    }
+
+    return this.retryAfterSeconds ?? DEFAULT_AUTH_COOLDOWN_SECONDS;
+  }
+}
+
+/**
+ * Traduce un error crudo de Supabase a un AuthError listo para mostrar.
+ */
+export function buildAuthError(error: Error): AuthError {
+  const isRateLimit = isRateLimitError(error, error.message.toLowerCase());
+
+  return new AuthError(
+    toPublicAuthMessage(error),
+    isRateLimit,
+    isRateLimit ? extractRetrySeconds(error.message) : null,
+  );
+}
+
 export function toPublicAuthMessage(error: Error): string {
   const message = error.message.toLowerCase();
 

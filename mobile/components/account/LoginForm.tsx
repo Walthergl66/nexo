@@ -11,6 +11,8 @@ type LoginFormProps = {
   password: string;
   /** Tras varios fallos seguidos, encamina hacia la recuperacion de contrasena. */
   showRecoveryHint?: boolean;
+  /** Segundos restantes de espera tras un 429; 0 cuando no hay bloqueo. */
+  cooldownSeconds?: number;
   onChangeEmail: (value: string) => void;
   onChangePassword: (value: string) => void;
   onExplore: () => void;
@@ -25,6 +27,7 @@ export function LoginForm({
   isPasswordVisible,
   password,
   showRecoveryHint = false,
+  cooldownSeconds = 0,
   onChangeEmail,
   onChangePassword,
   onExplore,
@@ -32,6 +35,8 @@ export function LoginForm({
   onSubmit,
   onTogglePasswordVisibility,
 }: LoginFormProps) {
+  const isCoolingDown = cooldownSeconds > 0;
+  const isSubmitDisabled = isLoading || isCoolingDown;
   return (
     <View style={styles.accountCard}>
       <AuthBrandHeader
@@ -64,8 +69,18 @@ export function LoginForm({
           <Ionicons name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.inkMuted} />
         </Pressable>
       </View>
-      <Pressable disabled={isLoading} style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={onSubmit}>
-        {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
+      <Pressable
+        disabled={isSubmitDisabled}
+        style={({ pressed }) => [styles.primaryButton, isSubmitDisabled && styles.buttonDisabled, pressed && styles.buttonPressed]}
+        onPress={onSubmit}
+      >
+        {isLoading ? (
+          <ActivityIndicator color={colors.surface} />
+        ) : (
+          <Text style={styles.primaryButtonText}>
+            {isCoolingDown ? `Reintenta en ${cooldownSeconds}s` : 'Entrar'}
+          </Text>
+        )}
       </Pressable>
       {showRecoveryHint && (
         <Text style={styles.recoveryHintText}>

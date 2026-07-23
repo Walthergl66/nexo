@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Admin\Http\Controllers\OverviewController as AdminOverviewController;
 use App\Modules\Cart\Http\Controllers\AddCartItemController;
 use App\Modules\Cart\Http\Controllers\ClearCartController;
 use App\Modules\Cart\Http\Controllers\ListCartController;
@@ -98,6 +99,7 @@ Route::middleware(['supabase.jwt', 'throttle:user'])->group(function (): void {
 
     Route::post('/products/{product}/reviews', CreateReviewController::class);
 
+    Route::get('/admin/overview', AdminOverviewController::class);
     Route::get('/admin/seller-verification-requests', ListSellerVerificationRequestsController::class);
     Route::patch('/admin/seller-verification-requests/{sellerVerificationRequest}', ReviewSellerVerificationRequestController::class);
     Route::post('/admin/categories', CreateCategoryController::class);

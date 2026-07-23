@@ -23,6 +23,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createCategory,
   deleteStore,
+  fetchAdminOverview,
   fetchCategories,
   fetchAdminStores,
   fetchMe,
@@ -33,7 +34,28 @@ import {
   updateStoreStatus,
 } from '@/lib/api';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
-import type { Category, Product, Profile, ReviewStatus, SellerVerificationRequest, Store } from '@/lib/types';
+import type {
+  AdminOverview,
+  Category,
+  PaginationMeta,
+  Product,
+  Profile,
+  ReviewStatus,
+  SellerVerificationRequest,
+  Store,
+} from '@/lib/types';
+
+const EMPTY_META: PaginationMeta = { current_page: 1, last_page: 1, per_page: 20, total: 0 };
+
+const EMPTY_OVERVIEW: AdminOverview = {
+  pending_requests: 0,
+  rejected_requests: 0,
+  active_stores: 0,
+  suspended_stores: 0,
+  active_products: 0,
+  total_products: 0,
+  categories: 0,
+};
 
 type Section = 'dashboard' | 'requests' | 'publications' | 'stores' | 'categories' | 'users';
 
@@ -66,10 +88,14 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [requests, setRequests] = useState<SellerVerificationRequest[]>([]);
+  const [overview, setOverview] = useState<AdminOverview>(EMPTY_OVERVIEW);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [requests, setRequests] = useState<SellerVerificationRequest[]>([]);
+  const [requestsMeta, setRequestsMeta] = useState<PaginationMeta>(EMPTY_META);
   const [products, setProducts] = useState<Product[]>([]);
+  const [productsMeta, setProductsMeta] = useState<PaginationMeta>(EMPTY_META);
   const [stores, setStores] = useState<Store[]>([]);
+  const [storesMeta, setStoresMeta] = useState<PaginationMeta>(EMPTY_META);
 
   const loadAdminData = useCallback(async (accessToken: string) => {
     const currentProfile = await fetchMe(accessToken);
@@ -81,7 +107,11 @@ export default function AdminPage() {
       throw new Error('Tu cuenta no tiene permisos de administrador.');
     }
 
-    const [verificationRequests, categoryRows, productRows, storeRows] = await Promise.all([
+    // Los conteos del tablero salen del overview (COUNT en la base), no de las
+    // listas: asi el dashboard sigue siendo exacto aunque cada lista solo traiga
+    // su primera pagina.
+    const [overviewData, requestPage, categoryRows, productPage, storePage] = await Promise.all([
+      fetchAdminOverview(accessToken),
       fetchSellerVerificationRequests(accessToken),
       fetchCategories(),
       fetchProducts(),
@@ -89,11 +119,53 @@ export default function AdminPage() {
     ]);
 
     setProfile(currentProfile);
-    setRequests(verificationRequests);
+    setOverview(overviewData);
     setCategories(categoryRows);
-    setProducts(productRows);
-    setStores(storeRows);
+    setRequests(requestPage.data);
+    setRequestsMeta(requestPage.meta);
+    setProducts(productPage.data);
+    setProductsMeta(productPage.meta);
+    setStores(storePage.data);
+    setStoresMeta(storePage.meta);
   }, []);
+
+  const changeRequestsPage = useCallback(async (page: number) => {
+    if (!token) {
+      return;
+    }
+
+    try {
+      const result = await fetchSellerVerificationRequests(token, { page });
+      setRequests(result.data);
+      setRequestsMeta(result.meta);
+    } catch (caughtError) {
+      setError(toErrorMessage(caughtError));
+    }
+  }, [token]);
+
+  const changeProductsPage = useCallback(async (page: number) => {
+    try {
+      const result = await fetchProducts({ page });
+      setProducts(result.data);
+      setProductsMeta(result.meta);
+    } catch (caughtError) {
+      setError(toErrorMessage(caughtError));
+    }
+  }, []);
+
+  const changeStoresPage = useCallback(async (page: number) => {
+    if (!token) {
+      return;
+    }
+
+    try {
+      const result = await fetchAdminStores(token, { page });
+      setStores(result.data);
+      setStoresMeta(result.meta);
+    } catch (caughtError) {
+      setError(toErrorMessage(caughtError));
+    }
+  }, [token]);
 
   useEffect(() => {
     let mounted = true;
@@ -140,12 +212,12 @@ export default function AdminPage() {
 
   const metrics = useMemo(
     () => ({
-      pendingRequests: requests.filter((item) => item.status === 'pending').length,
-      activeStores: stores.filter((store) => store.status === 'active').length,
-      activeProducts: products.filter((product) => product.status === 'active').length,
-      categories: categories.length,
+      pendingRequests: overview.pending_requests,
+      activeStores: overview.active_stores,
+      activeProducts: overview.active_products,
+      categories: overview.categories,
     }),
-    [categories.length, products, requests, stores],
+    [overview],
   );
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -317,14 +389,30 @@ export default function AdminPage() {
         {error ? <div className="error">{error}</div> : null}
 
         {activeSection === 'dashboard' ? (
-          <Dashboard metrics={metrics} requests={requests} products={products} stores={stores} />
+          <Dashboard metrics={metrics} overview={overview} requests={requests} />
         ) : null}
         {activeSection === 'requests' ? (
-          <RequestsPanel token={token} requests={requests} onError={setError} onChanged={handleRefresh} />
+          <RequestsPanel
+            token={token}
+            requests={requests}
+            meta={requestsMeta}
+            onPageChange={changeRequestsPage}
+            onError={setError}
+            onChanged={handleRefresh}
+          />
         ) : null}
-        {activeSection === 'publications' ? <PublicationsPanel products={products} /> : null}
+        {activeSection === 'publications' ? (
+          <PublicationsPanel products={products} meta={productsMeta} onPageChange={changeProductsPage} />
+        ) : null}
         {activeSection === 'stores' ? (
-          <StoresPanel token={token} stores={stores} onError={setError} onChanged={handleRefresh} />
+          <StoresPanel
+            token={token}
+            stores={stores}
+            meta={storesMeta}
+            onPageChange={changeStoresPage}
+            onError={setError}
+            onChanged={handleRefresh}
+          />
         ) : null}
         {activeSection === 'categories' ? (
           <CategoriesPanel
@@ -342,14 +430,12 @@ export default function AdminPage() {
 
 function Dashboard({
   metrics,
+  overview,
   requests,
-  products,
-  stores,
 }: {
   metrics: { pendingRequests: number; activeStores: number; activeProducts: number; categories: number };
+  overview: AdminOverview;
   requests: SellerVerificationRequest[];
-  products: Product[];
-  stores: Store[];
 }) {
   return (
     <div className="grid">
@@ -372,9 +458,9 @@ function Dashboard({
         <div className="panel">
           <h2>Riesgos operativos</h2>
           <div className="grid">
-            <RiskLine label="Publicaciones fuera del flujo admin" value={products.length} />
-            <RiskLine label="Tiendas suspendidas visibles al admin" value={stores.filter((s) => s.status === 'suspended').length} />
-            <RiskLine label="Solicitudes rechazadas" value={requests.filter((r) => r.status === 'rejected').length} />
+            <RiskLine label="Total de publicaciones" value={overview.total_products} />
+            <RiskLine label="Tiendas suspendidas" value={overview.suspended_stores} />
+            <RiskLine label="Solicitudes rechazadas" value={overview.rejected_requests} />
           </div>
         </div>
       </section>
@@ -382,14 +468,57 @@ function Dashboard({
   );
 }
 
+function Pagination({ meta, onPageChange }: { meta: PaginationMeta; onPageChange: (page: number) => void }) {
+  // Con una sola pagina no hay nada que navegar.
+  if (meta.last_page <= 1) {
+    return null;
+  }
+
+  const from = (meta.current_page - 1) * meta.per_page + 1;
+  const to = Math.min(meta.current_page * meta.per_page, meta.total);
+
+  return (
+    <div className="pagination">
+      <span className="muted">
+        {from}-{to} de {meta.total}
+      </span>
+      <div className="pagination-controls">
+        <button
+          className="button ghost"
+          type="button"
+          disabled={meta.current_page <= 1}
+          onClick={() => onPageChange(meta.current_page - 1)}
+        >
+          Anterior
+        </button>
+        <span className="pagination-page">
+          Pagina {meta.current_page} de {meta.last_page}
+        </span>
+        <button
+          className="button ghost"
+          type="button"
+          disabled={meta.current_page >= meta.last_page}
+          onClick={() => onPageChange(meta.current_page + 1)}
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function RequestsPanel({
   token,
   requests,
+  meta,
+  onPageChange,
   onError,
   onChanged,
 }: {
   token: string;
   requests: SellerVerificationRequest[];
+  meta: PaginationMeta;
+  onPageChange: (page: number) => void;
   onError: (message: string | null) => void;
   onChanged: () => Promise<void>;
 }) {
@@ -493,6 +622,7 @@ function RequestsPanel({
         </table>
       </div>
       {requests.length === 0 ? <div className="empty-state">No hay solicitudes para revisar.</div> : null}
+      <Pagination meta={meta} onPageChange={onPageChange} />
     </section>
   );
 }
@@ -630,7 +760,15 @@ function CategoriesPanel({
   );
 }
 
-function PublicationsPanel({ products }: { products: Product[] }) {
+function PublicationsPanel({
+  products,
+  meta,
+  onPageChange,
+}: {
+  products: Product[];
+  meta: PaginationMeta;
+  onPageChange: (page: number) => void;
+}) {
   return (
     <section className="panel">
       <div className="panel-header">
@@ -641,6 +779,7 @@ function PublicationsPanel({ products }: { products: Product[] }) {
       </div>
       <PendingBackendNotice text="Para rechazar, pausar o restaurar publicaciones desde admin falta un endpoint protegido como PATCH /api/admin/products/{product}/moderation." />
       <ProductsTable products={products} />
+      <Pagination meta={meta} onPageChange={onPageChange} />
     </section>
   );
 }
@@ -648,11 +787,15 @@ function PublicationsPanel({ products }: { products: Product[] }) {
 function StoresPanel({
   token,
   stores,
+  meta,
+  onPageChange,
   onError,
   onChanged,
 }: {
   token: string;
   stores: Store[];
+  meta: PaginationMeta;
+  onPageChange: (page: number) => void;
   onError: (message: string | null) => void;
   onChanged: () => Promise<void>;
 }) {
@@ -739,6 +882,8 @@ function StoresPanel({
           </tbody>
         </table>
       </div>
+      {stores.length === 0 ? <div className="empty-state">No hay tiendas registradas.</div> : null}
+      <Pagination meta={meta} onPageChange={onPageChange} />
     </section>
   );
 }

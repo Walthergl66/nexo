@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { toPublicAuthMessage } from '../utils/authErrors';
+import { AuthError, buildAuthError } from '../utils/authErrors';
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 
 export type AuthProfileInput = {
@@ -136,8 +136,8 @@ export async function signOut(): Promise<void> {
   }
 }
 
-function toPublicAuthError(error: Error): Error {
-  return new Error(toPublicAuthMessage(error));
+function toPublicAuthError(error: Error): AuthError {
+  return buildAuthError(error);
 }
 
 function getPasswordResetRedirectUrl(): string {

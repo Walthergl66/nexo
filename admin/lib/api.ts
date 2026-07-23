@@ -1,14 +1,23 @@
 import type {
+  AdminOverview,
   ApiCollection,
   ApiDocument,
   Category,
   CategoryPayload,
+  Paginated,
+  PaginationMeta,
   Product,
   Profile,
   ReviewStatus,
   SellerVerificationRequest,
   Store,
 } from './types';
+
+/** Opciones de paginacion aceptadas por los listados admin. */
+export type PageParams = {
+  page?: number;
+  perPage?: number;
+};
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -70,18 +79,65 @@ async function getApiErrorMessage(response: Response): Promise<string> {
   return 'No se pudo completar la solicitud.';
 }
 
+/**
+ * Convierte una respuesta paginada de Laravel en un `Paginated<T>`. El `meta`
+ * de Laravel trae mas campos, pero el panel solo necesita estos cuatro; si por
+ * algo faltara (una lista sin paginar), se asume una unica pagina.
+ */
+function toPaginated<T>(response: ApiCollection<T>): Paginated<T> {
+  const meta = (response.meta ?? {}) as Partial<PaginationMeta>;
+  const total = meta.total ?? response.data.length;
+  const perPage = meta.per_page ?? response.data.length;
+
+  return {
+    data: response.data,
+    meta: {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: perPage,
+      total,
+    },
+  };
+}
+
+function toQueryString(params: PageParams): string {
+  const query = new URLSearchParams();
+
+  if (params.page && params.page > 1) {
+    query.set('page', String(params.page));
+  }
+
+  if (params.perPage) {
+    query.set('per_page', String(params.perPage));
+  }
+
+  const serialized = query.toString();
+
+  return serialized ? `?${serialized}` : '';
+}
+
 export async function fetchMe(token: string): Promise<Profile> {
   const response = await request<ApiDocument<Profile>>('/me', { token });
 
   return response.data;
 }
 
-export async function fetchSellerVerificationRequests(token: string): Promise<SellerVerificationRequest[]> {
-  const response = await request<ApiCollection<SellerVerificationRequest>>('/admin/seller-verification-requests', {
-    token,
-  });
+export async function fetchAdminOverview(token: string): Promise<AdminOverview> {
+  const response = await request<ApiDocument<AdminOverview>>('/admin/overview', { token });
 
   return response.data;
+}
+
+export async function fetchSellerVerificationRequests(
+  token: string,
+  params: PageParams = {},
+): Promise<Paginated<SellerVerificationRequest>> {
+  const response = await request<ApiCollection<SellerVerificationRequest>>(
+    `/admin/seller-verification-requests${toQueryString(params)}`,
+    { token },
+  );
+
+  return toPaginated(response);
 }
 
 export async function reviewSellerVerificationRequest(
@@ -131,10 +187,10 @@ export async function updateCategory(token: string, id: string, payload: Partial
   return response.data;
 }
 
-export async function fetchProducts(): Promise<Product[]> {
-  const response = await request<ApiCollection<Product>>('/products');
+export async function fetchProducts(params: PageParams = {}): Promise<Paginated<Product>> {
+  const response = await request<ApiCollection<Product>>(`/products${toQueryString(params)}`);
 
-  return response.data;
+  return toPaginated(response);
 }
 
 export async function fetchStores(): Promise<Store[]> {
@@ -143,10 +199,10 @@ export async function fetchStores(): Promise<Store[]> {
   return response.data;
 }
 
-export async function fetchAdminStores(token: string): Promise<Store[]> {
-  const response = await request<ApiCollection<Store>>('/admin/stores', { token });
+export async function fetchAdminStores(token: string, params: PageParams = {}): Promise<Paginated<Store>> {
+  const response = await request<ApiCollection<Store>>(`/admin/stores${toQueryString(params)}`, { token });
 
-  return response.data;
+  return toPaginated(response);
 }
 
 export async function updateStoreStatus(token: string, slug: string, status: 'active' | 'suspended'): Promise<Store> {

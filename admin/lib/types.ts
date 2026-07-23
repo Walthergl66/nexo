@@ -8,6 +8,30 @@ export type ApiDocument<T> = {
   data: T;
 };
 
+/** Bloque `meta` de una respuesta paginada de Laravel. */
+export type PaginationMeta = {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+};
+
+/** Lista con su informacion de paginacion ya normalizada. */
+export type Paginated<T> = {
+  data: T[];
+  meta: PaginationMeta;
+};
+
+export type AdminOverview = {
+  pending_requests: number;
+  rejected_requests: number;
+  active_stores: number;
+  suspended_stores: number;
+  active_products: number;
+  total_products: number;
+  categories: number;
+};
+
 export type Profile = {
   id: string;
   supabase_user_id: string;
