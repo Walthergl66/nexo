@@ -25,6 +25,8 @@ type HomeScreenProps = {
   isLoading: boolean;
   isAuthenticated: boolean;
   isRefreshing: boolean;
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
   lastSyncAt: Date | null;
   productsCount: number;
   search: string;
@@ -117,6 +119,8 @@ export function HomeScreen({
   isLoading,
   isAuthenticated,
   isRefreshing,
+  isLoadingMore = false,
+  hasMore = false,
   lastSyncAt,
   productsCount,
   search,
@@ -151,10 +155,12 @@ export function HomeScreen({
   }
 
   const availableProducts = filteredProducts.filter((product) => product.available).length;
-  // Destacados en carrusel: 4 si hay catálogo amplio, 1 si es medio, ninguno si
-  // hay muy pocos (para no dejar la parrilla "Recomendados" vacía).
-  const featuredCount = filteredProducts.length >= 6 ? 4 : filteredProducts.length >= 3 ? 1 : 0;
-  const featuredProducts = isLoading ? [] : filteredProducts.slice(0, featuredCount);
+  // El hero destacado muestra UN producto y solo aparece en "Todo". Por eso solo
+  // reservamos ese producto cuando el hero se va a dibujar: si no, quedaba
+  // recortado de la grilla pero sin mostrarse en ningún lado (en las categorías
+  // el producto se perdía, y con 6+ productos se perdían varios).
+  const showsHero = !isLoading && activeFilter === 'Todo' && filteredProducts.length >= 3;
+  const featuredProducts = showsHero ? filteredProducts.slice(0, 1) : [];
   const catalogProducts = filteredProducts.slice(featuredProducts.length);
   const syncLabel = lastSyncAt
     ? `Actualizado ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
@@ -238,7 +244,10 @@ export function HomeScreen({
           {catalogProducts.map((product, index) => (
             <AnimatedProductCell
               key={product.id}
-              index={index}
+              // La animación de entrada solo escalona la primera pantalla: en las
+              // páginas siguientes (index alto) el delay acumulado se sentiría
+              // lento, así que a partir de ahí entran sin retraso.
+              index={index < 12 ? index : 0}
               isAuthenticated={isAuthenticated}
               isOwn={isOwnProduct(product)}
               product={product}
@@ -248,6 +257,17 @@ export function HomeScreen({
             />
           ))}
         </View>
+      )}
+
+      {!isLoading && isLoadingMore && (
+        <View style={styles.loadMoreRow}>
+          <ActivityIndicator size="small" color={colors.inkMuted} />
+          <Text style={styles.loadMoreText}>Cargando más productos…</Text>
+        </View>
+      )}
+
+      {!isLoading && !hasMore && catalogProducts.length > 0 && (
+        <Text style={styles.endOfCatalog}>Viste todo el catálogo</Text>
       )}
 
       {!isLoading && filteredProducts.length === 0 && (
@@ -403,5 +423,24 @@ const styles = StyleSheet.create({
   },
   heroWrap: {
     marginHorizontal: -20,
+  },
+  loadMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 20,
+  },
+  loadMoreText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  endOfCatalog: {
+    color: colors.inkSoft,
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 18,
   },
 });

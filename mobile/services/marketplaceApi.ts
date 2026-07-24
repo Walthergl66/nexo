@@ -208,6 +208,15 @@ export type ProductQuery = {
   inStock?: boolean;
   sort?: 'recent' | 'price_asc' | 'price_desc' | 'rating' | 'name';
   perPage?: number;
+  page?: number;
+};
+
+/** Una página del catálogo con la info de paginación ya normalizada. */
+export type ProductsPage = {
+  products: Product[];
+  page: number;
+  lastPage: number;
+  total: number;
 };
 
 function buildProductsPath(query: ProductQuery = {}): string {
@@ -244,6 +253,10 @@ function buildProductsPath(query: ProductQuery = {}): string {
     params.set('per_page', String(query.perPage));
   }
 
+  if (typeof query.page === 'number' && query.page > 1) {
+    params.set('page', String(query.page));
+  }
+
   const queryString = params.toString();
 
   return queryString ? `/products?${queryString}` : '/products';
@@ -253,6 +266,23 @@ export async function fetchProducts(query: ProductQuery = {}): Promise<Product[]
   const response = await request<ApiCollection<unknown>>(buildProductsPath(query));
 
   return response.data.map(mapApiProductToProduct);
+}
+
+/**
+ * Igual que fetchProducts pero devuelve además la info de paginación (página
+ * actual y última), para poder cargar el catálogo de a páginas con scroll
+ * infinito en vez de traer todo de golpe.
+ */
+export async function fetchProductsPage(query: ProductQuery = {}, page = 1): Promise<ProductsPage> {
+  const response = await request<ApiCollection<unknown>>(buildProductsPath({ ...query, page }));
+  const meta = (response.meta ?? {}) as { current_page?: number; last_page?: number; total?: number };
+
+  return {
+    products: response.data.map(mapApiProductToProduct),
+    page: meta.current_page ?? page,
+    lastPage: meta.last_page ?? 1,
+    total: meta.total ?? response.data.length,
+  };
 }
 
 export async function fetchCategoryNames(): Promise<string[]> {

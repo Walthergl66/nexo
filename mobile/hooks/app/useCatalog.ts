@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchCategoryNames, fetchProducts, type ProfileResource } from '../../services/marketplaceApi';
+import { fetchCategoryNames, fetchProductsPage, type ProfileResource } from '../../services/marketplaceApi';
 import { isSupabaseConfigured, supabase } from '../../services/supabaseClient';
 import type { Product, TabKey } from '../../types/marketplace';
 import { CATALOG_AUTO_REFRESH_MS, REFRESH_THROTTLE_MS } from '../../constants/app';
@@ -61,11 +61,20 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const [catalogRequestKey, setCatalogRequestKey] = useState(0);
   const hasLoadedCatalog = useRef(false);
   const lastCatalogRefreshRequestAt = useRef(0);
   const realtimeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Página cargada y contexto de la carga actual. En refs para que loadMore lea
+  // siempre lo último sin recrearse, y para que los refrescos de fondo puedan
+  // saber si el usuario ya paginó (y así no resetearlo al tope).
+  const page = useRef(1);
+  const lastPage = useRef(1);
+  const isFetchingMore = useRef(false);
+  const currentQuery = useRef({ search: '', category: 'Todo' });
 
   const refreshCatalog = useCallback(() => {
     const now = Date.now();
@@ -161,17 +170,26 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
       setIsRefreshing(true);
     }
 
-    fetchProducts({ search: debouncedSearch, category: activeFilter })
-      .then((nextProducts) => {
+    // Un cambio de búsqueda/filtro/refresco reinicia el catálogo a la página 1.
+    currentQuery.current = { search: debouncedSearch, category: activeFilter };
+    isFetchingMore.current = false;
+
+    fetchProductsPage({ search: debouncedSearch, category: activeFilter }, 1)
+      .then(({ products: nextProducts, page: loadedPage, lastPage: totalPages }) => {
         if (!isMounted) {
           return;
         }
 
         setProducts(nextProducts);
+        page.current = loadedPage;
+        lastPage.current = totalPages;
+        setHasMore(loadedPage < totalPages);
         setLastSyncAt(new Date());
         hasLoadedCatalog.current = true;
 
         if (isUnfiltered) {
+          // Solo se cachea la primera página sin filtros: es lo que se pinta al
+          // instante en el próximo arranque, no todo lo que se paginó con scroll.
           AsyncStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(nextProducts)).catch(() => {});
         }
       })
@@ -193,6 +211,41 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
       isMounted = false;
     };
   }, [accessToken, activeFilter, activeTab, catalogRequestKey, debouncedSearch, isSessionReady]);
+
+  // Trae la siguiente página y la agrega al final. Guardado contra llamadas
+  // repetidas del scroll y contra pedir más allá de la última página.
+  const loadMore = useCallback(() => {
+    if (isFetchingMore.current || page.current >= lastPage.current) {
+      return;
+    }
+
+    isFetchingMore.current = true;
+    setIsLoadingMore(true);
+    const nextPage = page.current + 1;
+    const { search: querySearch, category: queryCategory } = currentQuery.current;
+
+    fetchProductsPage({ search: querySearch, category: queryCategory }, nextPage)
+      .then(({ products: more, page: loadedPage, lastPage: totalPages }) => {
+        page.current = loadedPage;
+        lastPage.current = totalPages;
+        setHasMore(loadedPage < totalPages);
+
+        // Dedupe por id: si entró un producto nuevo entre páginas, el corte
+        // puede repetir uno. Sin esto React se queja por keys duplicadas.
+        setProducts((prev) => {
+          const seen = new Set(prev.map((product) => product.id));
+          return [...prev, ...more.filter((product) => !seen.has(product.id))];
+        });
+      })
+      .catch(() => {
+        // Un fallo al paginar no rompe nada: se conserva lo cargado y el usuario
+        // puede reintentar volviendo a llegar al final.
+      })
+      .finally(() => {
+        isFetchingMore.current = false;
+        setIsLoadingMore(false);
+      });
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -242,7 +295,11 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
       // Pequeño debounce: agrupa ráfagas de cambios en un solo refresh y evita
       // el throttle de refreshCatalog (esto es un evento en vivo, no un poll).
       realtimeDebounce.current = setTimeout(() => {
-        setCatalogRequestKey((current) => current + 1);
+        // Si el usuario ya paginó hacia abajo, no lo reseteamos al tope por un
+        // cambio de fondo: perdería su lugar y las páginas cargadas.
+        if (page.current === 1) {
+          setCatalogRequestKey((current) => current + 1);
+        }
       }, 400);
     };
 
@@ -266,9 +323,15 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
       return undefined;
     }
 
-    const interval = setInterval(refreshCatalog, CATALOG_AUTO_REFRESH_MS);
+    // El auto-refresh y el volver a la app solo actúan si el usuario está en la
+    // primera página; si ya paginó, no le movemos el catálogo bajo los pies.
+    const interval = setInterval(() => {
+      if (page.current === 1) {
+        refreshCatalog();
+      }
+    }, CATALOG_AUTO_REFRESH_MS);
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
+      if (state === 'active' && page.current === 1) {
         refreshCatalog();
       }
     });
@@ -289,6 +352,9 @@ export function useCatalog({ accessToken, isSessionReady, activeTab }: UseCatalo
     setSearch,
     isLoading,
     isRefreshing,
+    isLoadingMore,
+    hasMore,
+    loadMore,
     lastSyncAt,
     refreshCatalog,
   };

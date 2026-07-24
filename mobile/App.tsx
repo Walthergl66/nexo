@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
@@ -316,6 +317,27 @@ function AppShell() {
     catalog.refreshCatalog();
   };
 
+  // El shell entero es un solo ScrollView, así que la carga por scroll del
+  // catálogo se detecta aquí: cuando el contenido está cerca del fondo pedimos
+  // la siguiente página. catalog.loadMore ya se protege contra llamadas
+  // repetidas y contra pasarse de la última página. Se compone con el handler
+  // del header para no romper su animación.
+  const handleShellScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      header.handleProductScroll(event);
+
+      const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+      const distanceToBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+      // 600px de anticipación: pide la próxima página antes de tocar el fondo,
+      // para que al usuario no le aparezca un hueco mientras carga.
+      if (distanceToBottom < 600) {
+        catalog.loadMore();
+      }
+    },
+    [catalog, header],
+  );
+
   const handleChangeCartQuantity = (productId: string, quantity: number) => {
     if (quantity > 0) {
       cart.changeQuantity(productId, quantity);
@@ -414,6 +436,8 @@ function AppShell() {
             filters={catalog.filters}
             isLoading={catalog.isLoading}
             isRefreshing={catalog.isRefreshing}
+            isLoadingMore={catalog.isLoadingMore}
+            hasMore={catalog.hasMore}
             lastSyncAt={catalog.lastSyncAt}
             productsCount={catalog.products.length}
             search={catalog.search}
@@ -503,7 +527,7 @@ function AppShell() {
             isProductPresentation && styles.productContent,
             shouldShowHeader && { paddingTop: insets.top + 78 },
           ]}
-          onScroll={shouldShowHeader ? header.handleProductScroll : undefined}
+          onScroll={shouldShowHeader ? handleShellScroll : undefined}
           scrollEventThrottle={16}
         >
           <Animated.View
