@@ -44,4 +44,7 @@ export type CachedSellerState = {
   store: StoreResource | null;
 };
 
-export type { CategoryResource, SellerCenterState, StoreResource };
+/** Secciones internas del centro de ventas para un vendedor ya activo. */
+export type SellerSection = 'publish' | 'catalog' | 'sales';
+
+export type { CategoryResource, ProfileResource, SellerCenterState, StoreResource };

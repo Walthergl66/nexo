@@ -16,6 +16,11 @@ type ProductCreateFormProps = {
   onPickImage: () => void;
   onRefreshCategories: () => void;
   onTakeImage: () => void;
+  /** Overrides para reusar el formulario en modo edición. */
+  title?: string;
+  subtitle?: string;
+  submitLabel?: string;
+  submitIcon?: keyof typeof Ionicons.glyphMap;
 };
 
 export function ProductCreateForm({
@@ -29,14 +34,14 @@ export function ProductCreateForm({
   onPickImage,
   onRefreshCategories,
   onTakeImage,
+  title = 'Nuevo producto',
+  subtitle = 'Completa la informacion, agrega una imagen y elige si publicarlo ahora.',
+  submitLabel,
+  submitIcon,
 }: ProductCreateFormProps) {
   return (
     <View style={styles.formCard}>
-      <FormHeader
-        icon="pricetag-outline"
-        title="Nuevo producto"
-        subtitle="Completa la informacion, agrega una imagen y elige si publicarlo ahora."
-      />
+      <FormHeader icon="pricetag-outline" title={title} subtitle={subtitle} />
       <TextInput
         placeholder="Titulo del producto"
         placeholderTextColor={colors.inkSoft}
@@ -155,8 +160,8 @@ export function ProductCreateForm({
       </Pressable>
       <PrimaryButton
         disabled={isLoading}
-        icon={form.publishNow ? 'cloud-upload' : 'document-text'}
-        label={form.publishNow ? 'Publicar producto' : 'Guardar borrador'}
+        icon={submitIcon ?? (form.publishNow ? 'cloud-upload' : 'document-text')}
+        label={submitLabel ?? (form.publishNow ? 'Publicar producto' : 'Guardar borrador')}
         loading={isLoading}
         onPress={onCreateProduct}
       />

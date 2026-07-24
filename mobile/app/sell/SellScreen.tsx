@@ -1,44 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Text, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { CreateStoreForm } from '../../components/sell/CreateStoreForm';
-import { ProductCreateForm } from '../../components/sell/ProductCreateForm';
-import { ProductSuccessDialog } from '../../components/sell/ProductSuccessDialog';
-import { SellerProductList } from '../../components/sell/SellerProductList';
-import { SellerSalesList } from '../../components/sell/SellerSalesList';
-import {
-  createProduct,
-  createStore,
-  fetchProfile,
-  submitSellerVerification,
-  updateProduct,
-  deleteProduct,
-} from '../../services/marketplaceApi';
-import {
-  pickProductImage,
-  takeProductImage,
-  uploadProductImage,
-} from '../../services/productImageService';
-import {
-  pickStoreLogo,
-  takeStoreLogo,
-  uploadStoreLogo,
-} from '../../services/storeLogoService';
-import { colors } from '../../theme/colors';
-import { FormHeader, PrimaryButton } from '../../components/sell/FormControls';
+import { PrimaryButton } from '../../components/sell/FormControls';
+import { SellerOnboarding } from '../../components/sell/SellerOnboarding';
+import { SellerSectionTabs } from '../../components/sell/SellerSectionTabs';
+import { CatalogSection } from '../../components/sell/sections/CatalogSection';
+import { PublishSection } from '../../components/sell/sections/PublishSection';
+import { SalesSection } from '../../components/sell/sections/SalesSection';
 import { styles } from '../../components/sell/sellStyles';
-import {
-  initialProductForm,
-  initialStoreForm,
-  initialVerificationForm,
-} from '../../constants/sell';
+import { createStore, fetchProfile, submitSellerVerification } from '../../services/marketplaceApi';
+import { pickStoreLogo, takeStoreLogo, uploadStoreLogo } from '../../services/storeLogoService';
+import { colors } from '../../theme/colors';
+import { initialStoreForm, initialVerificationForm } from '../../constants/sell';
 import { useSellCategories } from '../../hooks/sell/useSellCategories';
 import { useSellerCenter } from '../../hooks/sell/useSellerCenter';
+import { useSellerProducts } from '../../hooks/sell/useSellerProducts';
 import { useSellerSales } from '../../hooks/sell/useSellerSales';
-import type { SellScreenProps } from '../../types/sell';
 import type { Sale } from '../../types/marketplace';
+import type { SellerSection, SellScreenProps } from '../../types/sell';
+import type { StatusTone } from '../../types/status';
 
 export function SellScreen({
   accessToken,
@@ -51,33 +33,25 @@ export function SellScreen({
 }: SellScreenProps) {
   const [verificationForm, setVerificationForm] = useState(initialVerificationForm);
   const [storeForm, setStoreForm] = useState(initialStoreForm);
-  const [productForm, setProductForm] = useState(initialProductForm);
-  const [editingProduct, setEditingProduct] = useState<import('../../types/marketplace').Product | null>(null);
-  const [productSuccess, setProductSuccess] = useState<{
-    description: string;
-    title: string;
-  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<SellerSection>('catalog');
+
   const notify = useCallback(
-    (nextMessage: string, tone: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    (nextMessage: string, tone: StatusTone = 'info') => {
       if (onStatusMessage) {
         onStatusMessage(nextMessage, tone);
         return;
       }
-
       setMessage(nextMessage);
     },
     [onStatusMessage],
   );
+
   const handleSellerLoaded = useCallback(() => setMessage(null), []);
   const handleSellerError = useCallback((nextMessage: string) => notify(nextMessage, 'error'), [notify]);
-  const {
-    categories,
-    categoryError,
-    isCategoriesLoading,
-    refreshCategories,
-  } = useSellCategories();
+
+  const categories = useSellCategories();
   const {
     hasPendingVerificationRequest,
     isLoading: isSellerLoading,
@@ -90,45 +64,48 @@ export function SellScreen({
     setSellerState,
     setStore,
     store,
-  } = useSellerCenter({
-    accessToken,
-    profile,
-    onError: handleSellerError,
-    onLoaded: handleSellerLoaded,
-    onProfileChange,
-  });
+  } = useSellerCenter({ accessToken, profile, onError: handleSellerError, onLoaded: handleSellerLoaded, onProfileChange });
+
   const isAuthenticated = accessToken !== null;
   const isApprovedSeller = profile?.role === 'seller' && profile.verification_status === 'approved';
   const canCreateProducts = isApprovedSeller && store?.status === 'active';
   const canManageSales = isApprovedSeller && Boolean(store);
-  const {
-    sales,
-    isLoading: isSalesLoading,
-    advancingId,
-    advance,
-  } = useSellerSales({ accessToken, enabled: canManageSales, onError: handleSellerError });
+  const isSellerActive = sellerState === 'catalog_required' || sellerState === 'catalog_ready';
+
+  const productCtl = useSellerProducts({
+    accessToken,
+    store,
+    canCreateProducts,
+    products,
+    setProducts,
+    setSellerState,
+    saveSellerState,
+    notify,
+    onExploreProducts,
+  });
+
+  const { sales, isLoading: isSalesLoading, advancingId, advance } = useSellerSales({
+    accessToken,
+    enabled: canManageSales,
+    onError: handleSellerError,
+  });
+
   const handleAdvanceSale = useCallback(
     (sale: Sale) => {
-      if (!sale.nextStatus) {
-        return;
+      if (sale.nextStatus) {
+        void advance(sale.id, sale.nextStatus);
       }
-      void advance(sale.id, sale.nextStatus);
     },
     [advance],
   );
-  const resetProductForm = useCallback(() => {
-    setProductForm({ ...initialProductForm, image: null });
-  }, []);
 
   const sellerStep = useMemo(() => {
     if (!isAuthenticated) {
       return 'Cuenta requerida';
     }
-
     if (!profile || isProfileLoading) {
       return 'Cargando cuenta';
     }
-
     switch (sellerState) {
       case 'verification_pending':
         return 'Revision pendiente';
@@ -173,9 +150,7 @@ export function SellScreen({
     if (!accessToken) {
       return;
     }
-
     const businessName = verificationForm.businessName.trim();
-
     if (businessName.length < 3) {
       notify('Ingresa el nombre comercial de tu emprendimiento.', 'warning');
       return;
@@ -209,9 +184,7 @@ export function SellScreen({
     if (!accessToken) {
       return;
     }
-
     const name = storeForm.name.trim();
-
     if (name.length < 3) {
       notify('Ingresa un nombre de tienda valido.', 'warning');
       return;
@@ -231,6 +204,7 @@ export function SellScreen({
       setSellerState('catalog_required');
       saveSellerState({ sellerState: 'catalog_required', store: nextStore, products });
       setStoreForm(initialStoreForm);
+      setActiveSection('publish');
       notify('Tienda creada y activa.', 'success');
     } catch (error) {
       await loadSellerState().catch(() => undefined);
@@ -241,11 +215,8 @@ export function SellScreen({
   };
 
   const handlePickStoreLogo = async () => {
-    setMessage(null);
-
     try {
       const image = await pickStoreLogo();
-
       if (image) {
         setStoreForm((current) => ({ ...current, logo: image }));
       }
@@ -255,259 +226,13 @@ export function SellScreen({
   };
 
   const handleTakeStoreLogo = async () => {
-    setMessage(null);
-
     try {
       const image = await takeStoreLogo();
-
       if (image) {
         setStoreForm((current) => ({ ...current, logo: image }));
       }
     } catch (error) {
       notify(error instanceof Error ? error.message : 'No pudimos tomar la imagen de la tienda.', 'error');
-    }
-  };
-
-  const handleCreateProduct = async () => {
-    if (!accessToken || !canCreateProducts || !store) {
-      return;
-    }
-
-    const name = productForm.name.trim();
-    const description = productForm.description.trim();
-    const price = Number(productForm.price.replace(',', '.'));
-    const stock = Number(productForm.stock);
-
-    if (name.length < 3) {
-      notify('Ingresa un titulo de producto valido.', 'warning');
-      return;
-    }
-
-    if (description.length < 10) {
-      notify('Ingresa una descripcion de al menos 10 caracteres.', 'warning');
-      return;
-    }
-
-    if (!productForm.categoryId) {
-      notify('Selecciona una categoria para el producto.', 'warning');
-      return;
-    }
-
-    if (!Number.isFinite(price) || price <= 0 || price > 9999999.99) {
-      notify('Ingresa un precio valido mayor a cero.', 'warning');
-      return;
-    }
-
-    if (!Number.isInteger(stock) || stock < 0) {
-      notify('Ingresa una cantidad disponible valida.', 'warning');
-      return;
-    }
-
-    if (!productForm.image) {
-      notify('Agrega una imagen del producto desde la camara o galeria.', 'warning');
-      return;
-    }
-
-    setIsLoading(true);
-    setMessage(null);
-    const shouldPublishProduct = productForm.publishNow;
-
-    try {
-      const imageUrl = await uploadProductImage(store.id, productForm.image);
-      const nextProduct = await createProduct(accessToken, {
-        category_id: productForm.categoryId,
-        name,
-        description,
-        images: [{ url: imageUrl, alt_text: name }],
-        price_cents: Math.round(price * 100),
-        stock,
-        status: shouldPublishProduct ? 'active' : 'draft',
-      });
-      setProducts((current) => {
-        const nextProducts = [nextProduct, ...current];
-        const nextState = nextProducts.length > 0 ? 'catalog_ready' : 'catalog_required';
-
-        setSellerState(nextState);
-        saveSellerState({ sellerState: nextState, store, products: nextProducts });
-
-        return nextProducts;
-      });
-      resetProductForm();
-      setProductSuccess({
-        title: shouldPublishProduct
-          ? 'Tu producto ha sido publicado correctamente'
-          : 'Tu producto ha sido guardado correctamente',
-        description: shouldPublishProduct
-          ? 'Ya esta listo para aparecer en el catalogo de nexo.'
-          : 'Quedo como borrador en tu centro de ventas.',
-      });
-    } catch (error) {
-      notify(error instanceof Error ? error.message : 'No se pudo crear el producto.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleStartEdit = (product: import('../../types/marketplace').Product) => {
-    setProductForm({
-      categoryId: product.categoryId ?? '',
-      name: product.title,
-      description: product.description,
-      image: null,
-      price: (product.priceCents / 100).toFixed(2),
-      publishNow: product.status === 'active',
-      stock: String(product.stock),
-    });
-    setEditingProduct(product);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingProduct(null);
-    resetProductForm();
-  };
-
-  const handleUpdateProduct = async () => {
-    if (!accessToken || !editingProduct) {
-      return;
-    }
-
-    const name = productForm.name.trim();
-    const description = productForm.description.trim();
-    const price = Number(productForm.price.replace(',', '.'));
-    const stock = Number(productForm.stock);
-
-    if (name.length < 3) {
-      notify('Ingresa un titulo de producto valido.', 'warning');
-      return;
-    }
-
-    if (description.length < 10) {
-      notify('Ingresa una descripcion de al menos 10 caracteres.', 'warning');
-      return;
-    }
-
-    if (!productForm.categoryId) {
-      notify('Selecciona una categoria para el producto.', 'warning');
-      return;
-    }
-
-    if (!Number.isFinite(price) || price <= 0 || price > 9999999.99) {
-      notify('Ingresa un precio valido mayor a cero.', 'warning');
-      return;
-    }
-
-    if (!Number.isInteger(stock) || stock < 0) {
-      notify('Ingresa una cantidad disponible valida.', 'warning');
-      return;
-    }
-
-    setIsLoading(true);
-    setMessage(null);
-
-    try {
-      let imageUrl: string | undefined;
-
-      if (productForm.image && store) {
-        imageUrl = await uploadProductImage(store.id, productForm.image);
-      }
-
-      const payload: Parameters<typeof updateProduct>[2] = {
-        category_id: productForm.categoryId || null,
-        name,
-        description,
-        price_cents: Math.round(price * 100),
-        stock,
-        status: productForm.publishNow ? 'active' : 'draft',
-      };
-
-      if (imageUrl) {
-        payload.images = [{ url: imageUrl, alt_text: name }];
-      }
-
-      const updated = await updateProduct(accessToken, editingProduct.slug, payload);
-
-      setProducts((current) => current.map((p) => (p.id === updated.id ? updated : p)));
-      setEditingProduct(null);
-      resetProductForm();
-      notify('Producto actualizado.', 'success');
-    } catch (error) {
-      notify(error instanceof Error ? error.message : 'No se pudo actualizar el producto.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteProduct = (product: import('../../types/marketplace').Product) => {
-    // Usar el ConfirmDialog del App si estuviera disponible; aquí notificamos
-    // y ejecutamos directamente ya que SellScreen no tiene acceso a onConfirmAction.
-    // El flujo de confirmación se maneja mostrando un segundo toque.
-    void performDeleteProduct(product);
-  };
-
-  const performDeleteProduct = async (product: import('../../types/marketplace').Product) => {
-    if (!accessToken) {
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      await deleteProduct(accessToken, product.slug);
-      setProducts((current) => {
-        const next = current.filter((p) => p.id !== product.id);
-        const nextState = next.length > 0 ? 'catalog_ready' : 'catalog_required';
-
-        setSellerState(nextState);
-
-        if (store) {
-          saveSellerState({ sellerState: nextState, store, products: next });
-        }
-
-        return next;
-      });
-      notify('Producto eliminado.', 'success');
-    } catch (error) {
-      notify(error instanceof Error ? error.message : 'No se pudo eliminar el producto.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleExploreProducts = () => {
-    setProductSuccess(null);
-    onExploreProducts();
-  };
-
-  const handlePublishAnother = () => {
-    setProductSuccess(null);
-    resetProductForm();
-  };
-
-  const handlePickProductImage = async () => {
-    setMessage(null);
-
-    try {
-      const image = await pickProductImage();
-
-      if (image) {
-        setProductForm((current) => ({ ...current, image }));
-      }
-    } catch (error) {
-      notify(error instanceof Error ? error.message : 'No pudimos seleccionar la imagen.', 'error');
-    }
-  };
-
-  const handleTakeProductImage = async () => {
-    setMessage(null);
-
-    try {
-      const image = await takeProductImage();
-
-      if (image) {
-        setProductForm((current) => ({ ...current, image }));
-      }
-    } catch (error) {
-      notify(error instanceof Error ? error.message : 'No pudimos tomar la foto.', 'error');
     }
   };
 
@@ -524,13 +249,7 @@ export function SellScreen({
             title="Catalogo publico"
             description="Puedes seguir explorando productos como visitante mientras decides registrarte."
           />
-          <PrimaryButton
-            disabled={false}
-            icon="log-in-outline"
-            label="Entrar o crear cuenta"
-            loading={false}
-            onPress={onGoToAccount}
-          />
+          <PrimaryButton disabled={false} icon="log-in-outline" label="Entrar o crear cuenta" loading={false} onPress={onGoToAccount} />
         </View>
       </>
     );
@@ -550,46 +269,6 @@ export function SellScreen({
 
   return (
     <>
-      <ProductSuccessDialog
-        description={productSuccess?.description ?? ''}
-        title={productSuccess?.title ?? ''}
-        visible={productSuccess !== null}
-        onExploreProducts={handleExploreProducts}
-        onPublishAnother={handlePublishAnother}
-      />
-
-      {/* ── Modal de edición ─────────────────────────────────────── */}
-      {editingProduct !== null && (
-        <View style={styles.editOverlay}>
-          <View style={styles.editModal}>
-            <ProductCreateForm
-              categories={categories}
-              categoryError={categoryError}
-              form={productForm}
-              isCategoriesLoading={isCategoriesLoading}
-              isLoading={isLoading}
-              onChange={setProductForm}
-              onCreateProduct={handleUpdateProduct}
-              onPickImage={handlePickProductImage}
-              onRefreshCategories={refreshCategories}
-              onTakeImage={handleTakeProductImage}
-              submitLabel="Guardar cambios"
-              submitIcon="checkmark-circle"
-              title="Editar producto"
-              subtitle="Modifica los campos que quieras actualizar."
-            />
-            <Pressable
-              accessibilityLabel="Cancelar edicion"
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.cancelEditBtn, pressed && { opacity: 0.7 }]}
-              onPress={handleCancelEdit}
-            >
-              <Text style={styles.cancelEditText}>Cancelar</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
       <SectionTitle title="Centro de ventas" subtitle="Verificacion, tienda e inventario." />
 
       <View style={styles.statusPanel}>
@@ -617,170 +296,48 @@ export function SellScreen({
         </View>
       )}
 
-      {(sellerState === 'verification_required' || (!sellerState && profile.role === 'buyer' && profile.verification_status === 'pending')) && !hasPendingVerificationRequest ? (
-        <View style={styles.formCard}>
-          <FormHeader
-            icon="shield-checkmark-outline"
-            title="Solicitud de vendedor"
-            subtitle="Datos basicos para que el equipo valide tu emprendimiento."
-          />
-          <TextInput
-            placeholder="Nombre comercial"
-            placeholderTextColor={colors.inkSoft}
-            style={styles.input}
-            value={verificationForm.businessName}
-            onChangeText={(value) => setVerificationForm((current) => ({ ...current, businessName: value }))}
-          />
-          <TextInput
-            multiline
-            placeholder="Que vendes y como operas"
-            placeholderTextColor={colors.inkSoft}
-            style={[styles.input, styles.textArea]}
-            value={verificationForm.businessDescription}
-            onChangeText={(value) => setVerificationForm((current) => ({ ...current, businessDescription: value }))}
-          />
-          <View style={styles.inlineRow}>
-            <TextInput
-              autoCapitalize="none"
-              placeholder="Documento"
-              placeholderTextColor={colors.inkSoft}
-              style={[styles.input, styles.inlineInput]}
-              value={verificationForm.documentType}
-              onChangeText={(value) => setVerificationForm((current) => ({ ...current, documentType: value }))}
-            />
-            <TextInput
-              keyboardType="number-pad"
-              placeholder="Numero"
-              placeholderTextColor={colors.inkSoft}
-              style={[styles.input, styles.inlineInput]}
-              value={verificationForm.documentNumber}
-              onChangeText={(value) => setVerificationForm((current) => ({ ...current, documentNumber: value }))}
-            />
-          </View>
-          <PrimaryButton
-            disabled={isLoading}
-            icon="shield-checkmark"
-            label="Enviar solicitud"
-            loading={isLoading}
-            onPress={handleRequestVerification}
-          />
-        </View>
-      ) : null}
-
-      {(hasPendingVerificationRequest || sellerState === 'verification_pending') && (
-        <LogicCard
-          title="Solicitud en revision"
-          description="Tu cuenta sigue como buyer hasta que un administrador apruebe la validacion de vendedor."
-        />
-      )}
-
-      {sellerState === 'verification_rejected' && (
+      {isSellerActive ? (
         <>
-          <LogicCard
-            title="Solicitud rechazada"
-            description="Puedes corregir tus datos de negocio y volver a enviar una solicitud de vendedor."
-          />
-          <View style={styles.formCard}>
-            <FormHeader
-              icon="refresh-circle-outline"
-              title="Nueva solicitud"
-              subtitle="Actualiza la informacion para una nueva revision."
+          <SellerSectionTabs active={activeSection} onChange={setActiveSection} salesCount={sales.length} />
+
+          {activeSection === 'publish' && <PublishSection productCtl={productCtl} categories={categories} />}
+
+          {activeSection === 'catalog' && (
+            <CatalogSection
+              productCtl={productCtl}
+              categories={categories}
+              products={products}
+              isListLoading={isSellerLoading}
+              canManage={Boolean(canCreateProducts)}
             />
-            <TextInput
-              placeholder="Nombre comercial"
-              placeholderTextColor={colors.inkSoft}
-              style={styles.input}
-              value={verificationForm.businessName}
-              onChangeText={(value) => setVerificationForm((current) => ({ ...current, businessName: value }))}
+          )}
+
+          {activeSection === 'sales' && (
+            <SalesSection
+              canManageSales={canManageSales}
+              sales={sales}
+              isLoading={isSalesLoading}
+              advancingId={advancingId}
+              onAdvance={handleAdvanceSale}
             />
-            <TextInput
-              multiline
-              placeholder="Que cambiaste de tu solicitud anterior"
-              placeholderTextColor={colors.inkSoft}
-              style={[styles.input, styles.textArea]}
-              value={verificationForm.businessDescription}
-              onChangeText={(value) => setVerificationForm((current) => ({ ...current, businessDescription: value }))}
-            />
-            <View style={styles.inlineRow}>
-              <TextInput
-                autoCapitalize="none"
-                placeholder="Documento"
-                placeholderTextColor={colors.inkSoft}
-                style={[styles.input, styles.inlineInput]}
-                value={verificationForm.documentType}
-                onChangeText={(value) => setVerificationForm((current) => ({ ...current, documentType: value }))}
-              />
-              <TextInput
-                keyboardType="number-pad"
-                placeholder="Numero"
-                placeholderTextColor={colors.inkSoft}
-                style={[styles.input, styles.inlineInput]}
-                value={verificationForm.documentNumber}
-                onChangeText={(value) => setVerificationForm((current) => ({ ...current, documentNumber: value }))}
-              />
-            </View>
-            <PrimaryButton
-              disabled={isLoading}
-              icon="shield-checkmark"
-              label="Enviar nueva solicitud"
-              loading={isLoading}
-              onPress={handleRequestVerification}
-            />
-          </View>
+          )}
         </>
-      )}
-
-      {sellerState === 'seller_suspended' && (
-        <LogicCard
-          title="Venta pausada"
-          description="Tu tienda queda fuera del catalogo publico hasta que un administrador revise la suspension."
-        />
-      )}
-
-      {sellerState === 'store_suspended' && (
-        <LogicCard
-          title="Tienda pausada"
-          description="Tu tienda queda fuera del catalogo publico y no puede vender hasta que un administrador la reactive."
-        />
-      )}
-
-      {sellerState === 'store_required' && (
-        <CreateStoreForm
-          form={storeForm}
+      ) : (
+        <SellerOnboarding
+          sellerState={sellerState}
+          hasPendingVerificationRequest={hasPendingVerificationRequest}
+          profile={profile}
           isLoading={isLoading}
-          onChange={setStoreForm}
+          verificationForm={verificationForm}
+          onChangeVerification={setVerificationForm}
+          onRequestVerification={handleRequestVerification}
+          storeForm={storeForm}
+          onChangeStore={setStoreForm}
           onCreateStore={handleCreateStore}
-          onPickLogo={handlePickStoreLogo}
-          onTakeLogo={handleTakeStoreLogo}
+          onPickStoreLogo={handlePickStoreLogo}
+          onTakeStoreLogo={handleTakeStoreLogo}
         />
       )}
-
-      {(sellerState === 'catalog_required' || sellerState === 'catalog_ready') && canCreateProducts && (
-        <ProductCreateForm
-          categories={categories}
-          categoryError={categoryError}
-          form={productForm}
-          isCategoriesLoading={isCategoriesLoading}
-          isLoading={isLoading}
-          onChange={setProductForm}
-          onCreateProduct={handleCreateProduct}
-          onPickImage={handlePickProductImage}
-          onRefreshCategories={refreshCategories}
-          onTakeImage={handleTakeProductImage}
-        />
-      )}
-
-      <SellerProductList products={products} isLoading={isSellerLoading} onEdit={canCreateProducts ? handleStartEdit : undefined} onDelete={canCreateProducts ? handleDeleteProduct : undefined} />
-
-      {canManageSales && (
-        <SellerSalesList
-          sales={sales}
-          isLoading={isSalesLoading}
-          advancingId={advancingId}
-          onAdvance={handleAdvanceSale}
-        />
-      )}
-
     </>
   );
 }
