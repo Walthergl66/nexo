@@ -31,6 +31,7 @@ export function CatalogSection({ productCtl, categories, products, isListLoading
         categories={categories.categories}
         categoryError={categories.categoryError}
         form={productCtl.productForm}
+        existingImageUrl={productCtl.editingProduct?.imageUrl ?? null}
         isCategoriesLoading={categories.isCategoriesLoading}
         isSaving={productCtl.isSaving}
         onChange={productCtl.setProductForm}

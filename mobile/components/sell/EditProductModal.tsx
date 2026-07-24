@@ -9,6 +9,7 @@ type EditProductModalProps = {
   categories: CategoryResource[];
   categoryError: string | null;
   form: ProductForm;
+  existingImageUrl: string | null;
   isCategoriesLoading: boolean;
   isSaving: boolean;
   onChange: (form: ProductForm) => void;
@@ -32,6 +33,7 @@ export function EditProductModal({
   categories,
   categoryError,
   form,
+  existingImageUrl,
   isCategoriesLoading,
   isSaving,
   onChange,
@@ -72,6 +74,7 @@ export function EditProductModal({
               categories={categories}
               categoryError={categoryError}
               form={form}
+              existingImageUrl={existingImageUrl}
               isCategoriesLoading={isCategoriesLoading}
               isLoading={isSaving}
               onChange={onChange}

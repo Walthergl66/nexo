@@ -12,6 +12,7 @@ type ProductCreateFormProps = {
   form: ProductForm;
   isCategoriesLoading: boolean;
   isLoading: boolean;
+  existingImageUrl?: string | null;
   onChange: (form: ProductForm) => void;
   onCreateProduct: () => void;
   onPickImage: () => void;
@@ -30,6 +31,7 @@ export function ProductCreateForm({
   form,
   isCategoriesLoading,
   isLoading,
+  existingImageUrl = null,
   onChange,
   onCreateProduct,
   onPickImage,
@@ -150,8 +152,34 @@ export function ProductCreateForm({
         </View>
       </View>
       <View style={styles.imagePickerPanel}>
+        <View style={styles.imageStatusRow}>
+          <View style={styles.imageStatusCopy}>
+            <Text style={styles.fieldLabel}>
+              {form.image ? 'Nueva imagen seleccionada' : existingImageUrl ? 'Imagen actual' : 'Imagen del producto'}
+            </Text>
+            <Text style={styles.fieldHint}>
+              {form.image
+                ? 'Esta imagen reemplazará la actual al guardar.'
+                : existingImageUrl
+                  ? 'Se conservará si no seleccionas otra.'
+                  : 'Selecciona una imagen clara del producto.'}
+            </Text>
+          </View>
+          {form.image && existingImageUrl && (
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.keepCurrentImageButton, pressed && styles.buttonPressed]}
+              onPress={() => onChange({ ...form, image: null })}
+            >
+              <Ionicons name="arrow-undo-outline" size={14} color={colors.brandBlue} />
+              <Text style={styles.keepCurrentImageText}>Usar actual</Text>
+            </Pressable>
+          )}
+        </View>
         {form.image ? (
           <Image source={{ uri: form.image.uri }} style={styles.productImagePreview} />
+        ) : existingImageUrl ? (
+          <Image source={{ uri: existingImageUrl }} style={styles.productImagePreview} />
         ) : (
           <Pressable
             accessibilityRole="button"
@@ -177,7 +205,7 @@ export function ProductCreateForm({
             onPress={onPickImage}
           >
             <Ionicons name="images-outline" size={16} color={colors.brandBlue} />
-            <Text style={styles.imageActionText}>Subir imagen</Text>
+            <Text style={styles.imageActionText}>{existingImageUrl ? 'Cambiar imagen' : 'Subir imagen'}</Text>
           </Pressable>
         </View>
       </View>
