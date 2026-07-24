@@ -179,7 +179,7 @@ export function HomeScreen({
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={18} color={colors.inkMuted} />
         <TextInput
-          placeholder="Buscar productos o tiendas"
+          placeholder="Buscar productos, tiendas o usuarios"
           placeholderTextColor={colors.inkSoft}
           style={styles.searchInput}
           value={search}

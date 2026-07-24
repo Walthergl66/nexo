@@ -43,6 +43,32 @@ class UserDiscoveryTest extends TestCase
             ->assertJsonPath('data.0.display_name', 'Akamnex Tienda');
     }
 
+    public function test_user_search_finds_by_store_name(): void
+    {
+        $me = $this->profile();
+        $seller = $this->profile([
+            'supabase_user_id' => '018f1d4c-40a5-7fd2-9a5a-0000000000e1',
+            'email' => 'seller3@example.com',
+            'display_name' => 'Nombre Poco Conocido',
+            'role' => Profile::ROLE_SELLER,
+            'verification_status' => Profile::VERIFICATION_APPROVED,
+        ]);
+        Store::query()->create([
+            'profile_id' => $seller->id,
+            'name' => 'Zapateria Central',
+            'slug' => 'zapateria-central',
+            'status' => Store::STATUS_ACTIVE,
+        ]);
+
+        // Buscando el nombre de la tienda encuentra al vendedor detrás.
+        $this->withToken($this->tokenFor($me))
+            ->getJson('/api/users/search?q=zapateria')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.display_name', 'Nombre Poco Conocido')
+            ->assertJsonPath('data.0.store.name', 'Zapateria Central');
+    }
+
     public function test_user_search_never_leaks_personal_data(): void
     {
         $me = $this->profile();

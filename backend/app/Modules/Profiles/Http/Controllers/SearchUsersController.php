@@ -32,9 +32,16 @@ class SearchUsersController extends Controller
             ->with('store')
             ->when($me instanceof Profile, fn ($builder) => $builder->whereKeyNot($me->id))
             ->where(function ($builder) use ($term): void {
+                // Por nombre de usuario...
                 $builder->whereRaw('LOWER(display_name) LIKE ?', [$term])
                     ->orWhereRaw('LOWER(first_name) LIKE ?', [$term])
-                    ->orWhereRaw('LOWER(last_name) LIKE ?', [$term]);
+                    ->orWhereRaw('LOWER(last_name) LIKE ?', [$term])
+                    // ...o por el nombre/slug de su tienda: muchas veces se
+                    // conoce la tienda pero no al usuario detrás.
+                    ->orWhereHas('store', function ($storeQuery) use ($term): void {
+                        $storeQuery->whereRaw('LOWER(name) LIKE ?', [$term])
+                            ->orWhereRaw('LOWER(slug) LIKE ?', [$term]);
+                    });
             })
             ->orderBy('display_name')
             ->limit(20)

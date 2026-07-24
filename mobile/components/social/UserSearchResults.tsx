@@ -25,7 +25,7 @@ export function UserSearchResults({ users, isSearching, query, onOpenUser }: Use
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Usuarios</Text>
+      <Text style={styles.title}>Usuarios y tiendas</Text>
 
       {users.length === 0 && isSearching ? (
         <View style={styles.searchingRow}>
