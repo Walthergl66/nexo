@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '../common/PressableScale';
 import { Tag } from '../common/Tag';
 import {
@@ -20,6 +21,16 @@ type SellerSalesListProps = {
   onAdvance: (sale: Sale) => void;
 };
 
+type SaleFilter = 'all' | 'processing' | 'packed' | 'shipped' | 'delivered';
+
+const SALE_FILTERS: Array<{ key: SaleFilter; label: string }> = [
+  { key: 'all', label: 'Todas' },
+  { key: 'processing', label: 'Nuevas' },
+  { key: 'packed', label: 'Preparadas' },
+  { key: 'shipped', label: 'Enviadas' },
+  { key: 'delivered', label: 'Entregadas' },
+];
+
 function StatusSteps({ currentIndex }: { currentIndex: number }) {
   return (
     <View style={styles.steps}>
@@ -37,6 +48,27 @@ function StatusSteps({ currentIndex }: { currentIndex: number }) {
 }
 
 export function SellerSalesList({ sales, isLoading = false, advancingId, onAdvance }: SellerSalesListProps) {
+  const [activeFilter, setActiveFilter] = useState<SaleFilter>('all');
+  const counts = useMemo(
+    () =>
+      sales.reduce<Record<SaleFilter, number>>(
+        (result, sale) => {
+          result.all += 1;
+          if (sale.fulfillmentStatus in result) {
+            result[sale.fulfillmentStatus as SaleFilter] += 1;
+          }
+          return result;
+        },
+        { all: 0, processing: 0, packed: 0, shipped: 0, delivered: 0 },
+      ),
+    [sales],
+  );
+  const visibleSales = useMemo(
+    () => (activeFilter === 'all' ? sales : sales.filter((sale) => sale.fulfillmentStatus === activeFilter)),
+    [activeFilter, sales],
+  );
+  const pendingCount = sales.filter((sale) => sale.fulfillmentStatus !== 'delivered').length;
+
   if (sales.length === 0) {
     if (isLoading) {
       return (
@@ -63,17 +95,48 @@ export function SellerSalesList({ sales, isLoading = false, advancingId, onAdvan
     <View style={sellStyles.productList}>
       <View style={sellStyles.productListHeader}>
         <Text style={sellStyles.formTitle}>Tus ventas</Text>
-        <Tag text={`${sales.length} por gestionar`} tone="default" />
+        <Tag text={`${pendingCount} por gestionar`} tone="default" />
+      </View>
+
+      <View style={styles.filterList}>
+        {SALE_FILTERS.map((filter) => {
+          const isActive = activeFilter === filter.key;
+          return (
+            <Pressable
+              key={filter.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              style={({ pressed }) => [
+                styles.filterChip,
+                isActive && styles.filterChipActive,
+                pressed && styles.filterChipPressed,
+              ]}
+              onPress={() => setActiveFilter(filter.key)}
+            >
+              <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>{filter.label}</Text>
+              <View style={[styles.filterCount, isActive && styles.filterCountActive]}>
+                <Text style={[styles.filterCountText, isActive && styles.filterCountTextActive]}>{counts[filter.key]}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View style={styles.list}>
-        {sales.map((sale) => {
+        {visibleSales.length === 0 ? (
+          <View style={styles.filteredEmpty}>
+            <Ionicons name="file-tray-outline" size={24} color={colors.inkSoft} />
+            <Text style={styles.filteredEmptyTitle}>No hay ventas en esta etapa</Text>
+            <Text style={styles.filteredEmptyText}>Cuando una venta cambie de estado aparecerá aquí.</Text>
+          </View>
+        ) : visibleSales.map((sale) => {
           const stepIndex = fulfillmentStepIndex(sale.fulfillmentStatus);
           const isDelivered = sale.fulfillmentStatus === 'delivered';
+          const needsAttention = sale.fulfillmentStatus === 'processing';
           const isAdvancing = advancingId === sale.id;
 
           return (
-            <View key={sale.id} style={styles.card}>
+            <View key={sale.id} style={[styles.card, needsAttention && styles.cardNeedsAttention]}>
               <View style={styles.cardHeader}>
                 <Text numberOfLines={1} style={styles.product}>
                   {sale.productName}
@@ -129,6 +192,82 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 10,
   },
+  filterList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 2,
+  },
+  filterChip: {
+    minHeight: 36,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingLeft: 11,
+    paddingRight: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  filterChipActive: {
+    borderColor: colors.brandBlue,
+    backgroundColor: colors.brandBlue,
+  },
+  filterChipPressed: {
+    opacity: 0.75,
+  },
+  filterLabel: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  filterLabelActive: {
+    color: colors.surface,
+  },
+  filterCount: {
+    minWidth: 23,
+    height: 23,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  filterCountActive: {
+    backgroundColor: colors.surface,
+  },
+  filterCountText: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  filterCountTextActive: {
+    color: colors.brandBlue,
+  },
+  filteredEmpty: {
+    minHeight: 120,
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    padding: 16,
+  },
+  filteredEmptyTitle: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  filteredEmptyText: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   card: {
     borderRadius: 18,
     borderWidth: 1,
@@ -136,6 +275,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: 14,
     gap: 8,
+  },
+  cardNeedsAttention: {
+    borderColor: colors.brandBlueLine,
+    backgroundColor: colors.brandBlueSoft,
   },
   cardHeader: {
     flexDirection: 'row',
