@@ -129,6 +129,7 @@ function mapApiOrderToOrder(order) {
     total: centsToAmount(order?.total_cents),
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
     createdAt: typeof order?.created_at === 'string' ? order.created_at : null,
+    updatedAt: typeof order?.updated_at === 'string' ? order.updated_at : null,
     items,
   };
 }

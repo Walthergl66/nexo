@@ -30,15 +30,25 @@ const PAYMENT_LABELS: Record<PaymentStatus, string> = {
 };
 
 const STATUS_PROGRESS: Record<OrderStatus, number> = {
-  pending: 0,
+  pending: -1,
   processing: 1,
   shipped: 2,
   delivered: 3,
-  cancelled: 0,
+  cancelled: -1,
+};
+
+const ORDER_STEP_LABELS = ['Pago', 'Preparando', 'Enviado', 'Entregado'];
+
+const STATUS_MESSAGES: Record<OrderStatus, string> = {
+  pending: 'Completa el pago para que la tienda pueda preparar tu pedido.',
+  processing: 'La tienda está preparando tu pedido para enviarlo.',
+  shipped: 'Tu pedido está en camino.',
+  delivered: 'Tu pedido fue marcado como entregado.',
+  cancelled: 'Esta compra fue cancelada.',
 };
 
 export function OrderCard({ order, isPaying = false, isCancelling = false, onPay, onCancel }: OrderCardProps) {
-  const progress = STATUS_PROGRESS[order.status];
+  const progress = order.paymentStatus === 'paid' ? STATUS_PROGRESS[order.status] : -1;
   const isCancelled = order.status === 'cancelled';
   const statusTone: Tone = isCancelled
     ? 'warning'
@@ -51,6 +61,10 @@ export function OrderCard({ order, isPaying = false, isCancelling = false, onPay
   const canCancel = isUnpaid;
   const isBusy = isPaying || isCancelling;
   const orderDate = formatOrderDate(order.createdAt);
+  const updatedAt = formatOrderUpdate(order.updatedAt ?? order.createdAt);
+  const storeNames = [...new Set(order.items.map((item) => item.storeName).filter(Boolean))];
+  const storeSummary =
+    storeNames.length === 1 ? storeNames[0] : storeNames.length > 1 ? `${storeNames.length} tiendas` : '';
 
   return (
     <View style={styles.container}>
@@ -69,15 +83,48 @@ export function OrderCard({ order, isPaying = false, isCancelling = false, onPay
       </View>
 
       {!isCancelled && (
-        <View style={styles.progressRow}>
-          {[0, 1, 2, 3].map((step) => (
-            <View key={step} style={styles.progressSegment}>
-              <View style={[styles.progressDot, step <= progress && styles.progressDotActive]} />
-              {step < 3 && <View style={[styles.progressLine, step < progress && styles.progressLineActive]} />}
-            </View>
-          ))}
+        <View style={styles.progressBlock}>
+          <View style={styles.progressRow}>
+            {ORDER_STEP_LABELS.map((label, step) => (
+              <View key={label} style={styles.progressSegment}>
+                <View style={[styles.progressDot, step <= progress && styles.progressDotActive]}>
+                  {step < progress && <Ionicons name="checkmark" size={8} color={colors.surface} />}
+                </View>
+                {step < 3 && <View style={[styles.progressLine, step < progress && styles.progressLineActive]} />}
+              </View>
+            ))}
+          </View>
+          <View style={styles.progressLabels}>
+            {ORDER_STEP_LABELS.map((label, step) => (
+              <Text
+                key={label}
+                numberOfLines={1}
+                style={[styles.progressLabel, step <= progress && styles.progressLabelActive]}
+              >
+                {label}
+              </Text>
+            ))}
+          </View>
         </View>
       )}
+
+      <View style={styles.contextPanel}>
+        <Ionicons
+          name={order.status === 'delivered' ? 'checkmark-circle-outline' : 'information-circle-outline'}
+          size={17}
+          color={colors.brandBlue}
+        />
+        <View style={styles.contextCopy}>
+          <Text style={styles.contextMessage}>{STATUS_MESSAGES[order.status]}</Text>
+          {(storeSummary || updatedAt) && (
+            <Text style={styles.contextMeta}>
+              {storeSummary ? `Tienda: ${storeSummary}` : ''}
+              {storeSummary && updatedAt ? ' · ' : ''}
+              {updatedAt ? `Actualizado ${updatedAt}` : ''}
+            </Text>
+          )}
+        </View>
+      </View>
 
       <View style={styles.footer}>
         <Tag text={STATUS_LABELS[order.status]} tone={statusTone} />
@@ -144,9 +191,10 @@ function OrderItemStatus({ item }: { item: OrderItem }) {
   return (
     <View style={styles.itemRow}>
       <View style={styles.itemTop}>
-        <Text numberOfLines={1} style={styles.itemName}>
-          {item.productName}
-        </Text>
+        <View style={styles.itemIdentity}>
+          <Text numberOfLines={1} style={styles.itemName}>{item.productName}</Text>
+          {item.storeName ? <Text numberOfLines={1} style={styles.itemStore}>{item.storeName}</Text> : null}
+        </View>
         <Text style={styles.itemStatus}>{FULFILLMENT_LABELS[item.fulfillmentStatus]}</Text>
       </View>
       <View style={styles.itemSteps}>
@@ -176,6 +224,25 @@ function formatOrderDate(value: string | null): string {
   }
 
   return date.toLocaleDateString();
+}
+
+function formatOrderUpdate(value: string | null): string {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return date.toLocaleString([], {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 const styles = StyleSheet.create({
@@ -227,8 +294,11 @@ const styles = StyleSheet.create({
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 14,
-    marginBottom: 13,
+  },
+  progressBlock: {
+    marginTop: 16,
+    marginBottom: 12,
+    gap: 6,
   },
   progressSegment: {
     flex: 1,
@@ -243,6 +313,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
     borderColor: colors.lineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressDotActive: {
     backgroundColor: colors.brandBlue,
@@ -257,6 +329,46 @@ const styles = StyleSheet.create({
   },
   progressLineActive: {
     backgroundColor: colors.brandAccent,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+  },
+  progressLabel: {
+    flex: 1,
+    color: colors.inkSoft,
+    fontSize: 9,
+    fontWeight: '700',
+    textAlign: 'left',
+  },
+  progressLabelActive: {
+    color: colors.brandBlue,
+  },
+  contextPanel: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: radii.small,
+    backgroundColor: colors.brandBlueSoft,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+    padding: 10,
+  },
+  contextCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  contextMessage: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  contextMeta: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '600',
+    lineHeight: 14,
   },
   footer: {
     flexDirection: 'row',
@@ -346,10 +458,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   itemName: {
-    flex: 1,
     color: colors.ink,
     fontSize: 13,
     fontWeight: '700',
+  },
+  itemIdentity: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  itemStore: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '600',
   },
   itemStatus: {
     color: colors.brandBlue,

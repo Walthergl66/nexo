@@ -59,6 +59,7 @@ test('maps order resources with real totals, statuses and items', () => {
     shipping_cents: 499,
     total_cents: 2999,
     created_at: '2026-07-13T10:00:00.000Z',
+    updated_at: '2026-07-14T11:30:00.000Z',
     items: [
       { id: 'item-1', product_name: 'Agenda', store_name: 'Tienda Centro', unit_price_cents: 1250, quantity: 2, subtotal_cents: 2500 },
     ],
@@ -71,6 +72,7 @@ test('maps order resources with real totals, statuses and items', () => {
   assert.equal(order.shipping, 4.99);
   assert.equal(order.total, 29.99);
   assert.equal(order.itemCount, 2);
+  assert.equal(order.updatedAt, '2026-07-14T11:30:00.000Z');
   assert.equal(order.items[0].productName, 'Agenda');
   assert.equal(order.items[0].unitPrice, 12.5);
 });

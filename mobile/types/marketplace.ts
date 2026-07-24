@@ -83,6 +83,7 @@ export type Order = {
   total: number;
   itemCount: number;
   createdAt: string | null;
+  updatedAt: string | null;
   items: OrderItem[];
 };
 
