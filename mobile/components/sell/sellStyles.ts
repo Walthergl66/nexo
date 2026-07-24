@@ -310,6 +310,11 @@ export const styles = StyleSheet.create({
     gap: 8,
     padding: 14,
   },
+  imagePlaceholderPressed: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.brandBlue,
+    transform: [{ scale: 0.99 }],
+  },
   imageActionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

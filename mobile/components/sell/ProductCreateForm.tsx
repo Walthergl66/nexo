@@ -125,10 +125,16 @@ export function ProductCreateForm({
         {form.image ? (
           <Image source={{ uri: form.image.uri }} style={styles.productImagePreview} />
         ) : (
-          <View style={styles.productImagePlaceholder}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar imagen del producto"
+            accessibilityHint="Abre la galeria para elegir una imagen"
+            style={({ pressed }) => [styles.productImagePlaceholder, pressed && styles.imagePlaceholderPressed]}
+            onPress={onPickImage}
+          >
             <Ionicons name="image-outline" size={28} color={colors.brandBlue} />
             <Text style={styles.fieldHint}>JPG, PNG o WebP. Maximo 5 MB.</Text>
-          </View>
+          </Pressable>
         )}
         <View style={styles.imageActionRow}>
           <Pressable

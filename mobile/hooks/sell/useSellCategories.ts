@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { fetchCategories, type CategoryResource } from '../../services/marketplaceApi';
-import { CATEGORIES_LOAD_TIMEOUT_MS } from '../../constants/sell';
+import { CATEGORIES_AUTO_REFRESH_MS, CATEGORIES_LOAD_TIMEOUT_MS } from '../../constants/sell';
 import { cacheCategories, getCachedCategories } from './sellCache';
 
 export function useSellCategories() {
@@ -9,6 +10,7 @@ export function useSellCategories() {
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
   const [categoryRefreshKey, setCategoryRefreshKey] = useState(0);
   const isCategoryRequestInFlight = useRef(false);
+  const isCategoryRefreshPending = useRef(false);
 
   const refreshCategories = useCallback(() => {
     setCategoryRefreshKey((current) => current + 1);
@@ -16,6 +18,7 @@ export function useSellCategories() {
 
   useEffect(() => {
     if (isCategoryRequestInFlight.current) {
+      isCategoryRefreshPending.current = true;
       return undefined;
     }
 
@@ -51,7 +54,14 @@ export function useSellCategories() {
           setIsCategoriesLoading(false);
         }
 
+        // Liberar siempre el bloqueo, incluso si el efecto se desmontó mientras
+        // la petición estaba en curso.
         isCategoryRequestInFlight.current = false;
+
+        if (isCategoryRefreshPending.current) {
+          isCategoryRefreshPending.current = false;
+          refreshCategories();
+        }
       }
     };
 
@@ -60,7 +70,21 @@ export function useSellCategories() {
     return () => {
       isMounted = false;
     };
-  }, [categories.length, categoryRefreshKey]);
+  }, [categoryRefreshKey, refreshCategories]);
+
+  useEffect(() => {
+    const intervalId = setInterval(refreshCategories, CATEGORIES_AUTO_REFRESH_MS);
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        refreshCategories();
+      }
+    });
+
+    return () => {
+      clearInterval(intervalId);
+      subscription.remove();
+    };
+  }, [refreshCategories]);
 
   return {
     categories,

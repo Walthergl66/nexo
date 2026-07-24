@@ -28,3 +28,4 @@ export const SELLER_STATE_CACHE_KEY_PREFIX = 'nexo.seller-state.v1.';
 export const CATEGORIES_CACHE_KEY = 'nexo.categories.cache.v1';
 export const SELLER_CENTER_AUTO_REFRESH_MS = 15000;
 export const CATEGORIES_LOAD_TIMEOUT_MS = 12000;
+export const CATEGORIES_AUTO_REFRESH_MS = 30000;
