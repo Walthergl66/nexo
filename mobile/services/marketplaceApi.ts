@@ -421,8 +421,22 @@ export async function removeCartItem(cartItemId: string, token?: string): Promis
   return fetchCart(token);
 }
 
-export async function createOrderFromCart(token?: string): Promise<Order> {
-  const response = await request<ApiDocument<unknown>>('/orders/from-cart', {
+/**
+ * Crea los pedidos desde el carrito: uno por tienda. Devuelve un pedido si todo
+ * era de la misma tienda, o varios si había de tiendas distintas (cada uno se
+ * paga por separado).
+ */
+export async function createOrderFromCart(token?: string): Promise<Order[]> {
+  const response = await request<ApiCollection<unknown>>('/orders/from-cart', {
+    method: 'POST',
+    token,
+  });
+
+  return response.data.map(mapApiOrderToOrder);
+}
+
+export async function cancelOrder(orderId: string, token?: string): Promise<Order> {
+  const response = await request<ApiDocument<unknown>>(`/orders/${orderId}/cancel`, {
     method: 'POST',
     token,
   });

@@ -22,12 +22,20 @@ class OrderService
         private readonly NotificationService $notifications,
     ) {}
 
-    public function createFromCart(Profile $profile): Order
+    /**
+     * Crea un pedido POR TIENDA a partir del carrito: los productos de una misma
+     * tienda van en un solo pedido (un solo pago), y los de tiendas distintas en
+     * pedidos separados que se pagan por separado. Es lo que le da lógica al
+     * carrito en un marketplace: cada vendedor cobra lo suyo.
+     *
+     * @return Collection<int, Order>
+     */
+    public function createFromCart(Profile $profile): Collection
     {
-        /** @var array<string, array{seller: Profile, store: string, quantity: int}> $sales */
+        /** @var array<string, array{seller: Profile, store: string, quantity: int, order: Order}> $sales */
         $sales = [];
 
-        $order = DB::transaction(function () use ($profile, &$sales): Order {
+        $orders = DB::transaction(function () use ($profile, &$sales): Collection {
             $cartItems = CartItem::query()
                 ->with(['product.store.profile'])
                 ->where('profile_id', $profile->id)
@@ -49,56 +57,68 @@ class OrderService
                 ->keyBy('id');
 
             $this->validateCartItems($cartItems, $products, $profile);
-            $currency = $this->resolveCurrency($cartItems);
-            $subtotalCents = $cartItems->sum(
-                fn (CartItem $item): int => $item->product->price_cents * $item->quantity,
-            );
-            $shippingCents = $this->shipping->quote($subtotalCents);
 
-            $order = Order::query()->create([
-                'profile_id' => $profile->id,
-                'order_number' => $this->orderNumber(),
-                'status' => Order::STATUS_PENDING,
-                'payment_status' => Order::PAYMENT_PENDING,
-                'currency' => $currency,
-                'subtotal_cents' => $subtotalCents,
-                'shipping_cents' => $shippingCents,
-                'total_cents' => $subtotalCents + $shippingCents,
-                'metadata' => [],
-            ]);
+            // Un grupo por tienda -> un pedido por tienda.
+            $itemsByStore = $cartItems->groupBy(fn (CartItem $item): string => $item->product->store_id);
 
-            foreach ($cartItems as $cartItem) {
-                $product = $cartItem->product;
-                $store = $product->store;
+            /** @var Collection<int, Order> $orders */
+            $orders = new Collection;
 
-                $order->items()->create([
-                    'product_id' => $product->id,
-                    'store_id' => $store->id,
-                    'product_name' => $product->name,
-                    'product_slug' => $product->slug,
-                    'store_name' => $store->name,
-                    'store_slug' => $store->slug,
-                    'unit_price_cents' => $product->price_cents,
-                    'quantity' => $cartItem->quantity,
-                    'subtotal_cents' => $product->price_cents * $cartItem->quantity,
-                    'currency' => $product->currency,
+            foreach ($itemsByStore as $storeItems) {
+                $currency = $this->resolveCurrency($storeItems);
+                $subtotalCents = $storeItems->sum(
+                    fn (CartItem $item): int => $item->product->price_cents * $item->quantity,
+                );
+                // El envío se cotiza por tienda: cada pedido lleva el suyo.
+                $shippingCents = $this->shipping->quote($subtotalCents);
+
+                $order = Order::query()->create([
+                    'profile_id' => $profile->id,
+                    'order_number' => $this->orderNumber(),
+                    'status' => Order::STATUS_PENDING,
+                    'payment_status' => Order::PAYMENT_PENDING,
+                    'currency' => $currency,
+                    'subtotal_cents' => $subtotalCents,
+                    'shipping_cents' => $shippingCents,
+                    'total_cents' => $subtotalCents + $shippingCents,
                     'metadata' => [],
                 ]);
 
-                // Descontar el inventario vendido sobre la fila bloqueada.
-                $products[$product->id]->decrement('stock', $cartItem->quantity);
+                foreach ($storeItems as $cartItem) {
+                    $product = $cartItem->product;
+                    $store = $product->store;
 
-                $seller = $store->profile;
+                    $order->items()->create([
+                        'product_id' => $product->id,
+                        'store_id' => $store->id,
+                        'product_name' => $product->name,
+                        'product_slug' => $product->slug,
+                        'store_name' => $store->name,
+                        'store_slug' => $store->slug,
+                        'unit_price_cents' => $product->price_cents,
+                        'quantity' => $cartItem->quantity,
+                        'subtotal_cents' => $product->price_cents * $cartItem->quantity,
+                        'currency' => $product->currency,
+                        'metadata' => [],
+                    ]);
 
-                if ($seller instanceof Profile) {
-                    $sales[$store->id] ??= ['seller' => $seller, 'store' => $store->name, 'quantity' => 0];
-                    $sales[$store->id]['quantity'] += $cartItem->quantity;
+                    // Descontar el inventario vendido sobre la fila bloqueada.
+                    $products[$product->id]->decrement('stock', $cartItem->quantity);
+
+                    $seller = $store->profile;
+
+                    if ($seller instanceof Profile) {
+                        $sales[$store->id] ??= ['seller' => $seller, 'store' => $store->name, 'quantity' => 0, 'order' => $order];
+                        $sales[$store->id]['quantity'] += $cartItem->quantity;
+                    }
                 }
+
+                $orders->push($order->refresh()->load(['items.product', 'items.store']));
             }
 
             CartItem::query()->where('profile_id', $profile->id)->delete();
 
-            return $order->refresh()->load(['items.product', 'items.store']);
+            return $orders;
         });
 
         // Notificar a cada vendedor fuera de la transacción (push best-effort).
@@ -110,11 +130,49 @@ class OrderService
                 Notification::TYPE_SALE,
                 'Nueva venta',
                 sprintf('Vendiste %d %s de %s.', $units, $units === 1 ? 'unidad' : 'unidades', $sale['store']),
-                ['order_id' => $order->id, 'order_number' => $order->order_number],
+                ['order_id' => $sale['order']->id, 'order_number' => $sale['order']->order_number],
             );
         }
 
-        return $order;
+        return $orders;
+    }
+
+    /**
+     * Cancela un pedido del comprador que aún no fue pagado y devuelve el stock
+     * reservado. Solo aplica a pedidos pendientes de pago: una vez pagado, la
+     * cancelación es otra historia (reembolso), fuera de este método.
+     */
+    public function cancelUnpaidOrder(Order $order): Order
+    {
+        return DB::transaction(function () use ($order): Order {
+            /** @var Order $order */
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->payment_status === Order::PAYMENT_PAID) {
+                throw ValidationException::withMessages([
+                    'order' => 'No puedes cancelar un pedido ya pagado.',
+                ]);
+            }
+
+            if ($order->status === Order::STATUS_CANCELLED) {
+                throw ValidationException::withMessages([
+                    'order' => 'Este pedido ya estaba cancelado.',
+                ]);
+            }
+
+            // Devolver a stock lo que este pedido tenía reservado.
+            foreach ($order->items()->get() as $item) {
+                if ($item->product_id !== null) {
+                    Product::query()->whereKey($item->product_id)->increment('stock', $item->quantity);
+                }
+
+                $item->forceFill(['fulfillment_status' => OrderItem::FULFILLMENT_CANCELLED])->save();
+            }
+
+            $order->forceFill(['status' => Order::STATUS_CANCELLED])->save();
+
+            return $order->refresh()->load('items');
+        });
     }
 
     /**

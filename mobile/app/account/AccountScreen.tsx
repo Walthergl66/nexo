@@ -579,6 +579,7 @@ export function AccountScreen({
           onAddToCart={onAddToCart}
           onOpenProduct={onOpenProduct}
           onStatusMessage={onStatusMessage}
+          onConfirmAction={onConfirmAction}
           onLogout={handleLogout}
           onOpenSettings={() => setAccountView('settings')}
           onSell={onSell}

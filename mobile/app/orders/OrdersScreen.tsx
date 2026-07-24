@@ -4,22 +4,24 @@ import { AppState, Linking, StyleSheet, Text, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { OrderCard } from '../../components/cards/OrderCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { createCheckoutSession, fetchOrders } from '../../services/marketplaceApi';
+import { cancelOrder, createCheckoutSession, fetchOrders } from '../../services/marketplaceApi';
 import { ORDERS_AUTO_REFRESH_MS } from '../../constants/app';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Order } from '../../types/marketplace';
-import type { StatusTone } from '../../types/status';
+import type { ConfirmActionRequest, StatusTone } from '../../types/status';
 
 type OrdersScreenProps = {
   accessToken: string | null;
   onStatusMessage?: (message: string, tone: StatusTone) => void;
+  onConfirmAction?: (action: ConfirmActionRequest) => void;
 };
 
 const CLOSED_STATUSES: Order['status'][] = ['delivered', 'cancelled'];
 
-export function OrdersScreen({ accessToken, onStatusMessage }: OrdersScreenProps) {
+export function OrdersScreen({ accessToken, onStatusMessage, onConfirmAction }: OrdersScreenProps) {
   const [remoteOrders, setRemoteOrders] = useState<Order[]>([]);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const isAuthenticated = accessToken !== null;
   const activeOrders = remoteOrders.filter((order) => !CLOSED_STATUSES.includes(order.status)).length;
   const deliveredOrders = remoteOrders.filter((order) => order.status === 'delivered').length;
@@ -91,6 +93,50 @@ export function OrdersScreen({ accessToken, onStatusMessage }: OrdersScreenProps
     [accessToken, onStatusMessage],
   );
 
+  const cancel = useCallback(
+    async (orderId: string) => {
+      if (!accessToken) {
+        return;
+      }
+
+      setCancellingId(orderId);
+
+      try {
+        const updated = await cancelOrder(orderId, accessToken);
+        setRemoteOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)));
+        onStatusMessage?.('Compra cancelada. El stock volvió a estar disponible.', 'success');
+      } catch (error) {
+        onStatusMessage?.(
+          error instanceof Error ? error.message : 'No pudimos cancelar la compra. Intenta nuevamente.',
+          'error',
+        );
+      } finally {
+        setCancellingId(null);
+      }
+    },
+    [accessToken, onStatusMessage],
+  );
+
+  const handleCancel = useCallback(
+    (orderId: string) => {
+      // Cancelar devuelve el stock y cierra el pedido; conviene confirmar.
+      if (onConfirmAction) {
+        onConfirmAction({
+          title: 'Cancelar compra',
+          description: '¿Seguro que quieres cancelar este pedido? No se puede deshacer.',
+          confirmLabel: 'Cancelar compra',
+          cancelLabel: 'Volver',
+          tone: 'danger',
+          onConfirm: () => cancel(orderId),
+        });
+        return;
+      }
+
+      void cancel(orderId);
+    },
+    [cancel, onConfirmAction],
+  );
+
   if (!isAuthenticated) {
     return (
       <>
@@ -138,7 +184,9 @@ export function OrdersScreen({ accessToken, onStatusMessage }: OrdersScreenProps
               key={order.id}
               order={order}
               isPaying={payingId === order.id}
+              isCancelling={cancellingId === order.id}
               onPay={handlePay}
+              onCancel={handleCancel}
             />
           ))}
         </View>

@@ -13,6 +13,7 @@ use App\Modules\Notifications\Http\Controllers\ListNotificationsController;
 use App\Modules\Notifications\Http\Controllers\MarkAllNotificationsReadController;
 use App\Modules\Notifications\Http\Controllers\MarkNotificationReadController;
 use App\Modules\Notifications\Http\Controllers\RegisterPushTokenController;
+use App\Modules\Orders\Http\Controllers\CancelOrderController;
 use App\Modules\Orders\Http\Controllers\CreateOrderFromCartController;
 use App\Modules\Orders\Http\Controllers\ListOrdersController;
 use App\Modules\Orders\Http\Controllers\ListSellerSalesController;
@@ -97,6 +98,7 @@ Route::middleware(['supabase.jwt', 'throttle:user'])->group(function (): void {
     Route::post('/orders/from-cart', CreateOrderFromCartController::class);
     Route::post('/orders/{order}/checkout', CreateCheckoutSessionController::class);
     Route::post('/orders/{order}/pay', PayOrderController::class);
+    Route::post('/orders/{order}/cancel', CancelOrderController::class);
     Route::get('/orders/{order}', ShowOrderController::class);
 
     Route::get('/notifications', ListNotificationsController::class);

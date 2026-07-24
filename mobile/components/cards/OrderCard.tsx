@@ -9,7 +9,9 @@ import { Tag } from '../common/Tag';
 type OrderCardProps = {
   order: Order;
   isPaying?: boolean;
+  isCancelling?: boolean;
   onPay?: (orderId: string) => void;
+  onCancel?: (orderId: string) => void;
 };
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -35,7 +37,7 @@ const STATUS_PROGRESS: Record<OrderStatus, number> = {
   cancelled: 0,
 };
 
-export function OrderCard({ order, isPaying = false, onPay }: OrderCardProps) {
+export function OrderCard({ order, isPaying = false, isCancelling = false, onPay, onCancel }: OrderCardProps) {
   const progress = STATUS_PROGRESS[order.status];
   const isCancelled = order.status === 'cancelled';
   const statusTone: Tone = isCancelled
@@ -43,7 +45,11 @@ export function OrderCard({ order, isPaying = false, onPay }: OrderCardProps) {
     : order.status === 'delivered'
       ? 'success'
       : 'default';
-  const canPay = order.paymentStatus === 'pending' && !isCancelled;
+  // Solo se puede pagar o cancelar mientras esté pendiente de pago.
+  const isUnpaid = order.paymentStatus === 'pending' && !isCancelled;
+  const canPay = isUnpaid;
+  const canCancel = isUnpaid;
+  const isBusy = isPaying || isCancelling;
   const orderDate = formatOrderDate(order.createdAt);
 
   return (
@@ -94,19 +100,39 @@ export function OrderCard({ order, isPaying = false, onPay }: OrderCardProps) {
         </View>
       )}
 
-      {canPay && onPay && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.payButton,
-            pressed && styles.payButtonPressed,
-            isPaying && styles.payButtonDisabled,
-          ]}
-          disabled={isPaying}
-          onPress={() => onPay(order.id)}
-        >
-          <Ionicons name="card-outline" size={16} color={colors.surface} />
-          <Text style={styles.payButtonText}>{isPaying ? 'Procesando...' : 'Pagar ahora'}</Text>
-        </Pressable>
+      {(canPay || canCancel) && (
+        <View style={styles.actionRow}>
+          {canPay && onPay && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.payButton,
+                pressed && styles.payButtonPressed,
+                isBusy && styles.payButtonDisabled,
+              ]}
+              disabled={isBusy}
+              onPress={() => onPay(order.id)}
+            >
+              <Ionicons name="card-outline" size={16} color={colors.surface} />
+              <Text style={styles.payButtonText}>{isPaying ? 'Procesando...' : 'Pagar ahora'}</Text>
+            </Pressable>
+          )}
+
+          {canCancel && onCancel && (
+            <Pressable
+              accessibilityLabel="Cancelar compra"
+              style={({ pressed }) => [
+                styles.cancelButton,
+                pressed && styles.cancelButtonPressed,
+                isBusy && styles.payButtonDisabled,
+              ]}
+              disabled={isBusy}
+              onPress={() => onCancel(order.id)}
+            >
+              <Ionicons name="close-circle-outline" size={16} color={colors.inkMuted} />
+              <Text style={styles.cancelButtonText}>{isCancelling ? 'Cancelando...' : 'Cancelar compra'}</Text>
+            </Pressable>
+          )}
+        </View>
       )}
     </View>
   );
@@ -250,8 +276,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  payButton: {
+  actionRow: {
     marginTop: 14,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  payButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -268,6 +299,26 @@ const styles = StyleSheet.create({
   },
   payButtonText: {
     color: colors.surface,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cancelButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.small,
+    paddingVertical: 12,
+  },
+  cancelButtonPressed: {
+    opacity: 0.7,
+  },
+  cancelButtonText: {
+    color: colors.inkMuted,
     fontSize: 14,
     fontWeight: '700',
   },

@@ -295,10 +295,12 @@ export function useCart({
       return;
     }
 
-    let order;
+    let orders;
 
     try {
-      order = await createOrderFromCart(accessToken);
+      // Un pedido por tienda: si el carrito tenía productos de varias tiendas,
+      // vuelven varios pedidos, cada uno con su pago.
+      orders = await createOrderFromCart(accessToken);
     } catch (error) {
       const reason =
         error instanceof ApiRequestError && error.message.trim().length > 0
@@ -308,20 +310,28 @@ export function useCart({
       return;
     }
 
-    // La orden ya vació el carrito en el backend.
+    // El backend ya vació el carrito.
     setCartItems([]);
     setCartSummary(EMPTY_SUMMARY);
 
-    try {
-      // Abrimos Stripe Checkout. El pago se confirma por webhook, no aqui: al
-      // volver a la app, la pantalla de Pedidos recarga y refleja el estado.
-      const checkoutUrl = await createCheckoutSession(order.id, accessToken);
-      await Linking.openURL(checkoutUrl);
-      onStatusMessage?.('Te llevamos a Stripe para completar el pago.', 'info');
-    } catch {
+    if (orders.length === 1) {
+      // Una sola tienda: abrimos Stripe directo. El pago se confirma por webhook;
+      // al volver a la app, Pedidos recarga y refleja el estado.
+      try {
+        const checkoutUrl = await createCheckoutSession(orders[0].id, accessToken);
+        await Linking.openURL(checkoutUrl);
+        onStatusMessage?.('Te llevamos a Stripe para completar el pago.', 'info');
+      } catch {
+        onStatusMessage?.(
+          'Creamos tu pedido, pero no pudimos abrir el pago. Puedes reintentarlo desde Pedidos.',
+          'warning',
+        );
+      }
+    } else {
+      // Varias tiendas: cada pedido se paga por separado desde Pedidos.
       onStatusMessage?.(
-        'Creamos tu orden, pero no pudimos abrir el pago. Puedes reintentarlo desde Pedidos.',
-        'warning',
+        `Creamos ${orders.length} pedidos (uno por tienda). Paga cada uno desde Pedidos.`,
+        'info',
       );
     }
 

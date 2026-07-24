@@ -41,7 +41,7 @@ class NotificationsTest extends TestCase
         $created = $this->withToken($this->tokenFor($buyer))
             ->postJson('/api/orders/from-cart')
             ->assertCreated()
-            ->json('data.id');
+            ->json('data.0.id');
 
         $this->assertDatabaseHas('notifications', [
             'profile_id' => $seller->id,

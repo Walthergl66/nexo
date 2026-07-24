@@ -4,6 +4,7 @@ namespace Tests\Feature\Orders;
 
 use App\Models\CartItem;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Profile;
 use App\Models\Store;
@@ -41,15 +42,16 @@ class OrdersTest extends TestCase
         $this->withToken($this->tokenFor($buyer))
             ->postJson('/api/orders/from-cart')
             ->assertCreated()
-            ->assertJsonPath('data.status', Order::STATUS_PENDING)
-            ->assertJsonPath('data.payment_status', Order::PAYMENT_PENDING)
-            ->assertJsonPath('data.currency', 'USD')
-            ->assertJsonPath('data.subtotal_cents', 2500)
-            ->assertJsonPath('data.shipping_cents', 499)
-            ->assertJsonPath('data.total_cents', 2999)
-            ->assertJsonPath('data.items.0.product_name', 'Producto activo')
-            ->assertJsonPath('data.items.0.unit_price_cents', 1250)
-            ->assertJsonPath('data.items.0.quantity', 2);
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.status', Order::STATUS_PENDING)
+            ->assertJsonPath('data.0.payment_status', Order::PAYMENT_PENDING)
+            ->assertJsonPath('data.0.currency', 'USD')
+            ->assertJsonPath('data.0.subtotal_cents', 2500)
+            ->assertJsonPath('data.0.shipping_cents', 499)
+            ->assertJsonPath('data.0.total_cents', 2999)
+            ->assertJsonPath('data.0.items.0.product_name', 'Producto activo')
+            ->assertJsonPath('data.0.items.0.unit_price_cents', 1250)
+            ->assertJsonPath('data.0.items.0.quantity', 2);
 
         $this->assertDatabaseHas('orders', [
             'profile_id' => $buyer->id,
@@ -89,9 +91,145 @@ class OrdersTest extends TestCase
         $this->withToken($this->tokenFor($buyer))
             ->postJson('/api/orders/from-cart')
             ->assertCreated()
-            ->assertJsonPath('data.subtotal_cents', 6000)
-            ->assertJsonPath('data.shipping_cents', 0)
-            ->assertJsonPath('data.total_cents', 6000);
+            ->assertJsonPath('data.0.subtotal_cents', 6000)
+            ->assertJsonPath('data.0.shipping_cents', 0)
+            ->assertJsonPath('data.0.total_cents', 6000);
+    }
+
+    public function test_cart_with_products_from_two_stores_creates_two_orders(): void
+    {
+        $buyer = $this->profile();
+        $productA = $this->productInStore(1, ['price_cents' => 1000, 'stock' => 5]);
+        $productB = $this->productInStore(2, ['price_cents' => 2000, 'stock' => 5]);
+
+        CartItem::query()->create(['profile_id' => $buyer->id, 'product_id' => $productA->id, 'quantity' => 1]);
+        CartItem::query()->create(['profile_id' => $buyer->id, 'product_id' => $productB->id, 'quantity' => 2]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/from-cart')
+            ->assertCreated()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.count', 2);
+
+        // Un pedido por tienda, cada uno con el item de su tienda.
+        $this->assertDatabaseCount('orders', 2);
+        $this->assertDatabaseCount('order_items', 2);
+        $this->assertDatabaseCount('cart_items', 0);
+        $this->assertDatabaseHas('products', ['id' => $productA->id, 'stock' => 4]);
+        $this->assertDatabaseHas('products', ['id' => $productB->id, 'stock' => 3]);
+    }
+
+    public function test_cart_with_two_products_from_the_same_store_creates_one_order(): void
+    {
+        $buyer = $this->profile();
+        $store = $this->productInStore(1, ['price_cents' => 1000, 'stock' => 5]);
+        // Segundo producto en la MISMA tienda.
+        $second = Product::query()->create([
+            'store_id' => $store->store_id,
+            'name' => 'Producto 1b',
+            'slug' => 'producto-1b',
+            'price_cents' => 1500,
+            'currency' => 'USD',
+            'stock' => 5,
+            'status' => Product::STATUS_ACTIVE,
+        ]);
+
+        CartItem::query()->create(['profile_id' => $buyer->id, 'product_id' => $store->id, 'quantity' => 1]);
+        CartItem::query()->create(['profile_id' => $buyer->id, 'product_id' => $second->id, 'quantity' => 1]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/from-cart')
+            ->assertCreated()
+            ->assertJsonCount(1, 'data');
+
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('order_items', 2);
+    }
+
+    public function test_buyer_can_cancel_an_unpaid_order_and_stock_returns(): void
+    {
+        $buyer = $this->profile();
+        $product = $this->activeProduct(['stock' => 1]); // 1 = quedó tras reservar 2
+        $order = Order::query()->create([
+            'profile_id' => $buyer->id,
+            'order_number' => 'NX-TEST-CANCEL1',
+            'status' => Order::STATUS_PENDING,
+            'payment_status' => Order::PAYMENT_PENDING,
+            'currency' => 'USD',
+            'subtotal_cents' => 2000,
+            'shipping_cents' => 499,
+            'total_cents' => 2499,
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'store_id' => $product->store_id,
+            'product_name' => $product->name,
+            'product_slug' => $product->slug,
+            'store_name' => 'Nexo Store',
+            'store_slug' => 'nexo-store',
+            'unit_price_cents' => 1000,
+            'quantity' => 2,
+            'subtotal_cents' => 2000,
+            'currency' => 'USD',
+        ]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/'.$order->id.'/cancel')
+            ->assertOk()
+            ->assertJsonPath('data.status', Order::STATUS_CANCELLED);
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => Order::STATUS_CANCELLED]);
+        // El stock reservado (2) vuelve: 1 + 2 = 3.
+        $this->assertDatabaseHas('products', ['id' => $product->id, 'stock' => 3]);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'fulfillment_status' => OrderItem::FULFILLMENT_CANCELLED,
+        ]);
+    }
+
+    public function test_buyer_cannot_cancel_a_paid_order(): void
+    {
+        $buyer = $this->profile();
+        $order = Order::query()->create([
+            'profile_id' => $buyer->id,
+            'order_number' => 'NX-TEST-CANCEL2',
+            'status' => Order::STATUS_PROCESSING,
+            'payment_status' => Order::PAYMENT_PAID,
+            'currency' => 'USD',
+            'subtotal_cents' => 1000,
+            'shipping_cents' => 0,
+            'total_cents' => 1000,
+        ]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/'.$order->id.'/cancel')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('order');
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => Order::STATUS_PROCESSING]);
+    }
+
+    public function test_buyer_cannot_cancel_another_buyers_order(): void
+    {
+        $buyer = $this->profile();
+        $otherBuyer = $this->profile([
+            'supabase_user_id' => '018f1d4c-40a5-7fd2-9a5a-000000000009',
+            'email' => 'ninth@example.com',
+        ]);
+        $order = Order::query()->create([
+            'profile_id' => $otherBuyer->id,
+            'order_number' => 'NX-TEST-CANCEL3',
+            'status' => Order::STATUS_PENDING,
+            'payment_status' => Order::PAYMENT_PENDING,
+            'currency' => 'USD',
+            'subtotal_cents' => 1000,
+            'shipping_cents' => 0,
+            'total_cents' => 1000,
+        ]);
+
+        $this->withToken($this->tokenFor($buyer))
+            ->postJson('/api/orders/'.$order->id.'/cancel')
+            ->assertNotFound();
     }
 
     public function test_buyer_can_pay_a_pending_order(): void
@@ -287,6 +425,38 @@ class OrdersTest extends TestCase
             'store_id' => $store->id,
             'name' => 'Producto activo',
             'slug' => 'producto-activo',
+            'price_cents' => 1000,
+            'currency' => 'USD',
+            'stock' => 10,
+            'status' => Product::STATUS_ACTIVE,
+        ], $productOverrides));
+    }
+
+    /**
+     * Crea un producto activo en una tienda propia y distinta (por índice), para
+     * armar carritos con productos de varias tiendas.
+     *
+     * @param  array<string, mixed>  $productOverrides
+     */
+    private function productInStore(int $index, array $productOverrides = []): Product
+    {
+        $seller = $this->profile([
+            'supabase_user_id' => sprintf('018f1d4c-40a5-7fd2-9a5a-%012d', 100 + $index),
+            'email' => "seller{$index}@example.com",
+            'role' => Profile::ROLE_SELLER,
+            'verification_status' => Profile::VERIFICATION_APPROVED,
+        ]);
+        $store = Store::query()->create([
+            'profile_id' => $seller->id,
+            'name' => "Store {$index}",
+            'slug' => "store-{$index}",
+            'status' => Store::STATUS_ACTIVE,
+        ]);
+
+        return Product::query()->create(array_merge([
+            'store_id' => $store->id,
+            'name' => "Producto {$index}",
+            'slug' => "producto-{$index}",
             'price_cents' => 1000,
             'currency' => 'USD',
             'stock' => 10,

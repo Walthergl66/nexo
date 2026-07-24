@@ -9,7 +9,7 @@ import { OrdersScreen } from '../../app/orders/OrdersScreen';
 import { useFavorites } from '../../context/FavoritesContext';
 import type { ProfileResource } from '../../services/marketplaceApi';
 import type { Product } from '../../types/marketplace';
-import type { StatusTone } from '../../types/status';
+import type { ConfirmActionRequest, StatusTone } from '../../types/status';
 import { colors } from '../../theme/colors';
 import { accountStyles as styles } from './accountStyles';
 
@@ -27,6 +27,7 @@ type AuthenticatedAccountPanelProps = {
   onAddToCart: (product: Product) => void | Promise<boolean>;
   onOpenProduct: (product: Product) => void;
   onStatusMessage?: (message: string, tone: StatusTone) => void;
+  onConfirmAction?: (action: ConfirmActionRequest) => void;
   onLogout: () => void;
   onOpenSettings: () => void;
   onSell: () => void;
@@ -44,6 +45,7 @@ export function AuthenticatedAccountPanel({
   onAddToCart,
   onOpenProduct,
   onStatusMessage,
+  onConfirmAction,
   onLogout,
   onOpenSettings,
   onSell,
@@ -245,7 +247,7 @@ export function AuthenticatedAccountPanel({
 
         {section === 'orders' && (
           <View style={styles.profileSectionEmbed}>
-            <OrdersScreen accessToken={accessToken} onStatusMessage={onStatusMessage} />
+            <OrdersScreen accessToken={accessToken} onStatusMessage={onStatusMessage} onConfirmAction={onConfirmAction} />
           </View>
         )}
       </View>
