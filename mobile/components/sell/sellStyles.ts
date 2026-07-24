@@ -63,6 +63,9 @@ export const styles = StyleSheet.create({
     gap: 11,
     ...shadows.card,
   },
+  verificationField: {
+    gap: 6,
+  },
   formHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -105,6 +108,37 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 13,
     fontWeight: '700',
+  },
+  validatedInputWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  validatedInput: {
+    paddingRight: 44,
+  },
+  inputInvalid: {
+    borderColor: '#f0a5a0',
+    backgroundColor: '#fff8f7',
+  },
+  inputValid: {
+    borderColor: '#8ed3c3',
+    backgroundColor: '#f4fbf9',
+  },
+  validationIcon: {
+    position: 'absolute',
+    right: 12,
+  },
+  rucFeedback: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  rucFeedbackInvalid: {
+    color: '#b42318',
+  },
+  rucFeedbackValid: {
+    color: '#16836b',
   },
   textArea: {
     minHeight: 86,

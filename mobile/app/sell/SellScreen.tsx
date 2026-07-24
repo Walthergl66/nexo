@@ -21,6 +21,7 @@ import { useSellerSales } from '../../hooks/sell/useSellerSales';
 import type { Sale } from '../../types/marketplace';
 import type { SellerSection, SellScreenProps } from '../../types/sell';
 import type { StatusTone } from '../../types/status';
+import { validateEcuadorianRuc } from '../../utils/ecuadorianRuc';
 
 export function SellScreen({
   accessToken,
@@ -155,6 +156,17 @@ export function SellScreen({
       notify('Ingresa el nombre comercial de tu emprendimiento.', 'warning');
       return;
     }
+    const businessDescription = verificationForm.businessDescription.trim();
+    if (businessDescription.length === 0) {
+      notify('Describe brevemente que vendes y como operas.', 'warning');
+      return;
+    }
+    const documentNumber = verificationForm.documentNumber.trim();
+    const rucValidation = validateEcuadorianRuc(documentNumber);
+    if (rucValidation.status !== 'valid') {
+      notify(rucValidation.message, 'warning');
+      return;
+    }
 
     setIsLoading(true);
     setMessage(null);
@@ -162,9 +174,9 @@ export function SellScreen({
     try {
       await submitSellerVerification(accessToken, {
         business_name: businessName,
-        business_description: verificationForm.businessDescription.trim() || null,
-        document_type: verificationForm.documentType.trim() || null,
-        document_number: verificationForm.documentNumber.trim() || null,
+        business_description: businessDescription,
+        document_type: 'ruc',
+        document_number: documentNumber,
       });
       const nextProfile = await fetchProfile(accessToken).catch(() => profile);
       onProfileChange(nextProfile);

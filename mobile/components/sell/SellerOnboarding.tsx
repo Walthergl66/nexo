@@ -1,10 +1,13 @@
-import { TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useMemo, useState } from 'react';
+import { Text, TextInput, View } from 'react-native';
 import { LogicCard } from '../cards/LogicCard';
 import { CreateStoreForm } from './CreateStoreForm';
 import { FormHeader, PrimaryButton } from './FormControls';
 import { styles } from './sellStyles';
 import { colors } from '../../theme/colors';
 import type { ProfileResource, SellerCenterState, StoreForm, VerificationForm } from '../../types/sell';
+import { validateEcuadorianRuc } from '../../utils/ecuadorianRuc';
 
 type SellerOnboardingProps = {
   sellerState: SellerCenterState | null;
@@ -138,43 +141,90 @@ function VerificationForm({
   descriptionPlaceholder,
   submitLabel,
 }: VerificationFormProps) {
+  const [isRucTouched, setIsRucTouched] = useState(false);
+  const rucValidation = useMemo(() => validateEcuadorianRuc(form.documentNumber), [form.documentNumber]);
+  const shouldShowRucStatus = isRucTouched || form.documentNumber.length === 13;
+  const isRucValid = rucValidation.status === 'valid';
+
+  const handleSubmit = () => {
+    setIsRucTouched(true);
+
+    if (!isRucValid) {
+      return;
+    }
+
+    onSubmit();
+  };
+
   return (
     <View style={styles.formCard}>
       <FormHeader icon={icon} title={title} subtitle={subtitle} />
-      <TextInput
-        placeholder="Nombre comercial"
-        placeholderTextColor={colors.inkSoft}
-        style={styles.input}
-        value={form.businessName}
-        onChangeText={(value) => onChange({ ...form, businessName: value })}
-      />
-      <TextInput
-        multiline
-        placeholder={descriptionPlaceholder}
-        placeholderTextColor={colors.inkSoft}
-        style={[styles.input, styles.textArea]}
-        value={form.businessDescription}
-        onChangeText={(value) => onChange({ ...form, businessDescription: value })}
-      />
-      <View style={styles.inlineRow}>
+      <View style={styles.verificationField}>
+        <Text style={styles.fieldLabel}>Nombre comercial</Text>
         <TextInput
-          autoCapitalize="none"
-          placeholder="Documento"
+          placeholder="Ej. Nexo Store"
           placeholderTextColor={colors.inkSoft}
-          style={[styles.input, styles.inlineInput]}
-          value={form.documentType}
-          onChangeText={(value) => onChange({ ...form, documentType: value })}
-        />
-        <TextInput
-          keyboardType="number-pad"
-          placeholder="Numero"
-          placeholderTextColor={colors.inkSoft}
-          style={[styles.input, styles.inlineInput]}
-          value={form.documentNumber}
-          onChangeText={(value) => onChange({ ...form, documentNumber: value })}
+          style={styles.input}
+          value={form.businessName}
+          onChangeText={(value) => onChange({ ...form, businessName: value, documentType: 'ruc' })}
         />
       </View>
-      <PrimaryButton disabled={isLoading} icon="shield-checkmark" label={submitLabel} loading={isLoading} onPress={onSubmit} />
+      <View style={styles.verificationField}>
+        <Text style={styles.fieldLabel}>Descripción del negocio</Text>
+        <TextInput
+          multiline
+          placeholder={descriptionPlaceholder}
+          placeholderTextColor={colors.inkSoft}
+          style={[styles.input, styles.textArea]}
+          value={form.businessDescription}
+          onChangeText={(value) => onChange({ ...form, businessDescription: value, documentType: 'ruc' })}
+        />
+      </View>
+      <View style={styles.verificationField}>
+        <Text style={styles.fieldLabel}>RUC</Text>
+        <View style={styles.validatedInputWrap}>
+          <TextInput
+            inputMode="numeric"
+            keyboardType="number-pad"
+            maxLength={13}
+            placeholder="13 digitos"
+            placeholderTextColor={colors.inkSoft}
+            style={[
+              styles.input,
+              styles.validatedInput,
+              shouldShowRucStatus && !isRucValid && styles.inputInvalid,
+              shouldShowRucStatus && isRucValid && styles.inputValid,
+            ]}
+            value={form.documentNumber}
+            onBlur={() => setIsRucTouched(true)}
+            onChangeText={(value) =>
+              onChange({
+                ...form,
+                documentType: 'ruc',
+                documentNumber: value.replace(/\D+/g, '').slice(0, 13),
+              })
+            }
+          />
+          {shouldShowRucStatus && (
+            <Ionicons
+              name={isRucValid ? 'checkmark-circle' : 'alert-circle'}
+              size={20}
+              color={isRucValid ? '#16836b' : '#b42318'}
+              style={styles.validationIcon}
+            />
+          )}
+        </View>
+        <Text
+          style={[
+            styles.rucFeedback,
+            shouldShowRucStatus && !isRucValid && styles.rucFeedbackInvalid,
+            shouldShowRucStatus && isRucValid && styles.rucFeedbackValid,
+          ]}
+        >
+          {shouldShowRucStatus ? rucValidation.message : 'Ingresa el RUC asociado al negocio.'}
+        </Text>
+      </View>
+      <PrimaryButton disabled={isLoading} icon="shield-checkmark" label={submitLabel} loading={isLoading} onPress={handleSubmit} />
     </View>
   );
 }
