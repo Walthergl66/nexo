@@ -17,6 +17,7 @@ import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
 import { HeroSection } from '../../components/home/HeroSection';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
+import { splitCatalogProducts } from '../../utils/catalogLayout';
 
 type HomeScreenProps = {
   activeFilter: string;
@@ -155,13 +156,12 @@ export function HomeScreen({
   }
 
   const availableProducts = filteredProducts.filter((product) => product.available).length;
-  // El hero destacado muestra UN producto y solo aparece en "Todo". Por eso solo
-  // reservamos ese producto cuando el hero se va a dibujar: si no, quedaba
-  // recortado de la grilla pero sin mostrarse en ningún lado (en las categorías
-  // el producto se perdía, y con 6+ productos se perdían varios).
-  const showsHero = !isLoading && activeFilter === 'Todo' && filteredProducts.length >= 3;
-  const featuredProducts = showsHero ? filteredProducts.slice(0, 1) : [];
-  const catalogProducts = filteredProducts.slice(featuredProducts.length);
+  // El reparto hero/grilla vive en splitCatalogProducts (utils) para poder
+  // testear que nunca pierde ni duplica productos: ese fue el bug original.
+  const { featured: featuredProducts, grid: catalogProducts } = splitCatalogProducts(filteredProducts, {
+    activeFilter,
+    isLoading,
+  });
   const syncLabel = lastSyncAt
     ? `Actualizado ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Conectando';
