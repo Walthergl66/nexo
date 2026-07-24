@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
 import { Animated, Image, Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { navigationStyles as styles } from './navigationStyles';
 
@@ -32,7 +31,6 @@ export function AppHeader({
 }: AppHeaderProps) {
   const bubbleScale = useRef(new Animated.Value(1)).current;
   const prevCount = useRef(cartCount);
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (cartCount > prevCount.current) {
@@ -65,7 +63,6 @@ export function AppHeader({
       style={[
         styles.header,
         {
-          top: insets.top,
           opacity: headerOpacity,
           transform: [{ translateY: headerTranslateY }],
         },

@@ -7,8 +7,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReviewCard } from './ReviewCard';
 import { StarRating } from './StarRating';
 import {
@@ -38,6 +40,9 @@ export function ReviewsSection({
   accessToken,
   onStatusMessage,
 }: ReviewsSectionProps) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isPhone = width < 600;
   const [reviews, setReviews] = useState<ReviewResource[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -163,13 +168,22 @@ export function ReviewsSection({
 
       {/* Modal de escritura */}
       <Modal
-        animationType="slide"
+        animationType={isPhone ? 'slide' : 'fade'}
         transparent
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
         visible={showModal}
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+        <View style={[styles.modalOverlay, isPhone && styles.modalOverlayPhone]}>
+          <View
+            accessibilityViewIsModal
+            style={[
+              styles.modalCard,
+              isPhone && styles.modalCardPhone,
+              isPhone && { paddingBottom: Math.max(insets.bottom, spacing.xl) },
+            ]}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Tu reseña</Text>
               <Pressable
@@ -296,17 +310,29 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(5,21,39,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalOverlayPhone: {
     justifyContent: 'flex-end',
+    padding: 0,
   },
   modalCard: {
+    width: '100%',
+    maxWidth: 480,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.large,
-    borderTopRightRadius: radii.large,
+    borderRadius: radii.large,
     padding: spacing.xl,
     gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.line,
     ...shadows.floating,
+  },
+  modalCardPhone: {
+    maxWidth: '100%',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -7,6 +7,7 @@ export const bottomNavDotSize = 11;
 export const navigationStyles = StyleSheet.create({
   header: {
     position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
     zIndex: 10,

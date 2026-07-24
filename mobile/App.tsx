@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { AmbientBackground } from './components/common/AmbientBackground';
 import { AlertSheetHost } from './components/common/AlertSheetHost';
@@ -41,7 +41,6 @@ import type { ConfirmActionRequest, StatusMessage, StatusTone } from './types/st
 import { formatPrice } from './utils/format';
 
 function AppShell() {
-  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('Inicio');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -564,7 +563,7 @@ function AppShell() {
           contentContainerStyle={[
             styles.content,
             isProductPresentation && styles.productContent,
-            shouldShowHeader && { paddingTop: insets.top + 78 },
+            shouldShowHeader && { paddingTop: 78 },
           ]}
           onScroll={shouldShowHeader ? handleShellScroll : undefined}
           scrollEventThrottle={16}
