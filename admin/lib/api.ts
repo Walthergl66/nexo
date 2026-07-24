@@ -1,5 +1,6 @@
 import type {
   AdminOverview,
+  AdminUser,
   ApiCollection,
   ApiDocument,
   Category,
@@ -124,6 +125,43 @@ export async function fetchMe(token: string): Promise<Profile> {
 
 export async function fetchAdminOverview(token: string): Promise<AdminOverview> {
   const response = await request<ApiDocument<AdminOverview>>('/admin/overview', { token });
+
+  return response.data;
+}
+
+export async function fetchAdminUsers(
+  token: string,
+  params: PageParams & { search?: string } = {},
+): Promise<Paginated<AdminUser>> {
+  const query = new URLSearchParams();
+
+  if (params.page && params.page > 1) {
+    query.set('page', String(params.page));
+  }
+
+  if (params.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+
+  const serialized = query.toString();
+  const response = await request<ApiCollection<AdminUser>>(
+    `/admin/users${serialized ? `?${serialized}` : ''}`,
+    { token },
+  );
+
+  return toPaginated(response);
+}
+
+export async function updateUser(
+  token: string,
+  id: string,
+  payload: { role?: AdminUser['role']; verification_status?: AdminUser['verification_status'] },
+): Promise<AdminUser> {
+  const response = await request<ApiDocument<AdminUser>>(`/admin/users/${id}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
 
   return response.data;
 }

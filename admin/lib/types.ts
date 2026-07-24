@@ -22,6 +22,18 @@ export type Paginated<T> = {
   meta: PaginationMeta;
 };
 
+export type AdminUser = {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  national_id: string | null;
+  role: 'buyer' | 'seller' | 'admin';
+  verification_status: 'pending' | 'approved' | 'rejected' | 'suspended';
+  store: { id: string; slug: string; name: string; status: string } | null;
+  created_at: string | null;
+};
+
 export type AdminOverview = {
   pending_requests: number;
   rejected_requests: number;

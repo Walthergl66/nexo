@@ -10,7 +10,6 @@ import {
   FolderTree,
   LayoutDashboard,
   LogOut,
-  Megaphone,
   PackageSearch,
   RefreshCcw,
   ShieldCheck,
@@ -24,6 +23,7 @@ import {
   createCategory,
   deleteStore,
   fetchAdminOverview,
+  fetchAdminUsers,
   fetchCategories,
   fetchAdminStores,
   fetchMe,
@@ -32,10 +32,12 @@ import {
   reviewSellerVerificationRequest,
   updateCategory,
   updateStoreStatus,
+  updateUser,
 } from '@/lib/api';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 import type {
   AdminOverview,
+  AdminUser,
   Category,
   PaginationMeta,
   Product,
@@ -422,7 +424,7 @@ export default function AdminPage() {
             onChanged={handleRefresh}
           />
         ) : null}
-        {activeSection === 'users' ? <UsersPanel /> : null}
+        {activeSection === 'users' ? <UsersPanel token={token} /> : null}
       </main>
     </div>
   );
@@ -888,35 +890,165 @@ function StoresPanel({
   );
 }
 
-function UsersPanel() {
+function UsersPanel({ token }: { token: string }) {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta>(EMPTY_META);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Debounce del buscador; al cambiar el texto, se vuelve a la página 1.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await fetchAdminUsers(token, { page, search: debouncedSearch || undefined });
+      setUsers(result.data);
+      setMeta(result.meta);
+    } catch (caughtError) {
+      setError(toErrorMessage(caughtError));
+    } finally {
+      setLoading(false);
+    }
+  }, [token, page, debouncedSearch]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function applyChange(user: AdminUser, payload: Parameters<typeof updateUser>[2]) {
+    setBusyId(user.id);
+    setError(null);
+
+    try {
+      const updated = await updateUser(token, user.id, payload);
+      setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (caughtError) {
+      setError(toErrorMessage(caughtError));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
-    <section className="grid">
-      <PendingBackendNotice text="El backend aun no expone endpoints admin para listar perfiles, bloquear cuentas o enviar advertencias. Esta seccion queda lista para conectar ese modulo sin mezclarlo con comprador o vendedor." />
-      <div className="panel">
-        <h2>Acciones de confianza</h2>
-        <div className="form-grid">
-          <div className="field">
-            <label htmlFor="user-search">Correo o identificador</label>
-            <input className="input" id="user-search" placeholder="usuario@nexo.test" disabled />
-          </div>
-          <div className="field">
-            <label htmlFor="action-type">Accion</label>
-            <select className="select" id="action-type" disabled>
-              <option>Enviar advertencia</option>
-              <option>Bloquear usuario</option>
-              <option>Suspender vendedor</option>
-            </select>
-          </div>
-          <div className="field wide">
-            <label htmlFor="message">Mensaje interno</label>
-            <textarea className="textarea" id="message" disabled />
-          </div>
-          <button className="button primary" type="button" disabled>
-            <Megaphone size={16} />
-            Registrar accion
-          </button>
+    <section className="panel">
+      <div className="panel-header">
+        <div>
+          <h2>Usuarios</h2>
+          <p className="muted">Busca por nombre, correo o cedula. Cambia el rol o suspende cuentas.</p>
         </div>
       </div>
+
+      {error ? <div className="error">{error}</div> : null}
+
+      <div className="field">
+        <input
+          className="input"
+          placeholder="Buscar por nombre, correo o cedula"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
+
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Contacto</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th>Tienda</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((user) => {
+              const isBusy = busyId === user.id;
+              const isSuspended = user.verification_status === 'suspended';
+
+              return (
+                <tr key={user.id}>
+                  <td>
+                    <strong>{user.display_name ?? 'Sin nombre'}</strong>
+                    <div className="muted">{user.national_id ?? 'Sin cedula'}</div>
+                  </td>
+                  <td>
+                    {user.email ?? 'Sin correo'}
+                    <div className="muted">{user.phone ?? 'Sin telefono'}</div>
+                  </td>
+                  <td>
+                    <select
+                      className="select"
+                      value={user.role}
+                      disabled={isBusy}
+                      onChange={(event) => applyChange(user, { role: event.target.value as AdminUser['role'] })}
+                    >
+                      <option value="buyer">Comprador</option>
+                      <option value="seller">Vendedor</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </td>
+                  <td>
+                    <StatusBadge status={user.verification_status} />
+                  </td>
+                  <td>
+                    {user.store ? (
+                      <>
+                        {user.store.name}
+                        <div className="muted">{statusLabels[user.store.status] ?? user.store.status}</div>
+                      </>
+                    ) : (
+                      <span className="muted">Sin tienda</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="toolbar">
+                      {isSuspended ? (
+                        <button
+                          className="button"
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => applyChange(user, { verification_status: 'approved' })}
+                        >
+                          <ShieldCheck size={16} />
+                          Reactivar
+                        </button>
+                      ) : (
+                        <button
+                          className="button danger"
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => applyChange(user, { verification_status: 'suspended' })}
+                        >
+                          <Ban size={16} />
+                          Suspender
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {!loading && users.length === 0 ? <div className="empty-state">No se encontraron usuarios.</div> : null}
+      <Pagination meta={meta} onPageChange={setPage} />
     </section>
   );
 }
