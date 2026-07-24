@@ -172,6 +172,18 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 17,
   },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  fieldErrorText: {
+    flex: 1,
+    color: '#b42318',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
   priceInputWrap: {
     minHeight: 44,
     borderRadius: radii.small,
@@ -319,6 +331,10 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     padding: 10,
     gap: 10,
+  },
+  panelInvalid: {
+    borderColor: '#f0a5a0',
+    backgroundColor: '#fff8f7',
   },
   imageStatusRow: {
     flexDirection: 'row',

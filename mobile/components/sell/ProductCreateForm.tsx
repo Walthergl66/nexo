@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import type { CategoryResource, ProductForm } from '../../types/sell';
@@ -25,6 +26,8 @@ type ProductCreateFormProps = {
   submitIcon?: keyof typeof Ionicons.glyphMap;
 };
 
+type ProductField = 'name' | 'description' | 'category' | 'price' | 'stock' | 'image';
+
 export function ProductCreateForm({
   categories,
   categoryError,
@@ -42,11 +45,50 @@ export function ProductCreateForm({
   submitLabel,
   submitIcon,
 }: ProductCreateFormProps) {
+  const [touched, setTouched] = useState<Partial<Record<ProductField, boolean>>>({});
   const numericPrice = Number(form.price);
   const pricePreview =
     Number.isFinite(numericPrice) && numericPrice > 0
       ? `Se mostrará como ${formatPrice(numericPrice)}`
       : 'Ingresa el precio en dólares.';
+  const errors = useMemo<Partial<Record<ProductField, string>>>(() => {
+    const nextErrors: Partial<Record<ProductField, string>> = {};
+    const numericStock = Number(form.stock);
+
+    if (form.name.trim().length < 3) nextErrors.name = 'Escribe al menos 3 caracteres.';
+    if (form.description.trim().length < 10) nextErrors.description = 'Escribe al menos 10 caracteres.';
+    if (!form.categoryId) nextErrors.category = 'Selecciona una categoría.';
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0 || numericPrice > 9999999.99) {
+      nextErrors.price = 'Ingresa un precio mayor a $0.00.';
+    }
+    if (form.stock === '' || !Number.isInteger(numericStock) || numericStock < 0) {
+      nextErrors.stock = 'Ingresa una cantidad válida (puede ser 0).';
+    }
+    if (!form.image && !existingImageUrl) nextErrors.image = 'Agrega una foto para presentar el producto.';
+
+    return nextErrors;
+  }, [existingImageUrl, form.categoryId, form.description, form.image, form.name, form.stock, numericPrice]);
+
+  useEffect(() => {
+    const formWasReset =
+      form.name === '' &&
+      form.description === '' &&
+      form.categoryId === '' &&
+      form.price === '' &&
+      form.stock === '' &&
+      !form.image;
+
+    if (formWasReset) setTouched({});
+  }, [form.categoryId, form.description, form.image, form.name, form.price, form.stock]);
+
+  const markTouched = (field: ProductField) => {
+    setTouched((current) => ({ ...current, [field]: true }));
+  };
+  const showError = (field: ProductField) => Boolean(touched[field] && errors[field]);
+  const handleSubmit = () => {
+    setTouched({ name: true, description: true, category: true, price: true, stock: true, image: true });
+    onCreateProduct();
+  };
 
   return (
     <View style={styles.formCard}>
@@ -56,10 +98,12 @@ export function ProductCreateForm({
         <TextInput
           placeholder="Ej. Audífonos inalámbricos"
           placeholderTextColor={colors.inkSoft}
-          style={styles.input}
+          style={[styles.input, showError('name') && styles.inputInvalid]}
           value={form.name}
           onChangeText={(value) => onChange({ ...form, name: value })}
+          onBlur={() => markTouched('name')}
         />
+        {showError('name') && <FieldError message={errors.name!} />}
       </View>
       <View style={styles.fieldBlock}>
         <Text style={styles.fieldLabel}>Descripción</Text>
@@ -67,11 +111,16 @@ export function ProductCreateForm({
           multiline
           placeholder="Describe características, materiales y estado."
           placeholderTextColor={colors.inkSoft}
-          style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea, showError('description') && styles.inputInvalid]}
           value={form.description}
           onChangeText={(value) => onChange({ ...form, description: value })}
+          onBlur={() => markTouched('description')}
         />
-        <Text style={styles.fieldHint}>Mínimo 10 caracteres.</Text>
+        {showError('description') ? (
+          <FieldError message={errors.description!} />
+        ) : (
+          <Text style={styles.fieldHint}>Mínimo 10 caracteres.</Text>
+        )}
       </View>
       <View style={styles.fieldBlock}>
         <Text style={styles.fieldLabel}>Categoría</Text>
@@ -90,7 +139,10 @@ export function ProductCreateForm({
                   form.categoryId === category.id && styles.categoryOptionActive,
                   pressed && styles.buttonPressed,
                 ]}
-                onPress={() => onChange({ ...form, categoryId: category.id })}
+                onPress={() => {
+                  markTouched('category');
+                  onChange({ ...form, categoryId: category.id });
+                }}
               >
                 <Text
                   numberOfLines={1}
@@ -118,11 +170,12 @@ export function ProductCreateForm({
             <Text style={styles.fieldHint}>No hay categorias activas disponibles.</Text>
           )}
         </View>
+        {showError('category') && <FieldError message={errors.category!} />}
       </View>
       <View style={styles.inlineRow}>
         <View style={[styles.fieldBlock, styles.inlineField]}>
           <Text style={styles.fieldLabel}>Precio (USD)</Text>
-          <View style={styles.priceInputWrap}>
+          <View style={[styles.priceInputWrap, showError('price') && styles.inputInvalid]}>
             <Text style={styles.pricePrefix}>$</Text>
             <TextInput
               accessibilityLabel="Precio en dólares"
@@ -133,9 +186,10 @@ export function ProductCreateForm({
               style={styles.priceInput}
               value={form.price}
               onChangeText={(value) => onChange({ ...form, price: normalizePriceInput(value) })}
+              onBlur={() => markTouched('price')}
             />
           </View>
-          <Text style={styles.fieldHint}>{pricePreview}</Text>
+          {showError('price') ? <FieldError message={errors.price!} /> : <Text style={styles.fieldHint}>{pricePreview}</Text>}
         </View>
         <View style={[styles.fieldBlock, styles.inlineField]}>
           <Text style={styles.fieldLabel}>Cantidad disponible</Text>
@@ -144,14 +198,19 @@ export function ProductCreateForm({
             keyboardType="number-pad"
             placeholder="0"
             placeholderTextColor={colors.inkSoft}
-            style={styles.input}
+            style={[styles.input, showError('stock') && styles.inputInvalid]}
             value={form.stock}
             onChangeText={(value) => onChange({ ...form, stock: value.replace(/\D+/g, '') })}
+            onBlur={() => markTouched('stock')}
           />
-          <Text style={styles.fieldHint}>Unidades disponibles para vender.</Text>
+          {showError('stock') ? (
+            <FieldError message={errors.stock!} />
+          ) : (
+            <Text style={styles.fieldHint}>Unidades disponibles para vender.</Text>
+          )}
         </View>
       </View>
-      <View style={styles.imagePickerPanel}>
+      <View style={[styles.imagePickerPanel, showError('image') && styles.panelInvalid]}>
         <View style={styles.imageStatusRow}>
           <View style={styles.imageStatusCopy}>
             <Text style={styles.fieldLabel}>
@@ -208,6 +267,7 @@ export function ProductCreateForm({
             <Text style={styles.imageActionText}>{existingImageUrl ? 'Cambiar imagen' : 'Subir imagen'}</Text>
           </Pressable>
         </View>
+        {showError('image') && <FieldError message={errors.image!} />}
       </View>
       <Pressable
         accessibilityRole="switch"
@@ -225,8 +285,17 @@ export function ProductCreateForm({
         icon={submitIcon ?? (form.publishNow ? 'cloud-upload' : 'document-text')}
         label={submitLabel ?? (form.publishNow ? 'Publicar producto' : 'Guardar borrador')}
         loading={isLoading}
-        onPress={onCreateProduct}
+        onPress={handleSubmit}
       />
+    </View>
+  );
+}
+
+function FieldError({ message }: { message: string }) {
+  return (
+    <View style={styles.fieldErrorRow}>
+      <Ionicons name="alert-circle-outline" size={14} color="#b42318" />
+      <Text style={styles.fieldErrorText}>{message}</Text>
     </View>
   );
 }
