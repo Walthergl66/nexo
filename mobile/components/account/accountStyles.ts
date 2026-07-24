@@ -544,6 +544,84 @@ export const accountStyles = StyleSheet.create({
   registerCard: {
     gap: 14,
   },
+  registerProgress: {
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  progressEyebrow: {
+    color: colors.brandBlue,
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  progressTrack: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  progressItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 5,
+  },
+  progressMarkerRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: colors.lineStrong,
+  },
+  progressLineActive: {
+    backgroundColor: colors.brandBlue,
+  },
+  progressDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressDotActive: {
+    borderColor: colors.brandBlue,
+    backgroundColor: colors.brandBlue,
+  },
+  progressDotCore: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.lineStrong,
+  },
+  progressDotCoreActive: {
+    backgroundColor: colors.surface,
+  },
+  progressLabel: {
+    color: colors.inkSoft,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  progressLabelActive: {
+    color: colors.brandBlue,
+  },
+  registerActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  registerActionButton: {
+    flex: 1,
+    minWidth: 0,
+  },
+  stepValidationText: {
+    color: '#9f1239',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+    textAlign: 'center',
+  },
   accountName: {
     fontSize: 18,
     fontWeight: '700',

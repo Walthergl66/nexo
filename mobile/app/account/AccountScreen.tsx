@@ -629,6 +629,7 @@ export function AccountScreen({
       {mode === 'register' && (
         <RegisterForm
           form={registerForm}
+          identityNationalId={identity?.national_id ?? null}
           isConfirmPasswordVisible={isConfirmPasswordVisible}
           isGenderOpen={isGenderOpen}
           isLoading={isLoading}

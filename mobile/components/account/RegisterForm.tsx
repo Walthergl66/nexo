@@ -1,12 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { genderOptions, type RegisterForm as RegisterFormState } from '../../types/account';
+import { validateRegisterStep } from '../../utils/accountValidation';
 import { AuthBrandHeader } from './AuthBrandHeader';
 import { accountStyles as styles } from './accountStyles';
 
+type RegisterStep = 1 | 2 | 3;
+
 type RegisterFormProps = {
   form: RegisterFormState;
+  identityNationalId: string | null;
   isConfirmPasswordVisible: boolean;
   isGenderOpen: boolean;
   isLoading: boolean;
@@ -22,6 +27,7 @@ type RegisterFormProps = {
 
 export function RegisterForm({
   form,
+  identityNationalId,
   isConfirmPasswordVisible,
   isGenderOpen,
   isLoading,
@@ -34,16 +40,71 @@ export function RegisterForm({
   onToggleGender,
   onTogglePasswordVisibility,
 }: RegisterFormProps) {
+  const [currentStep, setCurrentStep] = useState<RegisterStep>(1);
+  const [stepError, setStepError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStepError(null);
+  }, [form]);
+
+  const goToNextStep = () => {
+    const validationMessage = validateRegisterStep({
+      form,
+      identityNationalId,
+      passwordError,
+      step: currentStep,
+    });
+
+    if (validationMessage !== null) {
+      setStepError(validationMessage);
+      return;
+    }
+
+    setStepError(null);
+    setCurrentStep((step) => Math.min(step + 1, 3) as RegisterStep);
+  };
+
+  const goToPreviousStep = () => {
+    setIsGenderOpenIfNeeded();
+    setStepError(null);
+    setCurrentStep((step) => Math.max(step - 1, 1) as RegisterStep);
+  };
+
+  const setIsGenderOpenIfNeeded = () => {
+    if (isGenderOpen) {
+      onToggleGender();
+    }
+  };
+
+  const handleSubmit = () => {
+    const validationMessage = validateRegisterStep({
+      form,
+      identityNationalId,
+      passwordError,
+      step: 3,
+    });
+
+    if (validationMessage !== null) {
+      setStepError(validationMessage);
+      return;
+    }
+
+    setStepError(null);
+    onSubmit();
+  };
+
   return (
     <View style={[styles.accountCard, styles.registerCard]}>
       <AuthBrandHeader
         title="Crear cuenta"
         subtitle="Completa tus datos para activar compras seguras y acceso a ventas."
       />
-      <View style={styles.formSection}>
+      <RegisterProgress currentStep={currentStep} />
+
+      {currentStep === 1 && <View style={styles.formSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionKicker}>Identidad</Text>
-          <Text style={styles.sectionHint}>Validacion por cedula</Text>
+          <Text style={styles.sectionHint}>Paso 1 de 3</Text>
         </View>
         <View style={styles.inlineRow}>
           <View style={styles.fieldWrap}>
@@ -98,12 +159,12 @@ export function RegisterForm({
             value={form.age}
           />
         </View>
-      </View>
+      </View>}
 
-      <View style={styles.formSection}>
+      {currentStep === 2 && <View style={styles.formSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionKicker}>Datos de cuenta</Text>
-          <Text style={styles.sectionHint}>Correo y seguridad</Text>
+          <Text style={styles.sectionHint}>Paso 2 de 3</Text>
         </View>
         <GenderSelect form={form} isGenderOpen={isGenderOpen} onChangeField={onChangeField} onToggleGender={onToggleGender} />
         <View style={styles.fieldWrap}>
@@ -147,12 +208,12 @@ export function RegisterForm({
           onChangeText={(value) => onChangeField('confirmPassword', value)}
           onToggleVisibility={onToggleConfirmPasswordVisibility}
         />
-      </View>
+      </View>}
 
-      <View style={styles.formSection}>
+      {currentStep === 3 && <View style={styles.formSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionKicker}>Contacto</Text>
-          <Text style={styles.sectionHint}>Para entregas y soporte</Text>
+          <Text style={styles.sectionHint}>Paso 3 de 3</Text>
         </View>
         <View style={styles.fieldWrap}>
           <Text style={styles.inputLabel}>Direccion</Text>
@@ -176,15 +237,78 @@ export function RegisterForm({
             onChangeText={(value) => onChangeField('phone', value.replace(/\D+/g, '').slice(0, 10))}
           />
         </View>
-      </View>
+      </View>}
 
-      <Pressable
-        disabled={isLoading}
-        style={({ pressed }) => [styles.primaryButton, isLoading && styles.buttonDisabled, pressed && styles.buttonPressed]}
-        onPress={onSubmit}
-      >
-        {isLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryButtonText}>Crear cuenta</Text>}
-      </Pressable>
+      {stepError && <Text style={styles.stepValidationText}>{stepError}</Text>}
+
+      <View style={styles.registerActions}>
+        {currentStep > 1 && (
+          <Pressable
+            disabled={isLoading}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              styles.registerActionButton,
+              isLoading && styles.buttonDisabled,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={goToPreviousStep}
+          >
+            <Text style={styles.secondaryButtonText}>Atrás</Text>
+          </Pressable>
+        )}
+        <Pressable
+          disabled={isLoading}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            styles.registerActionButton,
+            isLoading && styles.buttonDisabled,
+            pressed && styles.buttonPressed,
+          ]}
+          onPress={currentStep === 3 ? handleSubmit : goToNextStep}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={colors.surface} />
+          ) : (
+            <Text style={styles.primaryButtonText}>{currentStep === 3 ? 'Crear cuenta' : 'Continuar'}</Text>
+          )}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function RegisterProgress({ currentStep }: { currentStep: RegisterStep }) {
+  const steps = ['Identidad', 'Cuenta', 'Contacto'];
+
+  return (
+    <View accessibilityLabel={`Paso ${currentStep} de 3: ${steps[currentStep - 1]}`} style={styles.registerProgress}>
+      <Text style={styles.progressEyebrow}>Paso {currentStep} de 3</Text>
+      <View style={styles.progressTrack}>
+        {steps.map((label, index) => {
+          const step = (index + 1) as RegisterStep;
+          const isComplete = step < currentStep;
+          const isActive = step === currentStep;
+
+          return (
+            <View key={label} style={styles.progressItem}>
+              <View style={styles.progressMarkerRow}>
+                {index > 0 && <View style={[styles.progressLine, step <= currentStep && styles.progressLineActive]} />}
+                <View style={[styles.progressDot, (isComplete || isActive) && styles.progressDotActive]}>
+                  {isComplete ? (
+                    <Ionicons name="checkmark" size={13} color={colors.surface} />
+                  ) : (
+                    <View style={[styles.progressDotCore, isActive && styles.progressDotCoreActive]} />
+                  )}
+                </View>
+                {index < steps.length - 1 && (
+                  <View style={[styles.progressLine, step < currentStep && styles.progressLineActive]} />
+                )}
+              </View>
+              <Text style={[styles.progressLabel, (isComplete || isActive) && styles.progressLabelActive]}>{label}</Text>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
