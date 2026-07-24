@@ -154,6 +154,10 @@ export const styles = StyleSheet.create({
     flex: 1,
     minWidth: 120,
   },
+  inlineField: {
+    flex: 1,
+    minWidth: 140,
+  },
   fieldBlock: {
     gap: 8,
   },
@@ -167,6 +171,29 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 17,
+  },
+  priceInputWrap: {
+    minHeight: 44,
+    borderRadius: radii.small,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.line,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 12,
+  },
+  pricePrefix: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  priceInput: {
+    flex: 1,
+    minHeight: 42,
+    color: colors.ink,
+    paddingHorizontal: 6,
+    fontSize: 13,
+    fontWeight: '700',
   },
   storeLogoPanel: {
     borderRadius: radii.medium,
