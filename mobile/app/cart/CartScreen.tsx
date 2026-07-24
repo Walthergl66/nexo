@@ -32,6 +32,11 @@ export function CartScreen({
     return <CartEmptyState isAuthenticated={isAuthenticated} onBackToCatalog={onBackToCatalog} />;
   }
 
+  const hasAvailabilityIssues = items.some(
+    (item) => !item.product.available || item.product.stock <= 0 || item.quantity > item.product.stock,
+  );
+  const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -57,17 +62,43 @@ export function CartScreen({
       </View>
 
       <View style={styles.summary}>
-        <Text style={styles.summaryTitle}>Resumen</Text>
+        <View style={styles.summaryHeader}>
+          <View>
+            <Text style={styles.summaryTitle}>Resumen de compra</Text>
+            <Text style={styles.summaryCaption}>{itemCount} {itemCount === 1 ? 'artículo' : 'artículos'} en total</Text>
+          </View>
+          <View style={styles.summaryIcon}>
+            <Ionicons name="receipt-outline" size={18} color={colors.brandBlue} />
+          </View>
+        </View>
         <InfoRow label="Subtotal" value={formatPrice(summary.subtotal)} />
         <InfoRow label="Envio" value={summary.shipping > 0 ? formatPrice(summary.shipping) : 'Gratis'} />
         <View style={styles.divider} />
         <InfoRow label="Total" value={formatPrice(summary.total)} emphasize />
       </View>
 
-      <PressableScale style={styles.checkoutButton} onPress={onCheckout}>
+      {hasAvailabilityIssues && (
+        <View style={styles.availabilityWarning}>
+          <Ionicons name="alert-circle-outline" size={18} color="#8A5800" />
+          <Text style={styles.availabilityWarningText}>Corrige la disponibilidad marcada antes de continuar.</Text>
+        </View>
+      )}
+
+      <PressableScale
+        accessibilityLabel={hasAvailabilityIssues ? 'Pago no disponible por problemas de stock' : 'Continuar al pago seguro'}
+        disabled={hasAvailabilityIssues}
+        style={[styles.checkoutButton, hasAvailabilityIssues && styles.checkoutButtonDisabled]}
+        onPress={onCheckout}
+      >
         <Ionicons name="lock-closed" size={16} color={colors.surface} />
-        <Text style={styles.checkoutText}>Continuar compra</Text>
+        <Text style={styles.checkoutText}>{hasAvailabilityIssues ? 'Revisa tu carrito' : `Pagar ${formatPrice(summary.total)}`}</Text>
       </PressableScale>
+      {!hasAvailabilityIssues && (
+        <View style={styles.securePaymentRow}>
+          <Ionicons name="shield-checkmark-outline" size={14} color={colors.inkMuted} />
+          <Text style={styles.securePaymentText}>Pago seguro. Confirmarás los datos antes de completar la compra.</Text>
+        </View>
+      )}
     </View>
   );
 }

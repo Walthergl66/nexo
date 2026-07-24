@@ -21,6 +21,9 @@ export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: Ca
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(item.product.imageUrl) && !hasImageError;
   const lineTotal = item.product.price * item.quantity;
+  const isUnavailable = !item.product.available || item.product.stock <= 0;
+  const exceedsStock = !isUnavailable && item.quantity > item.product.stock;
+  const reachedStockLimit = isUnavailable || item.quantity >= item.product.stock;
 
   useEffect(() => {
     Animated.parallel([
@@ -75,6 +78,14 @@ export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: Ca
         <Text numberOfLines={1} style={styles.itemMeta}>
           {item.product.seller} · {formatPrice(item.product.price)} c/u
         </Text>
+        {(isUnavailable || exceedsStock) && (
+          <View style={styles.itemWarningRow}>
+            <Ionicons name="alert-circle-outline" size={13} color="#8A5800" />
+            <Text style={styles.itemWarningText}>
+              {isUnavailable ? 'Este producto ya no está disponible.' : `Solo quedan ${item.product.stock} unidades.`}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.itemFooterRow}>
           <View style={styles.stepper}>
@@ -90,10 +101,11 @@ export function CartLineItem({ item, index, onChangeQuantity, onRemoveItem }: Ca
             <PressableScale
               accessibilityLabel={`Agregar una unidad de ${item.product.title}`}
               activeScale={0.9}
-              style={styles.stepperButton}
+              disabled={reachedStockLimit}
+              style={[styles.stepperButton, reachedStockLimit && styles.stepperButtonDisabled]}
               onPress={() => onChangeQuantity(item.product.id, item.quantity + 1)}
             >
-              <Ionicons name="add" size={16} color={colors.brandBlue} />
+              <Ionicons name="add" size={16} color={reachedStockLimit ? colors.inkSoft : colors.brandBlue} />
             </PressableScale>
           </View>
           <Text style={styles.itemLineTotal}>{formatPrice(lineTotal)}</Text>

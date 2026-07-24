@@ -76,6 +76,19 @@ export const cartStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  itemWarningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  itemWarningText: {
+    flex: 1,
+    color: '#8A5800',
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
   itemFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -97,6 +110,9 @@ export const cartStyles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  stepperButtonDisabled: {
+    opacity: 0.55,
   },
   stepperValue: {
     minWidth: 22,
@@ -128,6 +144,28 @@ export const cartStyles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
   },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  summaryCaption: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  summaryIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.brandBlueLine,
+  },
   divider: {
     height: 1,
     backgroundColor: colors.brandBlueLine,
@@ -149,9 +187,46 @@ export const cartStyles = StyleSheet.create({
   checkoutButtonPressed: {
     transform: [{ scale: 0.97 }],
   },
+  checkoutButtonDisabled: {
+    backgroundColor: colors.inkSoft,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   checkoutText: {
     color: colors.surface,
     fontWeight: '700',
+  },
+  availabilityWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: radii.medium,
+    borderWidth: 1,
+    borderColor: '#F1D391',
+    backgroundColor: '#FFF8E8',
+    padding: 12,
+  },
+  availabilityWarningText: {
+    flex: 1,
+    color: '#8A5800',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  securePaymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: -7,
+    paddingHorizontal: 12,
+  },
+  securePaymentText: {
+    flexShrink: 1,
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   emptyContainer: {
     alignItems: 'center',
