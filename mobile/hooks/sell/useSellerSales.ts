@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { advanceSaleStatus, fetchSellerSales } from '../../services/marketplaceApi';
 import type { ItemFulfillmentStatus, Sale } from '../../types/marketplace';
+import { ORDERS_AUTO_REFRESH_MS } from '../../constants/app';
 
 const SELLER_SALES_CACHE_KEY = 'nexo.seller.sales.v1';
 
@@ -30,7 +32,9 @@ export function useSellerSales({ accessToken, enabled, onError }: UseSellerSales
     };
   }, []);
 
-  const load = useCallback(async () => {
+  // silent: el polling refresca sin encender el spinner de carga, para que la
+  // lista no parpadee cada pocos segundos cuando ya hay ventas en pantalla.
+  const load = useCallback(async (silent = false) => {
     if (!accessToken || !enabled) {
       hasLoadedSales.current = false;
       setSales([]);
@@ -39,7 +43,9 @@ export function useSellerSales({ accessToken, enabled, onError }: UseSellerSales
       return;
     }
 
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
 
     // Pintado instantáneo desde caché (en paralelo, sin bloquear el fetch): las
     // visitas siguientes muestran las ventas al toque mientras la red revalida.
@@ -75,7 +81,7 @@ export function useSellerSales({ accessToken, enabled, onError }: UseSellerSales
         onError?.(error instanceof Error ? error.message : 'No pudimos cargar tus ventas.');
       }
     } finally {
-      if (isMounted.current) {
+      if (isMounted.current && !silent) {
         setIsLoading(false);
       }
     }
@@ -84,6 +90,30 @@ export function useSellerSales({ accessToken, enabled, onError }: UseSellerSales
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Refresco casi en vivo mientras el vendedor tiene la pantalla abierta: una
+  // nueva venta o un cambio de estado aparecen sin salir y volver. El intervalo
+  // se limpia al desmontar (al cambiar de pestaña), así que no corre de fondo.
+  useEffect(() => {
+    if (!accessToken || !enabled) {
+      return undefined;
+    }
+
+    const interval = setInterval(() => {
+      void load(true);
+    }, ORDERS_AUTO_REFRESH_MS);
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void load(true);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [accessToken, enabled, load]);
 
   const advance = useCallback(
     async (saleId: string, nextStatus: ItemFulfillmentStatus) => {

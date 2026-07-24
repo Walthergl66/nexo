@@ -5,6 +5,7 @@ import { LogicCard } from '../../components/cards/LogicCard';
 import { OrderCard } from '../../components/cards/OrderCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
 import { createCheckoutSession, fetchOrders } from '../../services/marketplaceApi';
+import { ORDERS_AUTO_REFRESH_MS } from '../../constants/app';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Order } from '../../types/marketplace';
 import type { StatusTone } from '../../types/status';
@@ -52,6 +53,22 @@ export function OrdersScreen({ accessToken, onStatusMessage }: OrdersScreenProps
 
     return () => subscription.remove();
   }, [loadOrders]);
+
+  // Refresco casi en vivo mientras el comprador mira sus pedidos: cuando el
+  // vendedor avanza el estado (empacado, enviado, entregado), aparece en pocos
+  // segundos sin que el comprador tenga que hacer nada. loadOrders es silencioso
+  // (no vacía la lista ante un fallo), así que no parpadea.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return undefined;
+    }
+
+    const interval = setInterval(() => {
+      void loadOrders();
+    }, ORDERS_AUTO_REFRESH_MS);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, loadOrders]);
 
   const handlePay = useCallback(
     async (orderId: string) => {
