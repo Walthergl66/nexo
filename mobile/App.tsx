@@ -16,6 +16,7 @@ import { AccountScreen } from './app/account/AccountScreen';
 import { CartScreen } from './app/cart/CartScreen';
 import { HomeScreen } from './app/home/HomeScreen';
 import { NotificationsScreen } from './app/notifications/NotificationsScreen';
+import { PublicProfileScreen } from './app/social/PublicProfileScreen';
 import { SellScreen } from './app/sell/SellScreen';
 import { AdminVerificationPanel } from './components/admin/AdminVerificationPanel';
 import { useAlertSheet } from './hooks/app/useAlertSheet';
@@ -24,6 +25,7 @@ import { useCart } from './hooks/app/useCart';
 import { useNotifications } from './hooks/app/useNotifications';
 import { usePushNotifications } from './hooks/app/usePushNotifications';
 import { useCatalog } from './hooks/app/useCatalog';
+import { useUserSearch } from './hooks/app/useUserSearch';
 import { useProfile } from './hooks/app/useProfile';
 import { usePasswordRecoveryDeepLink } from './hooks/app/usePasswordRecoveryDeepLink';
 import { useQuantityPrompt } from './hooks/app/useQuantityPrompt';
@@ -34,6 +36,7 @@ import { SHEET_EXIT_DURATION } from './hooks/ui/useSheetAnimation';
 import { signOut } from './services/authService';
 import { colors } from './theme/colors';
 import type { Product, TabKey } from './types/marketplace';
+import type { PublicUser } from './types/social';
 import type { ConfirmActionRequest, StatusMessage, StatusTone } from './types/status';
 import { formatPrice } from './utils/format';
 
@@ -43,6 +46,7 @@ function AppShell() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [visitedUser, setVisitedUser] = useState<PublicUser | null>(null);
   const [ordersFocusSignal, setOrdersFocusSignal] = useState(0);
   const [confirmAction, setConfirmAction] = useState<ConfirmActionRequest | null>(null);
   const [isConfirmResolving, setIsConfirmResolving] = useState(false);
@@ -54,6 +58,7 @@ function AppShell() {
 
   const handleTokenChange = useCallback(() => {
     setSelectedProductId(null);
+    setVisitedUser(null);
     setIsCartOpen(false);
     setIsNotificationsOpen(false);
   }, []);
@@ -83,6 +88,21 @@ function AppShell() {
   const hasBusinessProfile = isAuthenticated && profile !== null;
 
   const catalog = useCatalog({ accessToken, profile, profileError, isSessionReady, activeTab });
+
+  // Búsqueda de usuarios: comparte el texto del buscador de Inicio.
+  const userSearch = useUserSearch({ query: catalog.search, accessToken });
+
+  const handleOpenUser = useCallback((user: PublicUser) => {
+    setActiveTab('Inicio');
+    setSelectedProductId(null);
+    setIsCartOpen(false);
+    setIsNotificationsOpen(false);
+    setVisitedUser(user);
+  }, []);
+
+  const handleBackFromUser = useCallback(() => {
+    setVisitedUser(null);
+  }, []);
 
   const goToAccount = useCallback(() => {
     setSelectedProductId(null);
@@ -204,8 +224,8 @@ function AppShell() {
   );
 
   const isProductPresentation = activeTab === 'Inicio';
-  const screenTransitionKey = `${activeTab}-${isNotificationsOpen ? 'notificaciones' : isCartOpen ? 'carrito' : selectedProductId ?? 'catalogo'}`;
-  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen && !selectedProductId;
+  const screenTransitionKey = `${activeTab}-${isNotificationsOpen ? 'notificaciones' : isCartOpen ? 'carrito' : visitedUser ? `user:${visitedUser.id}` : selectedProductId ?? 'catalogo'}`;
+  const shouldShowHeader = activeTab === 'Inicio' && !isCartOpen && !isNotificationsOpen && !selectedProductId && !visitedUser;
 
   const nav = useBottomNavAnimations({ activeTab, visibleActiveIndex, tabCount: visibleTabs.length });
   const header = useHeaderVisibility(shouldShowHeader);
@@ -394,6 +414,7 @@ function AppShell() {
     setActiveTab(tab);
     setIsCartOpen(false);
     setSelectedProductId(null);
+    setVisitedUser(null);
 
     if (tab === 'Inicio') {
       catalog.refreshCatalog();
@@ -429,6 +450,21 @@ function AppShell() {
 
     switch (activeTab) {
       case 'Inicio':
+        if (visitedUser) {
+          return (
+            <PublicProfileScreen
+              user={visitedUser}
+              accessToken={accessToken}
+              isAuthenticated={hasBusinessProfile}
+              myProfileId={profile?.id ?? null}
+              onBack={handleBackFromUser}
+              onAddToCart={requestAddToCart}
+              onStatusMessage={handleStatusMessage}
+              onCartAdded={handleCartAdded}
+            />
+          );
+        }
+
         return (
           <HomeScreen
             activeFilter={catalog.activeFilter}
@@ -438,6 +474,9 @@ function AppShell() {
             isRefreshing={catalog.isRefreshing}
             isLoadingMore={catalog.isLoadingMore}
             hasMore={catalog.hasMore}
+            userResults={userSearch.users}
+            isSearchingUsers={userSearch.isSearching}
+            onOpenUser={isAuthenticated ? handleOpenUser : undefined}
             lastSyncAt={catalog.lastSyncAt}
             productsCount={catalog.products.length}
             search={catalog.search}

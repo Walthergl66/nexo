@@ -32,6 +32,8 @@ use App\Modules\Profiles\Http\Controllers\CheckProfileAvailabilityController;
 use App\Modules\Profiles\Http\Controllers\CompleteProfileController;
 use App\Modules\Profiles\Http\Controllers\LookupIdentityController;
 use App\Modules\Profiles\Http\Controllers\MeController;
+use App\Modules\Profiles\Http\Controllers\SearchUsersController;
+use App\Modules\Profiles\Http\Controllers\ShowPublicProfileController;
 use App\Modules\Reviews\Http\Controllers\CreateReviewController;
 use App\Modules\Reviews\Http\Controllers\ListProductReviewsController;
 use App\Modules\Sellers\Http\Controllers\ListSellerVerificationRequestsController;
@@ -72,6 +74,12 @@ Route::post('/webhooks/stripe', StripeWebhookController::class);
 Route::middleware(['supabase.jwt', 'throttle:user'])->group(function (): void {
     Route::get('/me', MeController::class);
     Route::patch('/me/profile', CompleteProfileController::class);
+
+    // Descubrimiento social: buscar usuarios y visitar su perfil público. El
+    // orden importa: /users/search antes de /users/{profile} para que "search"
+    // no se tome como un id.
+    Route::get('/users/search', SearchUsersController::class);
+    Route::get('/users/{profile}', ShowPublicProfileController::class);
 
     Route::post('/seller-verification/request', SubmitSellerVerificationRequestController::class);
     Route::get('/seller-center', SellerCenterController::class);

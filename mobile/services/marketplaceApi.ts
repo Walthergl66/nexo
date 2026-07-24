@@ -8,6 +8,7 @@ import type {
   Product,
   Sale,
 } from '../types/marketplace';
+import type { PublicUser } from '../types/social';
 import {
   mapApiCartItemsToCartItems,
   mapApiCartSummary,
@@ -203,6 +204,7 @@ export type ProductQuery = {
   search?: string;
   /** Acepta id, slug o nombre de categoria. */
   category?: string;
+  store?: string;
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;
@@ -231,6 +233,11 @@ function buildProductsPath(query: ProductQuery = {}): string {
   // 'Todo' es el chip por defecto del movil: significa "sin filtro".
   if (category && category !== 'Todo') {
     params.set('category', category);
+  }
+
+  const store = query.store?.trim();
+  if (store) {
+    params.set('store', store);
   }
 
   if (typeof query.minPrice === 'number') {
@@ -758,6 +765,44 @@ export async function completeProfile(
   });
 
   return response.data;
+}
+
+// ─── Descubrimiento social ───────────────────────────────────────────────────
+
+function mapPublicUser(raw: unknown): PublicUser {
+  const data = (raw ?? {}) as Record<string, unknown>;
+  const store = data.store as Record<string, unknown> | null | undefined;
+
+  return {
+    id: String(data.id ?? ''),
+    displayName: typeof data.display_name === 'string' ? data.display_name : null,
+    avatarUrl: typeof data.avatar_url === 'string' ? data.avatar_url : null,
+    role: typeof data.role === 'string' ? data.role : 'buyer',
+    isVerified: data.is_verified === true,
+    store: store
+      ? {
+          id: String(store.id ?? ''),
+          slug: String(store.slug ?? ''),
+          name: String(store.name ?? ''),
+          description: typeof store.description === 'string' ? store.description : null,
+          logoUrl: typeof store.logo_url === 'string' ? store.logo_url : null,
+          bannerUrl: typeof store.banner_url === 'string' ? store.banner_url : null,
+          status: String(store.status ?? 'active'),
+        }
+      : null,
+  };
+}
+
+export async function searchUsers(query: string, token?: string): Promise<PublicUser[]> {
+  const response = await request<ApiCollection<unknown>>(`/users/search?q=${encodeURIComponent(query)}`, { token });
+
+  return response.data.map(mapPublicUser);
+}
+
+export async function fetchPublicProfile(userId: string, token?: string): Promise<PublicUser> {
+  const response = await request<ApiDocument<unknown>>(`/users/${userId}`, { token });
+
+  return mapPublicUser(response.data);
 }
 
 // ─── Admin ───────────────────────────────────────────────────────────────────

@@ -15,8 +15,10 @@ import { Skeleton } from '../../components/common/Skeleton';
 import { ProductCard } from '../../components/cards/ProductCard';
 import { ProductDetailCard } from '../../components/cards/ProductDetailCard';
 import { HeroSection } from '../../components/home/HeroSection';
+import { UserSearchResults } from '../../components/social/UserSearchResults';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Product } from '../../types/marketplace';
+import type { PublicUser } from '../../types/social';
 import { splitCatalogProducts } from '../../utils/catalogLayout';
 
 type HomeScreenProps = {
@@ -28,6 +30,9 @@ type HomeScreenProps = {
   isRefreshing: boolean;
   isLoadingMore?: boolean;
   hasMore?: boolean;
+  userResults?: PublicUser[];
+  isSearchingUsers?: boolean;
+  onOpenUser?: (user: PublicUser) => void;
   lastSyncAt: Date | null;
   productsCount: number;
   search: string;
@@ -122,6 +127,9 @@ export function HomeScreen({
   isRefreshing,
   isLoadingMore = false,
   hasMore = false,
+  userResults = [],
+  isSearchingUsers = false,
+  onOpenUser,
   lastSyncAt,
   productsCount,
   search,
@@ -213,6 +221,15 @@ export function HomeScreen({
           );
         })}
       </ScrollView>
+
+      {onOpenUser && (
+        <UserSearchResults
+          users={userResults}
+          isSearching={isSearchingUsers}
+          query={search}
+          onOpenUser={onOpenUser}
+        />
+      )}
 
       {!isLoading && featuredProducts.length > 0 && activeFilter === 'Todo' && (
         <View style={styles.heroWrap}>
