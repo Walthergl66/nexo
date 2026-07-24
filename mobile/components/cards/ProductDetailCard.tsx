@@ -35,7 +35,9 @@ export function ProductDetailCard({
 }: ProductDetailCardProps) {
   const [hasImageError, setHasImageError] = useState(false);
   const showRealImage = Boolean(product.imageUrl) && !hasImageError;
-  const stockLabel = product.stock === 1 ? '1 disponible' : `${product.stock} disponibles`;
+  const isOutOfStock = !product.available || product.stock <= 0;
+  const hasLowStock = !isOutOfStock && product.stock <= 3;
+  const stockLabel = isOutOfStock ? 'Agotado' : product.stock === 1 ? 'Última unidad' : hasLowStock ? `Últimas ${product.stock}` : `${product.stock} disponibles`;
   const { isAdded, isLoading, progress, run } = useAddToCartFeedback(onAddToCart, { onSuccess: onCartAdded });
   const { isFavorite, toggleFavorite } = useFavorites();
   const isFav = isFavorite(product.id);
@@ -115,10 +117,10 @@ export function ProductDetailCard({
           <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={18} color={isFav ? colors.brandAccent : colors.ink} />
         </Pressable>
 
-        <View style={[styles.statusPill, !product.available && styles.statusPillOff]}>
-          <View style={[styles.statusDot, !product.available && styles.statusDotOff]} />
-          <Text style={[styles.statusText, !product.available && styles.statusTextOff]}>
-            {product.available ? 'Disponible' : 'Agotado'}
+        <View style={[styles.statusPill, isOutOfStock && styles.statusPillOff]}>
+          <View style={[styles.statusDot, isOutOfStock && styles.statusDotOff]} />
+          <Text style={[styles.statusText, isOutOfStock && styles.statusTextOff]}>
+            {isOutOfStock ? 'Agotado' : hasLowStock ? 'Pocas unidades' : 'Disponible'}
           </Text>
         </View>
 
@@ -169,7 +171,7 @@ export function ProductDetailCard({
         </View>
 
         <View style={styles.infoGrid}>
-          <View style={styles.infoItem}>
+          <View style={[styles.infoItem, hasLowStock && styles.infoItemWarning]}>
             <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
             <View style={styles.infoCopy}>
               <Text style={styles.infoLabel}>Inventario</Text>
@@ -177,13 +179,71 @@ export function ProductDetailCard({
             </View>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="cube-outline" size={16} color={colors.brandBlue} />
+            <Ionicons name="shield-checkmark-outline" size={16} color={colors.brandBlue} />
             <View style={styles.infoCopy}>
               <Text style={styles.infoLabel}>Envio</Text>
               <Text numberOfLines={1} style={styles.infoValue}>Gratis y protegido</Text>
             </View>
           </View>
         </View>
+
+        {isOwn ? (
+          <View style={styles.ownBanner}>
+            <Ionicons name="storefront-outline" size={18} color={colors.brandBlue} />
+            <Text style={styles.ownBannerText}>Este es tu producto. Gestiona sus ventas desde la pestaña Vender.</Text>
+          </View>
+        ) : (
+          <View style={styles.bottomActions}>
+            <View style={styles.protection}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
+              <Text style={styles.protectionText}>Compra protegida</Text>
+            </View>
+            <PressableScale
+              accessibilityLabel={
+                isOutOfStock
+                  ? `${product.title} está agotado`
+                  : isAuthenticated
+                    ? `Agregar ${product.title} al carrito por ${formatPrice(product.price)}`
+                    : 'Iniciar sesión para comprar'
+              }
+              disabled={isOutOfStock || isLoading}
+              style={[
+                styles.addCartButton,
+                isOutOfStock && styles.addCartButtonDisabled,
+                isAdded && styles.addCartButtonSuccess,
+              ]}
+              onPress={() => void run()}
+            >
+              {isLoading ? (
+                <ActivityIndicator size={18} color={colors.surface} />
+              ) : (
+                <>
+                  <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
+                    <Ionicons
+                      name={isOutOfStock ? 'close-circle-outline' : isAuthenticated ? 'bag-add-outline' : 'log-in-outline'}
+                      size={18}
+                      color={colors.surface}
+                    />
+                    <Text style={styles.addCartText}>
+                      {isOutOfStock
+                        ? 'Agotado'
+                        : isAuthenticated
+                          ? `Agregar · ${formatPrice(product.price)}`
+                          : 'Iniciar sesión'}
+                    </Text>
+                  </Animated.View>
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
+                  >
+                    <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
+                    <Text style={styles.addCartText}>Agregado</Text>
+                  </Animated.View>
+                </>
+              )}
+            </PressableScale>
+          </View>
+        )}
 
         <View style={styles.descriptionBlock}>
           <Text style={styles.sectionTitle}>Descripcion</Text>
@@ -202,46 +262,6 @@ export function ProductDetailCard({
           />
         </View>
 
-        {isOwn ? (
-          <View style={styles.ownBanner}>
-            <Ionicons name="storefront-outline" size={18} color={colors.brandBlue} />
-            <Text style={styles.ownBannerText}>Este es tu producto. Gestiona sus ventas desde la pestana Vender.</Text>
-          </View>
-        ) : (
-          <View style={styles.bottomActions}>
-            <View style={styles.protection}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={colors.ink} />
-              <Text style={styles.protectionText}>Compra protegida</Text>
-            </View>
-            <PressableScale
-              disabled={!product.available || isLoading}
-              style={[
-                styles.addCartButton,
-                !product.available && styles.addCartButtonDisabled,
-                isAdded && styles.addCartButtonSuccess,
-              ]}
-              onPress={() => void run()}
-            >
-              {isLoading ? (
-                <ActivityIndicator size={18} color={colors.surface} />
-              ) : (
-                <>
-                  <Animated.View style={[styles.addCartInner, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
-                    <Ionicons name={isAuthenticated ? 'bag-add-outline' : 'log-in-outline'} size={18} color={colors.surface} />
-                    <Text style={styles.addCartText}>{isAuthenticated ? 'Agregar al carrito' : 'Iniciar sesion'}</Text>
-                  </Animated.View>
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[styles.addCartInner, styles.addCartSuccessLayer, { opacity: successOpacity, transform: [{ scale: pop }] }]}
-                  >
-                    <Ionicons name="checkmark-circle" size={19} color={colors.surface} />
-                    <Text style={styles.addCartText}>Agregado</Text>
-                  </Animated.View>
-                </>
-              )}
-            </PressableScale>
-          </View>
-        )}
       </Animated.View>
     </View>
   );
@@ -510,6 +530,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  infoItemWarning: {
+    backgroundColor: '#FFF8E8',
+    borderWidth: 1,
+    borderColor: '#F1D391',
   },
   infoCopy: {
     flex: 1,
