@@ -7,6 +7,7 @@ import { Skeleton } from '../common/Skeleton';
 import { Tag } from '../common/Tag';
 import { OrdersScreen } from '../../app/orders/OrdersScreen';
 import { useFavorites } from '../../context/FavoritesContext';
+import { useSellerSales } from '../../hooks/sell/useSellerSales';
 import type { ProfileResource } from '../../services/marketplaceApi';
 import type { Product } from '../../types/marketplace';
 import type { ConfirmActionRequest, StatusTone } from '../../types/status';
@@ -51,12 +52,16 @@ export function AuthenticatedAccountPanel({
   onSell,
 }: AuthenticatedAccountPanelProps) {
   const canRequestSellerVerification = profile.role === 'buyer' && profile.verification_status !== 'suspended';
+  const isApprovedSeller = profile.role === 'seller' && profile.verification_status === 'approved';
   const initials = useMemo(() => getInitials(profile), [profile]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [section, setSection] = useState<ProfileSection>('posts');
   const roleLabel = getRoleLabel(profile.role);
   const statusLabel = getVerificationLabel(profile.verification_status);
   const publishedProducts = products.filter((product) => product.available);
+  // Ventas ya hechas (order items pagados de la tienda). Solo se pide si el
+  // usuario es vendedor aprobado; un comprador no tiene ventas.
+  const { sales } = useSellerSales({ accessToken, enabled: isApprovedSeller });
   const { isFavorite } = useFavorites();
   const favoriteProducts = useMemo(
     () => catalogProducts.filter((product) => isFavorite(product.id)),
@@ -102,7 +107,7 @@ export function AuthenticatedAccountPanel({
           <View style={styles.socialStats}>
             <ProfileStat label="Productos" value={String(products.length)} />
             <ProfileStat label="Activos" value={String(publishedProducts.length)} />
-            <ProfileStat label="Ventas" value="0" />
+            <ProfileStat label="Ventas" value={String(sales.length)} />
           </View>
 
           <View style={styles.profileHeaderActions}>
@@ -195,9 +200,15 @@ export function AuthenticatedAccountPanel({
           (products.length > 0 ? (
             <View style={styles.postGrid}>
               {products.map((product) => (
-                <View key={product.id} style={styles.postCell}>
+                <Pressable
+                  key={product.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver ${product.title}`}
+                  style={({ pressed }) => [styles.postCell, pressed && styles.buttonPressed]}
+                  onPress={() => onOpenProduct(product)}
+                >
                   <SellerProductCard product={product} />
-                </View>
+                </Pressable>
               ))}
             </View>
           ) : isLoadingProducts ? (
