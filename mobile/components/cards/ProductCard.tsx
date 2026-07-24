@@ -18,8 +18,15 @@ type ProductCardProps = {
 };
 
 export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCart, onSelectProduct, onCartAdded }: ProductCardProps) {
-  const addLabel = isAuthenticated ? `Agregar ${product.title} al carrito` : `Iniciar sesion para comprar ${product.title}`;
   const { isAdded, isLoading, progress, run } = useAddToCartFeedback(onAddToCart, { onSuccess: onCartAdded });
+  const isOutOfStock = !product.available || product.stock <= 0;
+  const hasLowStock = !isOutOfStock && product.stock <= 3;
+  const stockLabel = isOutOfStock ? 'Agotado' : hasLowStock ? `Últimas ${product.stock}` : `${product.stock} disponibles`;
+  const addLabel = isOutOfStock
+    ? `${product.title} está agotado`
+    : isAuthenticated
+      ? `Agregar ${product.title} al carrito`
+      : `Iniciar sesión para comprar ${product.title}`;
 
   const pop = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1], extrapolate: 'clamp' });
   const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -32,7 +39,19 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
       style={styles.container}
       onPress={onSelectProduct}
     >
-      <ProductVisual product={product} showFavorite imageWidth={500} />
+      <View style={styles.visualWrap}>
+        <ProductVisual product={product} showFavorite imageWidth={500} />
+        {(isOutOfStock || hasLowStock) && (
+          <View style={[styles.stockBadge, isOutOfStock ? styles.stockBadgeEmpty : styles.stockBadgeLow]}>
+            <Ionicons
+              name={isOutOfStock ? 'close-circle-outline' : 'alert-circle-outline'}
+              size={12}
+              color={isOutOfStock ? colors.inkMuted : '#8A5800'}
+            />
+            <Text style={[styles.stockBadgeText, isOutOfStock && styles.stockBadgeTextEmpty]}>{stockLabel}</Text>
+          </View>
+        )}
+      </View>
 
       <Text numberOfLines={2} style={styles.title}>
         {product.title}
@@ -52,7 +71,9 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
       <View style={styles.bottomRow}>
         <View>
           <Text style={styles.price}>{formatPrice(product.price)}</Text>
-          <Text style={styles.priceHint}>{product.stock} disponibles</Text>
+          <Text style={[styles.priceHint, hasLowStock && styles.priceHintLow, isOutOfStock && styles.priceHintEmpty]}>
+            {stockLabel}
+          </Text>
         </View>
         {isOwn ? (
           <View style={styles.ownTag}>
@@ -62,10 +83,10 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
         ) : (
           <PressableScale
             accessibilityLabel={addLabel}
-            disabled={!product.available || isLoading}
+            disabled={isOutOfStock || isLoading}
             style={[
               styles.addButton,
-              !product.available && styles.addButtonDisabled,
+              isOutOfStock && styles.addButtonDisabled,
               isAdded && styles.addButtonSuccess,
             ]}
             onPress={(event) => {
@@ -78,7 +99,7 @@ export function ProductCard({ product, isAuthenticated, isOwn = false, onAddToCa
             ) : (
               <>
                 <Animated.Text style={[styles.addButtonText, { opacity: labelOpacity, transform: [{ scale: pop }] }]}>
-                  {isAuthenticated ? 'Comprar' : 'Entrar'}
+                  {isOutOfStock ? 'Agotado' : isAuthenticated ? 'Comprar' : 'Entrar'}
                 </Animated.Text>
                 <Animated.View
                   pointerEvents="none"
@@ -103,6 +124,37 @@ const styles = StyleSheet.create({
     padding: 12,
     overflow: 'hidden',
     ...shadows.card,
+  },
+  visualWrap: {
+    position: 'relative',
+  },
+  stockBadge: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    minHeight: 25,
+    borderRadius: radii.pill,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+  },
+  stockBadgeLow: {
+    backgroundColor: '#FFF8E8',
+    borderColor: '#F1D391',
+  },
+  stockBadgeEmpty: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.lineStrong,
+  },
+  stockBadgeText: {
+    color: '#8A5800',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  stockBadgeTextEmpty: {
+    color: colors.inkMuted,
   },
   title: {
     fontSize: 14,
@@ -150,6 +202,13 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '600',
     marginTop: 2,
+  },
+  priceHintLow: {
+    color: '#8A5800',
+    fontWeight: '700',
+  },
+  priceHintEmpty: {
+    color: colors.inkMuted,
   },
   addButton: {
     minWidth: 64,
