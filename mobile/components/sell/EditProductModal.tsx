@@ -1,4 +1,5 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii } from '../../theme/colors';
 import type { CategoryResource, ProductForm } from '../../types/sell';
 import { ProductCreateForm } from './ProductCreateForm';
@@ -40,11 +41,33 @@ export function EditProductModal({
   onTakeImage,
   onRefreshCategories,
 }: EditProductModalProps) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isPhone = width < 600;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <Modal
+      visible={visible}
+      transparent
+      animationType={isPhone ? 'slide' : 'fade'}
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      onRequestClose={onCancel}
+    >
+      <View style={[styles.overlay, isPhone && styles.overlayPhone]}>
+        <View
+          accessibilityViewIsModal
+          style={[
+            styles.modal,
+            isPhone && styles.modalPhone,
+            isPhone && { paddingBottom: Math.max(insets.bottom, 10) },
+          ]}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <ProductCreateForm
               categories={categories}
               categoryError={categoryError}
@@ -61,16 +84,20 @@ export function EditProductModal({
               submitLabel="Guardar cambios"
               submitIcon="checkmark-circle"
             />
-            <Pressable
-              accessibilityLabel="Cancelar edicion"
-              accessibilityRole="button"
-              disabled={isSaving}
-              style={({ pressed }) => [styles.cancelBtn, pressed && styles.cancelBtnPressed]}
-              onPress={onCancel}
-            >
-              <Text style={styles.cancelText}>Cancelar</Text>
-            </Pressable>
           </ScrollView>
+          <Pressable
+            accessibilityLabel="Cancelar edicion"
+            accessibilityRole="button"
+            disabled={isSaving}
+            style={({ pressed }) => [
+              styles.cancelBtn,
+              isSaving && styles.cancelBtnDisabled,
+              pressed && styles.cancelBtnPressed,
+            ]}
+            onPress={onCancel}
+          >
+            <Text style={styles.cancelText}>Cancelar</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -82,24 +109,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 40,
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 24,
+  },
+  overlayPhone: {
+    justifyContent: 'flex-end',
+    paddingHorizontal: 0,
+    paddingTop: 24,
+    paddingBottom: 0,
   },
   modal: {
-    maxHeight: '100%',
+    width: '100%',
+    maxWidth: 620,
+    maxHeight: '92%',
     backgroundColor: colors.background,
     borderRadius: 22,
-    padding: 12,
+    padding: 10,
     overflow: 'hidden',
+    shadowColor: '#0B2239',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.22,
+    shadowRadius: 30,
+    elevation: 12,
+  },
+  modalPhone: {
+    maxWidth: '100%',
+    maxHeight: '94%',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  scrollContent: {
+    paddingBottom: 2,
   },
   cancelBtn: {
-    marginTop: 10,
+    marginTop: 8,
     height: 46,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  cancelBtnDisabled: {
+    opacity: 0.6,
   },
   cancelBtnPressed: {
     opacity: 0.7,
