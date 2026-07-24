@@ -409,6 +409,20 @@ export async function payOrder(orderId: string, token?: string): Promise<Order> 
   return mapApiOrderToOrder(response.data);
 }
 
+/**
+ * Inicia el pago con Stripe: pide al backend una Checkout Session y devuelve la
+ * URL a la que hay que mandar al comprador. El pago se confirma por webhook, no
+ * al volver de esta URL, asi que la app debe refrescar la orden al regresar.
+ */
+export async function createCheckoutSession(orderId: string, token?: string): Promise<string> {
+  const response = await request<ApiDocument<{ checkout_url: string }>>(`/orders/${orderId}/checkout`, {
+    method: 'POST',
+    token,
+  });
+
+  return response.data.checkout_url;
+}
+
 export type NotificationsSnapshot = {
   notifications: AppNotification[];
   unreadCount: number;

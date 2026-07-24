@@ -44,6 +44,8 @@ class Order extends Model
         'shipping_cents',
         'total_cents',
         'metadata',
+        'stripe_session_id',
+        'stripe_payment_intent_id',
     ];
 
     /**

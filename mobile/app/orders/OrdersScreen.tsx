@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { AppState, Linking, StyleSheet, Text, View } from 'react-native';
 import { LogicCard } from '../../components/cards/LogicCard';
 import { OrderCard } from '../../components/cards/OrderCard';
 import { SectionTitle } from '../../components/common/SectionTitle';
-import { fetchOrders, payOrder } from '../../services/marketplaceApi';
+import { createCheckoutSession, fetchOrders } from '../../services/marketplaceApi';
 import { colors, radii, shadows } from '../../theme/colors';
 import type { Order } from '../../types/marketplace';
 import type { StatusTone } from '../../types/status';
@@ -23,30 +23,35 @@ export function OrdersScreen({ accessToken, onStatusMessage }: OrdersScreenProps
   const activeOrders = remoteOrders.filter((order) => !CLOSED_STATUSES.includes(order.status)).length;
   const deliveredOrders = remoteOrders.filter((order) => order.status === 'delivered').length;
 
-  useEffect(() => {
-    if (!isAuthenticated) {
+  const loadOrders = useCallback(async () => {
+    if (!accessToken) {
       setRemoteOrders([]);
       return;
     }
 
-    let isMounted = true;
+    try {
+      setRemoteOrders(await fetchOrders(accessToken));
+    } catch {
+      // Se conserva lo que ya estaba en pantalla; un fallo de red no debe
+      // vaciar la lista de pedidos.
+    }
+  }, [accessToken]);
 
-    fetchOrders(accessToken ?? undefined)
-      .then((items) => {
-        if (isMounted) {
-          setRemoteOrders(items);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setRemoteOrders([]);
-        }
-      });
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [accessToken, isAuthenticated]);
+  // Al volver de Stripe (o de cualquier salida a otra app) se recargan los
+  // pedidos: el webhook ya habra confirmado el pago para entonces.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void loadOrders();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [loadOrders]);
 
   const handlePay = useCallback(
     async (orderId: string) => {
@@ -57,11 +62,11 @@ export function OrdersScreen({ accessToken, onStatusMessage }: OrdersScreenProps
       setPayingId(orderId);
 
       try {
-        const updated = await payOrder(orderId, accessToken);
-        setRemoteOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)));
-        onStatusMessage?.('Pago confirmado.', 'success');
+        const checkoutUrl = await createCheckoutSession(orderId, accessToken);
+        await Linking.openURL(checkoutUrl);
+        onStatusMessage?.('Te llevamos a Stripe para completar el pago.', 'info');
       } catch {
-        onStatusMessage?.('No pudimos confirmar el pago. Intenta nuevamente.', 'error');
+        onStatusMessage?.('No pudimos iniciar el pago. Intenta nuevamente.', 'error');
       } finally {
         setPayingId(null);
       }

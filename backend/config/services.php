@@ -33,6 +33,20 @@ return [
         'timeout' => (int) env('IDENTITY_LOOKUP_TIMEOUT', 8),
     ],
 
+    'stripe' => [
+        // Clave secreta (sk_test_... en modo demo). El cobro se crea server-side.
+        'secret' => env('STRIPE_SECRET'),
+        // Secreto de firma del webhook (whsec_...). Sin esto no se confia en
+        // ningun evento entrante: cualquiera podria hacer POST a /webhooks/stripe.
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        // A donde vuelve el navegador tras pagar o cancelar. En el demo son
+        // paginas simples; la verdad del pago la trae el webhook, no esta URL.
+        'success_url' => env('STRIPE_SUCCESS_URL', rtrim((string) env('APP_URL'), '/').'/checkout/success'),
+        'cancel_url' => env('STRIPE_CANCEL_URL', rtrim((string) env('APP_URL'), '/').'/checkout/cancel'),
+        // Margen de reloj aceptado en la firma del webhook, en segundos.
+        'signature_tolerance' => (int) env('STRIPE_SIGNATURE_TOLERANCE', 300),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

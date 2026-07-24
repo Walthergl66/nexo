@@ -16,6 +16,11 @@ class PayOrderController extends Controller
 
     public function __invoke(Request $request, Order $order): JsonResponse
     {
+        // Pago directo sin pasarela: da la orden por pagada con solo pedirlo.
+        // Se deja unicamente fuera de produccion para pruebas y para el flujo de
+        // demo sin Stripe. En produccion el unico camino es Stripe + webhook.
+        abort_if(app()->isProduction(), 404);
+
         /** @var Profile $profile */
         $profile = $request->attributes->get('profile');
 

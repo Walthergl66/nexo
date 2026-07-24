@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing } from 'react-native';
+import { Animated, Easing, Linking } from 'react-native';
 import {
   addProductToCart,
   ApiRequestError,
+  createCheckoutSession,
   createOrderFromCart,
   emptyCartSnapshot,
   fetchCart,
-  payOrder,
   removeCartItem,
   updateCartItemQuantity,
   type ProfileResource,
@@ -313,11 +313,14 @@ export function useCart({
     setCartSummary(EMPTY_SUMMARY);
 
     try {
-      await payOrder(order.id, accessToken);
-      onStatusMessage?.('Compra realizada. Tu pago fue confirmado.', 'success');
+      // Abrimos Stripe Checkout. El pago se confirma por webhook, no aqui: al
+      // volver a la app, la pantalla de Pedidos recarga y refleja el estado.
+      const checkoutUrl = await createCheckoutSession(order.id, accessToken);
+      await Linking.openURL(checkoutUrl);
+      onStatusMessage?.('Te llevamos a Stripe para completar el pago.', 'info');
     } catch {
       onStatusMessage?.(
-        'Orden creada, pero el pago quedo pendiente. Puedes reintentarlo desde Pedidos.',
+        'Creamos tu orden, pero no pudimos abrir el pago. Puedes reintentarlo desde Pedidos.',
         'warning',
       );
     }

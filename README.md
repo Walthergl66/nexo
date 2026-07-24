@@ -154,6 +154,30 @@ php artisan migrate
 psql "CONNECTION_STRING" -f ../backups/nexo-data-AAAAMMDD-HHMMSS.sql
 ```
 
+## Pagos con Stripe (modo test)
+
+El pago usa **Stripe Checkout** en modo test. El flujo real es: la app pide una sesión de pago, el comprador paga en Stripe, y Stripe confirma por **webhook firmado** — el backend nunca da una orden por pagada porque el cliente lo diga.
+
+Variables en `backend/.env` (claves de prueba del dashboard de Stripe):
+
+```dotenv
+STRIPE_SECRET=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_SUCCESS_URL=http://localhost:8010/checkout/success
+STRIPE_CANCEL_URL=http://localhost:8010/checkout/cancel
+```
+
+Para recibir los webhooks en local, con la [Stripe CLI](https://stripe.com/docs/stripe-cli):
+
+```bash
+stripe login
+stripe listen --forward-to http://127.0.0.1:8010/api/webhooks/stripe
+```
+
+El `whsec_...` que imprime `stripe listen` es el `STRIPE_WEBHOOK_SECRET`. Tarjeta de prueba: `4242 4242 4242 4242`, cualquier fecha futura y CVC.
+
+> Endpoints: `POST /api/orders/{order}/checkout` (autenticado, devuelve `checkout_url`) y `POST /api/webhooks/stripe` (público, verificado por firma). El viejo `POST /api/orders/{order}/pay` queda solo fuera de producción para pruebas.
+
 ## Tests
 
 ```bash

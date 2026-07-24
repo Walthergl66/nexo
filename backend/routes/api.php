@@ -19,6 +19,8 @@ use App\Modules\Orders\Http\Controllers\ListSellerSalesController;
 use App\Modules\Orders\Http\Controllers\PayOrderController;
 use App\Modules\Orders\Http\Controllers\ShowOrderController;
 use App\Modules\Orders\Http\Controllers\UpdateSaleStatusController;
+use App\Modules\Payments\Http\Controllers\CreateCheckoutSessionController;
+use App\Modules\Payments\Http\Controllers\StripeWebhookController;
 use App\Modules\Products\Http\Controllers\CreateProductController;
 use App\Modules\Products\Http\Controllers\DeleteProductController;
 use App\Modules\Products\Http\Controllers\ListMyProductsController;
@@ -59,6 +61,10 @@ Route::get('/identity/lookup', LookupIdentityController::class)
 Route::get('/profiles/availability', CheckProfileAvailabilityController::class)
     ->middleware('throttle:availability');
 
+// Webhook de Stripe: publico por necesidad (lo llama Stripe, no un usuario) y se
+// autentica por la firma del cuerpo, no por token. Fuera del grupo supabase.jwt.
+Route::post('/webhooks/stripe', StripeWebhookController::class);
+
 // El orden importa: supabase.jwt corre primero y deja el perfil en los
 // atributos de la peticion, que es lo que throttle:user usa para contar por
 // persona en vez de por IP.
@@ -89,6 +95,7 @@ Route::middleware(['supabase.jwt', 'throttle:user'])->group(function (): void {
 
     Route::get('/orders', ListOrdersController::class);
     Route::post('/orders/from-cart', CreateOrderFromCartController::class);
+    Route::post('/orders/{order}/checkout', CreateCheckoutSessionController::class);
     Route::post('/orders/{order}/pay', PayOrderController::class);
     Route::get('/orders/{order}', ShowOrderController::class);
 
