@@ -173,6 +173,30 @@ export function HomeScreen({
   const syncLabel = lastSyncAt
     ? `Actualizado ${lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Conectando';
+  const normalizedSearch = search.trim();
+  const emptyState = normalizedSearch
+    ? {
+        icon: 'search-outline' as const,
+        title: 'Sin resultados para tu búsqueda',
+        description: `No encontramos productos que coincidan con “${normalizedSearch}”.`,
+        action: 'Limpiar búsqueda',
+        onPress: () => onChangeSearch(''),
+      }
+    : activeFilter !== 'Todo'
+      ? {
+          icon: 'pricetag-outline' as const,
+          title: `Aún no hay productos en ${activeFilter}`,
+          description: 'Puedes explorar todas las categorías mientras se agregan nuevos productos.',
+          action: 'Ver todos los productos',
+          onPress: () => onChangeFilter('Todo'),
+        }
+      : {
+          icon: 'storefront-outline' as const,
+          title: 'El catálogo está esperando productos',
+          description: 'Actualiza para comprobar si ya hay nuevas publicaciones disponibles.',
+          action: 'Actualizar catálogo',
+          onPress: onRefreshCatalog,
+        };
 
   return (
     <>
@@ -290,10 +314,18 @@ export function HomeScreen({
       {!isLoading && filteredProducts.length === 0 && (
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
-            <Ionicons name="search-outline" size={26} color={colors.brandBlue} />
+            <Ionicons name={emptyState.icon} size={26} color={colors.brandBlue} />
           </View>
-          <Text style={styles.emptyTitle}>No encontramos productos</Text>
-          <Text style={styles.emptyText}>Prueba otra categoría o una búsqueda más corta.</Text>
+          <Text style={styles.emptyTitle}>{emptyState.title}</Text>
+          <Text style={styles.emptyText}>{emptyState.description}</Text>
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.emptyAction, pressed && styles.pressFeedback]}
+            onPress={emptyState.onPress}
+          >
+            <Text style={styles.emptyActionText}>{emptyState.action}</Text>
+            <Ionicons name="arrow-forward" size={15} color={colors.surface} />
+          </Pressable>
         </View>
       )}
     </>
@@ -437,6 +469,22 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  emptyAction: {
+    minHeight: 42,
+    marginTop: 5,
+    paddingHorizontal: 18,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandBlue,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  emptyActionText: {
+    color: colors.surface,
+    fontSize: 12,
+    fontWeight: '700',
   },
   heroWrap: {
     marginHorizontal: -20,
