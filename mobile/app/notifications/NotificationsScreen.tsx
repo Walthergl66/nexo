@@ -25,6 +25,9 @@ export function NotificationsScreen({
   onMarkRead,
   onMarkAllRead,
 }: NotificationsScreenProps) {
+  const unreadNotifications = notifications.filter((notification) => notification.readAt === null);
+  const previousNotifications = notifications.filter((notification) => notification.readAt !== null);
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -34,12 +37,13 @@ export function NotificationsScreen({
         <View style={styles.headerCopy}>
           <Text style={styles.title}>Notificaciones</Text>
           <Text style={styles.subtitle}>
-            {unreadCount > 0 ? `${unreadCount} sin leer` : 'Estas al dia'}
+            {unreadCount > 0 ? `${unreadCount} sin leer` : 'Estás al día'}
           </Text>
         </View>
         {unreadCount > 0 && (
-          <Pressable style={styles.markAll} onPress={onMarkAllRead}>
-            <Text style={styles.markAllText}>Marcar todo</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Marcar todas como leídas" style={styles.markAll} onPress={onMarkAllRead}>
+            <Ionicons name="checkmark-done-outline" size={15} color={colors.brandBlue} />
+            <Text style={styles.markAllText}>Leer todas</Text>
           </Pressable>
         )}
       </View>
@@ -49,32 +53,75 @@ export function NotificationsScreen({
           <Ionicons name="notifications-off-outline" size={30} color={colors.inkMuted} />
           <Text style={styles.emptyTitle}>Sin notificaciones</Text>
           <Text style={styles.emptyBody}>
-            Aqui veras tus ventas, pagos, cambios de estado de tus ordenes y avisos de stock.
+            Aquí verás tus ventas, pagos, cambios de estado de tus órdenes y avisos de stock.
           </Text>
         </View>
       ) : (
         <View style={styles.list}>
-          {notifications.map((notification) => (
-            <Pressable
-              key={notification.id}
-              style={[styles.card, notification.readAt === null && styles.cardUnread]}
-              onPress={() => onMarkRead(notification.id)}
-            >
-              <View style={styles.iconWrap}>
-                <Ionicons name={TYPE_ICONS[notification.type]} size={18} color={colors.brandBlue} />
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{notification.title}</Text>
-                <Text style={styles.cardText}>{notification.body}</Text>
-                {formatDate(notification.createdAt) ? (
-                  <Text style={styles.cardDate}>{formatDate(notification.createdAt)}</Text>
-                ) : null}
-              </View>
-              {notification.readAt === null && <View style={styles.unreadDot} />}
-            </Pressable>
-          ))}
+          {unreadNotifications.length > 0 && (
+            <NotificationGroup
+              title="Nuevas"
+              notifications={unreadNotifications}
+              onMarkRead={onMarkRead}
+            />
+          )}
+          {previousNotifications.length > 0 && (
+            <NotificationGroup
+              title={unreadNotifications.length > 0 ? 'Anteriores' : 'Actividad reciente'}
+              notifications={previousNotifications}
+              onMarkRead={onMarkRead}
+            />
+          )}
         </View>
       )}
+    </View>
+  );
+}
+
+function NotificationGroup({
+  title,
+  notifications,
+  onMarkRead,
+}: {
+  title: string;
+  notifications: AppNotification[];
+  onMarkRead: (notificationId: string) => void;
+}) {
+  return (
+    <View style={styles.group}>
+      <View style={styles.groupHeader}>
+        <Text style={styles.groupTitle}>{title}</Text>
+        <Text style={styles.groupCount}>{notifications.length}</Text>
+      </View>
+      {notifications.map((notification) => {
+        const isUnread = notification.readAt === null;
+
+        return (
+          <Pressable
+            key={notification.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${isUnread ? 'Sin leer. ' : ''}${notification.title}`}
+            style={({ pressed }) => [
+              styles.card,
+              isUnread && styles.cardUnread,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() => onMarkRead(notification.id)}
+          >
+            <View style={[styles.iconWrap, isUnread && styles.iconWrapUnread]}>
+              <Ionicons name={TYPE_ICONS[notification.type]} size={18} color={colors.brandBlue} />
+            </View>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{notification.title}</Text>
+              <Text style={styles.cardText}>{notification.body}</Text>
+              {formatDate(notification.createdAt) ? (
+                <Text style={styles.cardDate}>{formatDate(notification.createdAt)}</Text>
+              ) : null}
+            </View>
+            {isUnread && <View style={styles.unreadDot} />}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -90,7 +137,19 @@ function formatDate(value: string | null): string {
     return '';
   }
 
-  return date.toLocaleString();
+  const elapsed = Date.now() - date.getTime();
+  const minutes = Math.floor(elapsed / 60000);
+
+  if (minutes < 1) return 'Ahora';
+  if (minutes < 60) return `Hace ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Hace ${hours} h`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Hace ${days} ${days === 1 ? 'día' : 'días'}`;
+
+  return date.toLocaleDateString([], { day: '2-digit', month: 'short' });
 }
 
 const styles = StyleSheet.create({
@@ -134,6 +193,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.brandBlueLine,
     backgroundColor: colors.brandBlueSoft,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   markAllText: {
     color: colors.brandBlue,
@@ -160,7 +222,31 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   list: {
+    gap: 18,
+  },
+  group: {
     gap: 10,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  groupTitle: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  groupCount: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    color: colors.inkMuted,
+    fontSize: 10,
+    lineHeight: 24,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   card: {
     flexDirection: 'row',
@@ -177,6 +263,10 @@ const styles = StyleSheet.create({
     borderColor: colors.brandBlueLine,
     backgroundColor: colors.brandBlueSoft,
   },
+  cardPressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.99 }],
+  },
   iconWrap: {
     width: 38,
     height: 38,
@@ -186,6 +276,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.brandBlueLine,
+  },
+  iconWrapUnread: {
+    backgroundColor: colors.surface,
   },
   cardBody: {
     flex: 1,
