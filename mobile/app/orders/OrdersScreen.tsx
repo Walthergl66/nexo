@@ -17,6 +17,12 @@ type OrdersScreenProps = {
 };
 
 const CLOSED_STATUSES: Order['status'][] = ['delivered', 'cancelled'];
+const ORDER_GUIDE = [
+  { icon: 'card-outline' as const, title: 'Pago', description: 'Confirmado por la pasarela' },
+  { icon: 'cube-outline' as const, title: 'Preparando', description: 'La tienda alista tu compra' },
+  { icon: 'navigate-outline' as const, title: 'En camino', description: 'El pedido fue enviado' },
+  { icon: 'checkmark-circle-outline' as const, title: 'Entregado', description: 'La compra fue completada' },
+];
 
 export function OrdersScreen({ accessToken, onStatusMessage, onConfirmAction }: OrdersScreenProps) {
   const [remoteOrders, setRemoteOrders] = useState<Order[]>([]);
@@ -175,6 +181,26 @@ export function OrdersScreen({ accessToken, onStatusMessage, onConfirmAction }: 
           <MetricTile label="Activos" value={String(activeOrders)} />
           <MetricTile label="Entregados" value={String(deliveredOrders)} />
         </View>
+        <View style={styles.guideBlock}>
+          <View style={styles.guideHeading}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.brandBlue} />
+            <Text style={styles.guideTitle}>Cómo leer el seguimiento</Text>
+          </View>
+          <View style={styles.guideGrid}>
+            {ORDER_GUIDE.map((step, index) => (
+              <View key={step.title} style={styles.guideItem}>
+                <View style={styles.guideIcon}>
+                  <Text style={styles.guideNumber}>{index + 1}</Text>
+                  <Ionicons name={step.icon} size={15} color={colors.brandBlue} />
+                </View>
+                <View style={styles.guideCopy}>
+                  <Text style={styles.guideItemTitle}>{step.title}</Text>
+                  <Text style={styles.guideDescription}>{step.description}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
       </View>
 
       {remoteOrders.length > 0 ? (
@@ -281,6 +307,75 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginTop: 3,
+  },
+  guideBlock: {
+    paddingTop: 13,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    gap: 10,
+  },
+  guideHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  guideTitle: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  guideGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  guideItem: {
+    width: '48.5%',
+    minHeight: 58,
+    borderRadius: radii.small,
+    backgroundColor: colors.surfaceMuted,
+    padding: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  guideIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: colors.brandBlueSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guideNumber: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: colors.brandBlue,
+    color: colors.surface,
+    fontSize: 8,
+    lineHeight: 15,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  guideCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  guideItemTitle: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  guideDescription: {
+    color: colors.inkMuted,
+    fontSize: 9,
+    fontWeight: '600',
+    lineHeight: 12,
+    marginTop: 2,
   },
   orderList: {
     gap: 0,
