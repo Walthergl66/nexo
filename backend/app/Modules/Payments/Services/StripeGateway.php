@@ -5,6 +5,7 @@ namespace App\Modules\Payments\Services;
 use App\Models\Order;
 use App\Modules\Payments\Exceptions\WebhookSignatureException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -60,6 +61,14 @@ class StripeGateway
             ]);
 
         if (! $response->successful()) {
+            // El motivo real de Stripe (clave invalida, success_url no absoluta,
+            // etc.) solo queda en el log; al usuario se le da un mensaje neutro.
+            Log::warning('Stripe checkout session failed', [
+                'order_id' => $order->id,
+                'status' => $response->status(),
+                'stripe_error' => $response->json('error.message') ?? $response->body(),
+            ]);
+
             throw ValidationException::withMessages([
                 'payment' => 'No se pudo iniciar el pago. Intenta de nuevo.',
             ]);
